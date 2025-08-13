@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Star, Car, Info } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, DialogHeader } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Image from 'next/image';
@@ -52,7 +52,11 @@ export default function DriverListModal() {
                                             </Avatar>
                                         </DialogTrigger>
                                         <DialogContent className="p-0 max-w-xs">
-                                            <Image src={driver.img} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
+                                          <DialogHeader>
+                                            <DialogTitle className="sr-only">Foto de {driver.name}</DialogTitle>
+                                            <DialogDescription className="sr-only">Foto em tamanho maior do motorista {driver.name}.</DialogDescription>
+                                          </DialogHeader>
+                                          <Image src={driver.img} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
                                         </DialogContent>
                                     </Dialog>
                                    
