@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MapPin, Locate, Users, ArrowRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader } from '@/components/ui/dialog';
+import DriverListModal from './DriverListModal';
 
 export default function RideRequestForm() {
   return (
@@ -40,7 +42,16 @@ export default function RideRequestForm() {
             </div>
              <div className="space-y-2">
                 <Button className="w-full" size="lg">Pedir Corrida</Button>
-                <Button variant="outline" className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                           <DriverListModal />
+                        </DialogHeader>
+                    </DialogContent>
+                </Dialog>
              </div>
           </TabsContent>
           <TabsContent value="intercity" className="pt-6 space-y-6">
@@ -62,7 +73,16 @@ export default function RideRequestForm() {
                     Para viagens intermunicipais, você negocia o valor diretamente com o motorista.
                 </p>
             </div>
-             <Button className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+             <Dialog>
+                <DialogTrigger asChild>
+                    <Button className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                       <DriverListModal />
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </CardContent>
