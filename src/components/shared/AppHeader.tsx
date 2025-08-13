@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import Logo from '@/components/shared/Logo';
@@ -27,7 +30,7 @@ export default function AppHeader() {
               <span className="sr-only">Open user menu</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] p-0">
             <PassengerAuthForm />
           </DialogContent>
         </Dialog>

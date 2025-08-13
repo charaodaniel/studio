@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, PenSquare, ShieldCheck, History, MessageSquare } from 'lucide-react';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 export default function PassengerAuthForm() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -25,6 +26,12 @@ export default function PassengerAuthForm() {
   if (isLoggedIn) {
     return (
       <div className="w-full">
+         <DialogHeader className="p-6 pb-0">
+          <DialogTitle className="font-headline text-2xl">Meu Perfil</DialogTitle>
+          <DialogDescription>
+            Gerencie suas informações, histórico e segurança.
+          </DialogDescription>
+        </DialogHeader>
         <div className="flex flex-col items-center space-y-4 p-4 border-b">
           <Avatar className="h-24 w-24">
             <AvatarImage src="https://placehold.co/100x100.png" data-ai-hint="user avatar" alt="Passenger" />
@@ -68,53 +75,55 @@ export default function PassengerAuthForm() {
   }
 
   return (
-    <Tabs defaultValue="login" className="w-full">
-      <CardHeader>
-        <CardTitle className="font-headline">Acesso do Passageiro</CardTitle>
-        <CardDescription>Faça login ou crie uma conta para continuar.</CardDescription>
-      </CardHeader>
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="login">Login</TabsTrigger>
-        <TabsTrigger value="register">Registrar</TabsTrigger>
-      </TabsList>
-      <TabsContent value="login">
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2">
-              <Label htmlFor="email-login">Email</Label>
-              <Input id="email-login" type="email" placeholder="seu@email.com" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-login">Senha</Label>
-              <Input id="password-login" type="password" required />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90">Entrar</Button>
-          </CardFooter>
-        </form>
-      </TabsContent>
-      <TabsContent value="register">
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2">
-              <Label htmlFor="name-register">Nome</Label>
-              <Input id="name-register" placeholder="Seu nome" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email-register">Email</Label>
-              <Input id="email-register" type="email" placeholder="seu@email.com" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-register">Senha</Label>
-              <Input id="password-register" type="password" required />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full">Criar Conta</Button>
-          </CardFooter>
-        </form>
-      </TabsContent>
-    </Tabs>
+    <>
+      <DialogHeader className="p-6">
+        <DialogTitle className="font-headline text-2xl">Acesso do Passageiro</DialogTitle>
+        <DialogDescription>Faça login ou crie uma conta para continuar.</DialogDescription>
+      </DialogHeader>
+      <Tabs defaultValue="login" className="w-full px-6 pb-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="login">Login</TabsTrigger>
+          <TabsTrigger value="register">Registrar</TabsTrigger>
+        </TabsList>
+        <TabsContent value="login">
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4 pt-6 px-0">
+              <div className="space-y-2">
+                <Label htmlFor="email-login">Email</Label>
+                <Input id="email-login" type="email" placeholder="seu@email.com" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password-login">Senha</Label>
+                <Input id="password-login" type="password" required />
+              </div>
+            </CardContent>
+            <CardFooter className="px-0 pb-0">
+              <Button type="submit" className="w-full bg-accent hover:bg-accent/90">Entrar</Button>
+            </CardFooter>
+          </form>
+        </TabsContent>
+        <TabsContent value="register">
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4 pt-6 px-0">
+              <div className="space-y-2">
+                <Label htmlFor="name-register">Nome</Label>
+                <Input id="name-register" placeholder="Seu nome" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email-register">Email</Label>
+                <Input id="email-register" type="email" placeholder="seu@email.com" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password-register">Senha</Label>
+                <Input id="password-register" type="password" required />
+              </div>
+            </CardContent>
+            <CardFooter className="px-0 pb-0">
+              <Button type="submit" className="w-full">Criar Conta</Button>
+            </CardFooter>
+          </form>
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }
