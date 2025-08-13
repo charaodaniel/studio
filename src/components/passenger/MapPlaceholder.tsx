@@ -30,6 +30,7 @@ export default function MapPlaceholder() {
               <PopoverTrigger asChild style={driver.position} className="absolute">
                 <button className="relative flex items-center justify-center" aria-label={`Driver ${driver.name}`}>
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 delay-75"></span>
                   <Avatar className="h-10 w-10 border-2 border-primary-foreground shadow-md">
                      <AvatarImage src={driver.img} data-ai-hint="driver portrait" />
                     <AvatarFallback>{driver.name.charAt(0)}</AvatarFallback>
