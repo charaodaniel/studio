@@ -1,1 +1,5 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/optimal-negotiation-phrase.ts';
+import '@/ai/flows/fare-negotiation-tool.ts';
