@@ -11,17 +11,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import Image from 'next/image';
 
 const drivers = [
-    { id: 1, name: 'João Silva', vehicle: 'Toyota Corolla - ABC1234', rating: 4.8, img: 'https://placehold.co/128x128.png' },
-    { id: 2, name: 'Maria Souza', vehicle: 'Honda Civic - DEF5678', rating: 4.9, img: 'https://placehold.co/128x128.png' },
-    { id: 3, name: 'Carlos Lima', vehicle: 'Chevrolet Onix - GHI9012', rating: 4.7, img: 'https://placehold.co/128x128.png' },
-    { id: 4, name: 'Ana Pereira', vehicle: 'Hyundai HB20 - JKL3456', rating: 4.6, img: 'https://placehold.co/128x128.png' },
-    { id: 5, name: 'Roberto Andrade', vehicle: 'Chevrolet Onix - BRA2E19', rating: 4.9, img: 'https://placehold.co/128x128.png' },
-    { id: 6, name: 'Beatriz Costa', vehicle: 'Fiat Mobi - MNO7890', rating: 4.8, img: 'https://placehold.co/128x128.png' },
+    { id: 1, name: 'João Silva', vehicle: 'Toyota Corolla - ABC1234', rating: 4.8, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Toyota Corolla branco' },
+    { id: 2, name: 'Maria Souza', vehicle: 'Honda Civic - DEF5678', rating: 4.9, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Honda Civic preto' },
+    { id: 3, name: 'Carlos Lima', vehicle: 'Chevrolet Onix - GHI9012', rating: 4.7, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Chevrolet Onix prata' },
+    { id: 4, name: 'Ana Pereira', vehicle: 'Hyundai HB20 - JKL3456', rating: 4.6, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Hyundai HB20 vermelho' },
+    { id: 5, name: 'Roberto Andrade', vehicle: 'Chevrolet Onix - BRA2E19', rating: 4.9, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Chevrolet Onix branco' },
+    { id: 6, name: 'Beatriz Costa', vehicle: 'Fiat Mobi - MNO7890', rating: 4.8, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Fiat Mobi cinza' },
 ];
 
 export default function DriverListModal() {
     const [openDriverId, setOpenDriverId] = useState<number | null>(null);
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     const handleToggle = (driverId: number) => {
         setOpenDriverId(prevId => prevId === driverId ? null : driverId);
@@ -74,10 +73,15 @@ export default function DriverListModal() {
                                     </CollapsibleTrigger>
                                 </div>
                                 <CollapsibleContent>
-                                    <div className="px-4 pb-4 space-y-2">
-                                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                            <Car className="h-4 w-4" /> {driver.vehicle}
-                                        </p>
+                                    <div className="px-4 pb-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                                <Car className="h-4 w-4" /> {driver.vehicle}
+                                            </p>
+                                            <div className="relative aspect-video rounded-lg overflow-hidden">
+                                                <Image src={driver.vehicleImg} alt={driver.vehicleDescription} layout="fill" objectFit="cover" data-ai-hint="car photo" />
+                                            </div>
+                                        </div>
                                         <Button className="w-full bg-accent hover:bg-accent/90">Chamar</Button>
                                     </div>
                                 </CollapsibleContent>
