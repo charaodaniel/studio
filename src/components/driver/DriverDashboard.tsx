@@ -12,24 +12,24 @@ import ProfileForm from './ProfileForm'
 
 export default function DriverDashboard() {
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 sm:p-6">
       <header className="mb-6">
         <div className="bg-card p-4 rounded-lg shadow-sm flex flex-col sm:flex-row items-center gap-4">
-          <Avatar className="h-20 w-20">
+          <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
             <AvatarImage src="https://placehold.co/80x80.png" data-ai-hint="driver portrait" />
             <AvatarFallback>M</AvatarFallback>
           </Avatar>
           <div className="flex-grow text-center sm:text-left">
-            <h2 className="text-2xl font-bold font-headline">Roberto Andrade</h2>
-            <div className="flex items-center gap-2 text-muted-foreground justify-center sm:justify-start">
+            <h2 className="text-xl sm:text-2xl font-bold font-headline">Roberto Andrade</h2>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center sm:justify-start flex-wrap">
               <Car className="h-4 w-4" />
               <span>Chevrolet Onix - BRA2E19</span>
               <Badge variant="secondary">4.9 ★</Badge>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select defaultValue="online">
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

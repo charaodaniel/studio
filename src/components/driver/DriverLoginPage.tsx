@@ -7,8 +7,8 @@ import Logo from '@/components/shared/Logo';
 
 export default function DriverLoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm shadow-2xl">
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-8">
+      <Card className="w-full max-w-sm shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <Logo className="h-12 w-12 text-primary" />
