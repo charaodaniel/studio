@@ -38,7 +38,10 @@ export default function RideRequestForm() {
                 <Input id="destination-local" placeholder="Insira seu destino" />
               </div>
             </div>
-             <Button className="w-full" size="lg">Pedir Corrida</Button>
+             <div className="space-y-2">
+                <Button className="w-full" size="lg">Pedir Corrida</Button>
+                <Button variant="outline" className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+             </div>
           </TabsContent>
           <TabsContent value="intercity" className="pt-6 space-y-6">
             <div className="space-y-2">
