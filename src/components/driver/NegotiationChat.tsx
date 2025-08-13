@@ -5,10 +5,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { negotiateIntercityFare } from '@/ai/flows/fare-negotiation-tool';
-import { Wand2, Send, Bot, User } from 'lucide-react';
+import { Wand2, Send, Bot, User, Handshake } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
+import { Avatar, AvatarFallback } from '../ui/avatar';
 
 export default function NegotiationChat() {
   const [driverMessage, setDriverMessage] = useState('');

@@ -5,7 +5,7 @@ import './globals.css';
 const APP_NAME = "RideLink";
 const APP_DEFAULT_TITLE = "RideLink";
 const APP_TITLE_TEMPLATE = "%s - RideLink";
-const APP_DESCRIPTION = "Your connection to seamless travel.";
+const APP_DESCRIPTION = "Sua conexão para viagens tranquilas.";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -53,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="pt-BR" className="h-full">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
