@@ -18,7 +18,7 @@ export default function AdminDashboard() {
     <div className="container mx-auto p-4 sm:p-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold font-headline text-slate-800">Painel do Administrador</h1>
-        <p className="text-muted-foreground">Gerencie todos os aspectos da plataforma RideLink.</p>
+        <p className="text-muted-foreground">Gerencie todos os aspectos da plataforma CEOLIN Mobilidade Urbana.</p>
       </header>
 
       <Card className="mb-8">

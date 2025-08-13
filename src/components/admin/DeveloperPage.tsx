@@ -20,7 +20,7 @@ export default function DeveloperPage() {
             </CardHeader>
             <CardContent>
                 <div className="flex w-full max-w-md items-center space-x-2">
-                    <Input type="url" placeholder="URL da API" defaultValue="https://api.ridelink.com/v1/health" />
+                    <Input type="url" placeholder="URL da API" defaultValue="https://api.ceolin-mobilidade.com/v1/health" />
                     <Button>Testar</Button>
                 </div>
             </CardContent>

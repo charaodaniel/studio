@@ -14,7 +14,7 @@ import {
   const users = [
     { id: 1, name: "Ana Clara", email: "ana.clara@email.com", role: "Passageiro", status: "Ativo" },
     { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", role: "Motorista", status: "Ativo" },
-    { id: 3, name: "Admin User", email: "admin@ridelink.com", role: "Admin", status: "Ativo" },
+    { id: 3, name: "Admin User", email: "admin@ceolin-mobilidade.com", role: "Admin", status: "Ativo" },
     { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", role: "Motorista", status: "Inativo" },
   ];
   

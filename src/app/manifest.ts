@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next'
  
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'RideLink',
-    short_name: 'RideLink',
+    name: 'CEOLIN Mobilidade Urbana',
+    short_name: 'CEOLIN',
     description: 'Sua conexão para viagens tranquilas.',
     start_url: '/',
     display: 'standalone',

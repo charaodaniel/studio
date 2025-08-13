@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 
-const APP_NAME = "RideLink";
-const APP_DEFAULT_TITLE = "RideLink";
-const APP_TITLE_TEMPLATE = "%s - RideLink";
+const APP_NAME = "CEOLIN Mobilidade Urbana";
+const APP_DEFAULT_TITLE = "CEOLIN Mobilidade Urbana";
+const APP_TITLE_TEMPLATE = "%s - CEOLIN Mobilidade Urbana";
 const APP_DESCRIPTION = "Sua conexão para viagens tranquilas.";
 
 export const metadata: Metadata = {
