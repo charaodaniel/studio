@@ -50,7 +50,7 @@ const initialMessages: Record<number, Message[]> = {
 };
   
 export default function UserManagement() {
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [selectedUser, setSelectedUser] = useState<User | null>(users[0]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [messages, setMessages] = useState(initialMessages);
@@ -97,12 +97,12 @@ export default function UserManagement() {
     };
 
     if (isProfileOpen && selectedUser) {
-        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} />;
+        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} isModal={false} />;
     }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
-        <div className={cn("flex flex-col border-r bg-background", selectedUser && !isProfileOpen && "hidden md:flex")}>
+        <div className={cn("flex flex-col border-r bg-background", selectedUser && !isProfileOpen ? 'hidden md:flex' : '')}>
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold font-headline">Conversas</h2>
