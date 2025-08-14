@@ -1,11 +1,41 @@
+'use client';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Terminal } from "lucide-react"
+import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Terminal, Loader2 } from "lucide-react"
+import { POCKETBASE_URL } from "@/lib/pocketbase"
+import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+
+type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export default function DeveloperPage() {
+    const [apiUrl, setApiUrl] = useState(`${POCKETBASE_URL}/api/health`);
+    const [testStatus, setTestStatus] = useState<TestStatus>('idle');
+    const [testResult, setTestResult] = useState<string | null>(null);
+
+
+    const handleTestConnection = async () => {
+        setTestStatus('loading');
+        setTestResult(null);
+        try {
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+            if (response.ok && data.code === 200) {
+                setTestStatus('success');
+                setTestResult(`Conexão bem-sucedida! Código: ${data.code}, Mensagem: ${data.message}`);
+            } else {
+                throw new Error(data.message || `Erro: ${response.status}`);
+            }
+        } catch (error: any) {
+            setTestStatus('error');
+            setTestResult(error.message || "Falha ao conectar na API. Verifique a URL e o status do servidor.");
+        }
+    };
+
   return (
     <div className="bg-slate-50 min-h-screen">
       <div className="container mx-auto p-4 sm:p-8">
@@ -17,12 +47,48 @@ export default function DeveloperPage() {
         <Card className="mb-6">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><LinkIcon /> Teste de Conexão com API</CardTitle>
+                 <CardDescription>Verifique a conexão com o backend do PocketBase.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex w-full max-w-md items-center space-x-2">
-                    <Input type="url" placeholder="URL da API" defaultValue="https://api.ceolin-mobilidade.com/v1/health" />
-                    <Button>Testar</Button>
+                    <Input 
+                        type="url" 
+                        placeholder="URL da API" 
+                        value={apiUrl}
+                        onChange={(e) => setApiUrl(e.target.value)}
+                    />
+                    <Button onClick={handleTestConnection} disabled={testStatus === 'loading'}>
+                        {testStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Testar
+                    </Button>
                 </div>
+                {testStatus !== 'idle' && (
+                    <div className="mt-4">
+                        {testStatus === 'loading' && (
+                            <p className="text-sm text-muted-foreground flex items-center">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testando conexão...
+                            </p>
+                        )}
+                        {testStatus === 'success' && (
+                            <Alert variant="default" className="border-green-500 bg-green-50">
+                                <CheckCircle className="h-4 w-4 !text-green-600" />
+                                <AlertTitle className="text-green-800">Sucesso!</AlertTitle>
+                                <AlertDescription className="text-green-700">
+                                    {testResult}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        {testStatus === 'error' && (
+                           <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Erro na Conexão</AlertTitle>
+                                <AlertDescription>
+                                    {testResult}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+                )}
             </CardContent>
         </Card>
 
