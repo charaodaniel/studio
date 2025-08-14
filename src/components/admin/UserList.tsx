@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,11 +9,10 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, ArrowLeft } from "lucide-react"
+import { Search, UserPlus } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
-import { cn } from '@/lib/utils';
 import UserProfile from './UserProfile';
   
 const users = [
@@ -20,15 +20,22 @@ const users = [
     { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA' },
     { id: 3, name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU' },
     { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD' },
-]
+    { id: 5, name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM' },
+];
 
 export type User = typeof users[0];
+
+interface UserListProps {
+    roleFilter?: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
+}
   
-export default function UserList() {
+export default function UserList({ roleFilter }: UserListProps) {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const filteredUsers = users.filter(user => 
+    const baseFilteredUsers = roleFilter ? users.filter(user => user.type === roleFilter) : users;
+
+    const filteredUsers = baseFilteredUsers.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -41,7 +48,7 @@ export default function UserList() {
       <div className="flex flex-col h-full">
         <div className="p-4 border-b sticky top-0 bg-background z-10">
           <div className="flex justify-between items-center mb-2">
-              <h2 className="text-xl font-bold font-headline">Usuários</h2>
+              <h2 className="text-xl font-bold font-headline">{roleFilter ? `${roleFilter}s` : 'Usuários'}</h2>
                <Dialog>
                 <DialogTrigger asChild>
                   <Button size="icon" variant="ghost"><UserPlus className="w-5 h-5"/></Button>
@@ -68,7 +75,7 @@ export default function UserList() {
           </div>
         </div>
         <ScrollArea className="flex-1">
-          {filteredUsers.map((user) => (
+          {filteredUsers.length > 0 ? filteredUsers.map((user) => (
             <div 
               key={user.id} 
               className="flex items-center gap-3 p-3 cursor-pointer border-b hover:bg-muted/50"
@@ -80,10 +87,14 @@ export default function UserList() {
               </Avatar>
               <div className="flex-1 overflow-hidden">
                   <p className="font-semibold truncate">{user.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{user.type}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="text-center p-8 text-muted-foreground">
+                Nenhum usuário encontrado para este perfil.
+            </div>
+          )}
         </ScrollArea>
       </div>
     )
