@@ -1,9 +1,11 @@
-import { ArrowLeft, Car, Mail, User as UserIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, Car, Mail, User as UserIcon, Wallet, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { type User } from './UserManagement';
 import { ScrollArea } from '../ui/scroll-area';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTrigger } from '../ui/dialog';
+import Image from 'next/image';
 
 interface UserProfileProps {
   user: User;
@@ -51,12 +53,57 @@ export default function UserProfile({ user, onBack, isModal = false }: UserProfi
                 <CardHeader>
                   <CardTitle className="font-headline text-lg flex items-center gap-2"><Car />Informações do Veículo</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1">
-                  <p><strong>Modelo:</strong> Chevrolet Onix</p>
-                  <p><strong>Placa:</strong> BRA2E19</p>
-                  <p><strong>Cor:</strong> Branco</p>
+                <CardContent className="space-y-4">
+                    <div className="space-y-1">
+                      <p><strong>Modelo:</strong> Chevrolet Onix</p>
+                      <p><strong>Placa:</strong> BRA2E19</p>
+                      <p><strong>Cor:</strong> Branco</p>
+                    </div>
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <div className="relative aspect-video rounded-lg overflow-hidden cursor-pointer">
+                                <Image src="https://placehold.co/600x400.png" alt="Foto do veículo" layout="fill" objectFit="cover" data-ai-hint="car photo" />
+                            </div>
+                        </DialogTrigger>
+                        <DialogContent className="p-0 max-w-xl">
+                            <Image src="https://placehold.co/800x600.png" alt="Foto do veículo em tamanho maior" width={800} height={600} className="rounded-lg"/>
+                        </DialogContent>
+                    </Dialog>
                 </CardContent>
               </Card>
+
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="font-headline text-lg flex items-center gap-2"><FileText />Documentos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline"><FileText className="mr-2"/> Ver CNH</Button>
+                          </DialogTrigger>
+                          <DialogContent className="p-0 max-w-xl">
+                            <DialogHeader className='p-4'>
+                                <DialogTitle>Documento - CNH</DialogTitle>
+                                <DialogDescription>Visualização do documento CNH do motorista.</DialogDescription>
+                            </DialogHeader>
+                            <Image src="https://placehold.co/800x1200.png" alt="Documento CNH" width={800} height={1200} className="rounded-b-lg"/>
+                          </DialogContent>
+                      </Dialog>
+                       <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline"><FileText className="mr-2"/> Ver CRLV</Button>
+                          </DialogTrigger>
+                          <DialogContent className="p-0 max-w-xl">
+                            <DialogHeader className='p-4'>
+                                <DialogTitle>Documento - CRLV</DialogTitle>
+                                <DialogDescription>Visualização do documento CRLV do veículo.</DialogDescription>
+                            </DialogHeader>
+                            <Image src="https://placehold.co/800x1200.png" alt="Documento CRLV" width={800} height={1200} className="rounded-b-lg"/>
+                          </DialogContent>
+                      </Dialog>
+                  </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg flex items-center gap-2"><Wallet />Informações Financeiras</CardTitle>
