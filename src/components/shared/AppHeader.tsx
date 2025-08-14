@@ -1,6 +1,6 @@
 'use client';
 
-import { User } from 'lucide-react';
+import { User, Shield, HardHat, Headset } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -11,8 +11,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import Logo from '@/components/shared/Logo';
-import PassengerAuthForm from '@/components/auth/PassengerAuthForm';
 import Link from 'next/link';
+import { Card, CardTitle } from '../ui/card';
 
 export default function AppHeader() {
   return (
@@ -25,18 +25,43 @@ export default function AppHeader() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/driver/login">
-            <Button variant="ghost">Área do Motorista</Button>
-          </Link>
-          <Dialog>
+           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
-                <span className="sr-only">Open user menu</span>
-              </Button>
+              <Button>ENTRAR</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] p-0">
-              <PassengerAuthForm />
+            <DialogContent className="sm:max-w-md">
+               <DialogHeader>
+                <DialogTitle className="font-headline text-2xl">Escolha seu Acesso</DialogTitle>
+                <DialogDescription>
+                  Selecione como você quer entrar na plataforma.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                 <Link href="/driver/login" passHref>
+                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
+                        <HardHat className="h-8 w-8 mb-2 text-primary"/>
+                        <CardTitle className="text-md font-semibold">Motorista</CardTitle>
+                    </Card>
+                 </Link>
+                 <Link href="/" passHref>
+                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
+                        <User className="h-8 w-8 mb-2 text-primary"/>
+                        <CardTitle className="text-md font-semibold">Passageiro</CardTitle>
+                    </Card>
+                </Link>
+                <Link href="/admin" passHref>
+                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
+                        <Shield className="h-8 w-8 mb-2 text-primary"/>
+                        <CardTitle className="text-md font-semibold">Admin</CardTitle>
+                    </Card>
+                </Link>
+                 <Link href="/operator" passHref>
+                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
+                        <Headset className="h-8 w-8 mb-2 text-primary"/>
+                        <CardTitle className="text-md font-semibold">Atendente</CardTitle>
+                    </Card>
+                </Link>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
