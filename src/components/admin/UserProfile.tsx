@@ -66,6 +66,10 @@ export default function UserProfile({ user, onBack, isModal = false }: UserProfi
                             </div>
                         </DialogTrigger>
                         <DialogContent className="p-0 max-w-xl">
+                             <DialogHeader className="p-4 sr-only">
+                                <DialogTitle>Foto do Veículo</DialogTitle>
+                                <DialogDescription>Foto ampliada do veículo do motorista.</DialogDescription>
+                            </DialogHeader>
                             <Image src="https://placehold.co/800x600.png" alt="Foto do veículo em tamanho maior" width={800} height={600} className="rounded-lg"/>
                         </DialogContent>
                     </Dialog>
