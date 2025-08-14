@@ -12,24 +12,24 @@ import {
 export default function AddUserForm() {
     return (
         <form className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
+            <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="name">
                     Nome
                 </Label>
-                <Input id="name" className="col-span-3" />
+                <Input id="name" />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
+            <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="email">
                     Email
                 </Label>
-                <Input id="email" type="email" className="col-span-3" />
+                <Input id="email" type="email" />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="role" className="text-right">
+            <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="role">
                     Perfil
                 </Label>
                 <Select>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                         <SelectValue placeholder="Selecione um perfil" />
                     </SelectTrigger>
                     <SelectContent>
@@ -40,15 +40,13 @@ export default function AddUserForm() {
                     </SelectContent>
                 </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="password" className="text-right">
+            <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="password">
                     Senha
                 </Label>
-                <Input id="password" type="password" className="col-span-3" />
+                <Input id="password" type="password" />
             </div>
-            <div className="col-start-2 col-span-3">
-                 <Button type="submit" className="w-full">Adicionar Usuário</Button>
-            </div>
+            <Button type="submit" className="w-full">Adicionar Usuário</Button>
         </form>
     )
 }
