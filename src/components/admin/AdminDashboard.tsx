@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Car, MessageSquare, List } from "lucide-react";
 import Link from 'next/link';
+import UserManagement from "./UserManagement";
 
 export default function AdminDashboard() {
   return (
@@ -45,23 +46,11 @@ export default function AdminDashboard() {
             </Card>
         </div>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Ações de Gerenciamento</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row gap-4">
-                <Link href="/admin/conversations" passHref className="flex-1">
-                    <Button size="lg" className="w-full">
-                        <MessageSquare className="mr-2 h-5 w-5"/> Ver Conversas de Usuários
-                    </Button>
-                </Link>
-                 <Link href="/admin/developer" passHref className="flex-1">
-                    <Button size="lg" variant="secondary" className="w-full">
-                        <List className="mr-2 h-5 w-5"/> Painel do Desenvolvedor
-                    </Button>
-                </Link>
-            </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <Card className="xl:col-span-3 h-[70vh]">
+            <UserManagement />
+          </Card>
+        </div>
 
       </div>
     </div>
