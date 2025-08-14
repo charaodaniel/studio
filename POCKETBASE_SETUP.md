@@ -18,11 +18,11 @@ CORS é um mecanismo de segurança que os navegadores usam para impedir que um s
 3.  **Vá para Configurações (Settings):**
     *   No menu lateral esquerdo, clique em **Settings**.
 
-4.  **Acesse as Configurações de CORS:**
-    *   Na tela de configurações, clique em **CORS**.
+4.  **Acesse as Configurações da Aplicação:**
+    *   Na tela de configurações, clique em **Application**.
 
-5.  **Adicione a URL do Frontend:**
-    *   No campo **Allowed Origins** (Origens Permitidas), você precisa adicionar a URL exata da sua aplicação frontend.
+5.  **Adicione a URL ao CORS:**
+    *   Dentro da página "Application", procure pelo campo **Allowed Origins** (Origens Permitidas). É aqui que você precisa adicionar a URL exata da sua aplicação frontend.
     *   Para o ambiente de desenvolvimento do Firebase Studio, adicione a seguinte URL:
         ```
         *
