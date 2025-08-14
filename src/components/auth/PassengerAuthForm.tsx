@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, PenSquare, ShieldCheck, History, MessageSquare } from 'lucide-react';
-import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import Image from 'next/image';
 
 const conversations = [
     { id: 1, name: "Roberto Andrade", lastMessage: "Olá! Chego em 5 minutos.", unread: 1, time: "14:32" },
@@ -38,10 +39,21 @@ export default function PassengerAuthForm() {
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center space-y-4 p-4 border-b">
-          <Avatar className="h-24 w-24">
-            <AvatarImage src="https://placehold.co/100x100.png" data-ai-hint="user avatar" alt="Passenger" />
-            <AvatarFallback>P</AvatarFallback>
-          </Avatar>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Avatar className="h-24 w-24 cursor-pointer">
+                <AvatarImage src="https://placehold.co/100x100.png" data-ai-hint="user avatar" alt="Passenger" />
+                <AvatarFallback>P</AvatarFallback>
+              </Avatar>
+            </DialogTrigger>
+            <DialogContent className="p-0 max-w-xs">
+              <DialogHeader>
+                <DialogTitle className="sr-only">Foto de Ana Clara</DialogTitle>
+                <DialogDescription className="sr-only">Foto em tamanho maior do passageiro Ana Clara.</DialogDescription>
+              </DialogHeader>
+              <Image src="https://placehold.co/400x400.png" alt="Foto de Ana Clara" width={400} height={400} className="rounded-lg"/>
+            </DialogContent>
+          </Dialog>
           <div className="text-center">
             <h2 className="text-xl font-bold font-headline">Ana Clara</h2>
             <p className="text-sm text-muted-foreground">ana.clara@email.com</p>
