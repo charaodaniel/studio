@@ -3,11 +3,11 @@ import MapPlaceholder from './MapPlaceholder';
 
 export default function PassengerDashboard() {
   return (
-    <div className="container mx-auto p-4 flex flex-col lg:flex-row gap-8 h-[calc(100vh-80px)]">
-      <div className="lg:w-1/3 lg:max-w-md">
+    <div className="container mx-auto p-4 grid lg:grid-cols-[400px_1fr] gap-8 h-full">
+      <div className="h-full flex flex-col">
         <RideRequestForm />
       </div>
-      <div className="flex-1 min-h-[300px]">
+      <div className="flex-1 min-h-[300px] h-full hidden lg:block">
         <MapPlaceholder />
       </div>
     </div>

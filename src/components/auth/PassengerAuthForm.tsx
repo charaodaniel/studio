@@ -10,6 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, PenSquare, ShieldCheck, History, MessageSquare } from 'lucide-react';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
+const conversations = [
+    { id: 1, name: "Roberto Andrade", lastMessage: "Olá! Chego em 5 minutos.", unread: 1, time: "14:32" },
+    { id: 2, name: "Carlos Lima", lastMessage: "Obrigado pela corrida!", unread: 0, time: "Ontem" },
+];
+
 export default function PassengerAuthForm() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -45,7 +50,7 @@ export default function PassengerAuthForm() {
             <PenSquare className="mr-2 h-4 w-4" /> Editar Foto
           </Button>
         </div>
-        <Tabs defaultValue="history" className="w-full">
+        <Tabs defaultValue="chats" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="history"><History className="mr-1 h-4 w-4" /> Histórico</TabsTrigger>
             <TabsTrigger value="chats"><MessageSquare className="mr-1 h-4 w-4" /> Conversas</TabsTrigger>
@@ -54,8 +59,31 @@ export default function PassengerAuthForm() {
           <TabsContent value="history" className="p-4 text-sm">
             <p>Seu histórico de corridas aparecerá aqui.</p>
           </TabsContent>
-          <TabsContent value="chats" className="p-4 text-sm">
-            <p>Seu histórico de conversas com motoristas aparecerá aqui.</p>
+          <TabsContent value="chats" className="p-0">
+             <div className="flex flex-col">
+                {conversations.map((convo) => (
+                <div key={convo.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 border-b">
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={`https://placehold.co/40x40.png?text=${convo.name.charAt(0)}`} data-ai-hint="user portrait"/>
+                        <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 overflow-hidden">
+                    <div className="flex justify-between items-center">
+                        <p className="font-semibold truncate">{convo.name}</p>
+                        <p className={`text-xs ${convo.unread > 0 ? 'text-primary' : 'text-muted-foreground'}`}>{convo.time}</p>
+                    </div>
+                     <div className="flex justify-between items-center">
+                        <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
+                        {convo.unread > 0 && (
+                            <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                {convo.unread}
+                            </div>
+                        )}
+                      </div>
+                    </div>
+                </div>
+                ))}
+            </div>
           </TabsContent>
           <TabsContent value="security" className="p-4 space-y-4">
             <div>
