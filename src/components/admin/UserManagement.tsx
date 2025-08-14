@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Search, UserPlus } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import ProfileForm from "../driver/ProfileForm"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import AddUserForm from './AddUserForm';
   
 const users = [
     { id: 1, name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Passageiro", unread: 0, type: 'Passageiro', avatar: 'AC' },
@@ -30,7 +32,18 @@ export default function UserManagement() {
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold font-headline">Usuários</h2>
-                <Button size="icon" variant="ghost"><UserPlus className="w-5 h-5"/></Button>
+                 <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="icon" variant="ghost"><UserPlus className="w-5 h-5"/></Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Adicionar Novo Usuário</DialogTitle>
+                      <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
+                    </DialogHeader>
+                    <AddUserForm />
+                  </DialogContent>
+                </Dialog>
             </div>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
