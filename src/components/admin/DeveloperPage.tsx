@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export default function DeveloperPage() {
-    const [apiUrl, setApiUrl] = useState(`${POCKETBASE_URL}/api/health`);
+    const [apiUrl, setApiUrl] = useState(`${POCKETBASE_URL}/api/collections`);
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
 
@@ -23,16 +23,15 @@ export default function DeveloperPage() {
         setTestResult(null);
         try {
             const response = await fetch(apiUrl);
-            const data = await response.json();
-            if (response.ok && data.code === 200) {
+            if (response.ok) {
                 setTestStatus('success');
-                setTestResult(`Conexão bem-sucedida! Código: ${data.code}, Mensagem: ${data.message}`);
+                setTestResult(`Conexão bem-sucedida! A API respondeu com status ${response.status}.`);
             } else {
-                throw new Error(data.message || `Erro: ${response.status}`);
+                throw new Error(`A API respondeu com um erro: ${response.status} ${response.statusText}`);
             }
         } catch (error: any) {
             setTestStatus('error');
-            setTestResult(error.message || "Falha ao conectar na API. Verifique a URL e o status do servidor.");
+            setTestResult("Falha ao conectar na API. Verifique a URL, o status do servidor e as configurações de CORS.");
         }
     };
 
