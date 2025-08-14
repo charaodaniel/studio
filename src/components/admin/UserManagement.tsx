@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Avatar,
   AvatarFallback,
@@ -22,6 +22,7 @@ const users = [
     { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: '11912345678' },
     { id: 3, name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU', phone: '11988887777' },
     { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD', phone: '11977778888' },
+    { id: 5, name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM', phone: "11966665555" },
 ]
 
 export type User = typeof users[0];
@@ -46,15 +47,28 @@ const initialMessages: Record<number, Message[]> = {
     ],
     4: [
         { id: 1, text: "A caminho.", sender: 'user', timestamp: '14:05' },
-    ]
+    ],
+    5: []
 };
+
+interface UserManagementProps {
+    preselectedUser: User | null;
+    onUserSelect: (user: User | null) => void;
+}
   
-export default function UserManagement() {
-    const [selectedUser, setSelectedUser] = useState<User | null>(users[0]);
+export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
+    const [selectedUser, setSelectedUser] = useState<User | null>(preselectedUser || users[0]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [messages, setMessages] = useState(initialMessages);
     const [newMessage, setNewMessage] = useState('');
+
+    useEffect(() => {
+        if (preselectedUser) {
+            setSelectedUser(preselectedUser);
+            onUserSelect(null); // Reset preselection after applying it
+        }
+    }, [preselectedUser, onUserSelect]);
 
 
     const filteredUsers = users.filter(user => 
@@ -159,7 +173,7 @@ export default function UserManagement() {
           </ScrollArea>
         </div>
         
-        <div className={cn("flex-1 flex-col bg-muted/40", selectedUser && !isProfileOpen ? 'flex' : 'hidden md:flex')}>
+        <div className={cn("flex flex-1 flex-col bg-muted/40", selectedUser && !isProfileOpen ? 'flex' : 'hidden md:flex')}>
           {selectedUser ? (
             <>
               <div className="p-3 border-b flex items-center gap-3 bg-background shadow-sm">

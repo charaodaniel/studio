@@ -27,9 +27,10 @@ export type User = typeof users[0];
 
 interface UserListProps {
     roleFilter?: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
+    onSelectUser: (user: User) => void;
 }
   
-export default function UserList({ roleFilter }: UserListProps) {
+export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -39,6 +40,13 @@ export default function UserList({ roleFilter }: UserListProps) {
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleContactUser = () => {
+        if (selectedUser) {
+            onSelectUser(selectedUser);
+            setSelectedUser(null); // Close modal
+        }
+    };
 
     return (
       <>
@@ -100,7 +108,7 @@ export default function UserList({ roleFilter }: UserListProps) {
                   <DialogTitle>Perfil do Usuário</DialogTitle>
                   <DialogDescription></DialogDescription>
                 </DialogHeader>
-                {selectedUser && <UserProfile user={selectedUser} onBack={() => setSelectedUser(null)} isModal={true} />}
+                {selectedUser && <UserProfile user={selectedUser} onBack={handleContactUser} isModal={true} />}
             </DialogContent>
         </Dialog>
       </>
