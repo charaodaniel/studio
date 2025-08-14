@@ -71,7 +71,7 @@ export default function UserList({ roleFilter }: UserListProps) {
               />
             </div>
           </div>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 md:overflow-y-auto">
             {filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <div 
                 key={user.id} 
@@ -92,11 +92,11 @@ export default function UserList({ roleFilter }: UserListProps) {
                   Nenhum usuário encontrado para este perfil.
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
             <DialogContent className="p-0 sm:max-w-lg md:max-w-xl">
-                <DialogHeader className="p-4 sr-only">
+                <DialogHeader className="p-4">
                   <DialogTitle>Perfil do Usuário</DialogTitle>
                   <DialogDescription></DialogDescription>
                 </DialogHeader>

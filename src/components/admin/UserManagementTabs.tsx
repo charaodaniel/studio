@@ -18,19 +18,19 @@ export default function UserManagementTabs() {
                     <TabsTrigger value="admins" className="justify-start"><Shield className="mr-2 h-4 w-4"/> Admin</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="conversations" className="flex-grow mt-0 overflow-hidden">
+            <TabsContent value="conversations" className="flex-grow mt-0 overflow-y-auto">
                 <UserManagement />
             </TabsContent>
-            <TabsContent value="passengers" className="flex-grow mt-0 overflow-hidden">
+            <TabsContent value="passengers" className="flex-grow mt-0 overflow-y-auto">
                 <UserList roleFilter="Passageiro" />
             </TabsContent>
-            <TabsContent value="drivers" className="flex-grow mt-0 overflow-hidden">
+            <TabsContent value="drivers" className="flex-grow mt-0 overflow-y-auto">
                 <UserList roleFilter="Motorista" />
             </TabsContent>
-            <TabsContent value="operators" className="flex-grow mt-0 overflow-hidden">
+            <TabsContent value="operators" className="flex-grow mt-0 overflow-y-auto">
                  <UserList roleFilter="Atendente" />
             </TabsContent>
-            <TabsContent value="admins" className="flex-grow mt-0 overflow-hidden">
+            <TabsContent value="admins" className="flex-grow mt-0 overflow-y-auto">
                 <UserList roleFilter="Admin" />
             </TabsContent>
         </Tabs>
