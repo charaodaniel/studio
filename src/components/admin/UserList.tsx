@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Avatar,
   AvatarFallback,
@@ -14,16 +14,26 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
+import pb from '@/lib/pocketbase';
   
-const users = [
-    { id: 1, name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: "11987654321" },
-    { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: "11912345678" },
-    { id: 3, name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU', phone: "11988887777" },
-    { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD', phone: "11977778888" },
-    { id: 5, name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM', phone: "11966665555" },
+const usersPlaceholder = [
+    { id: '1', name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: "11987654321" },
+    { id: '2', name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: "11912345678" },
+    { id: '3', name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU', phone: "11988887777" },
+    { id: '4', name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD', phone: "11977778888" },
+    { id: '5', name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM', phone: "11966665555" },
 ];
 
-export type User = typeof users[0];
+export type User = {
+    id: string;
+    name: string;
+    email: string;
+    lastMessage: string;
+    unread: number;
+    type: string;
+    avatar: string;
+    phone: string;
+}
 
 interface UserListProps {
     roleFilter?: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
@@ -33,6 +43,29 @@ interface UserListProps {
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                // For now, we will fetch from a placeholder. Later we can fetch from pocketbase
+                // const records = await pb.collection('users').getList(1, 50, {
+                //     // filter: 'created >= "2022-01-01 00:00:00" && someField="test"',
+                // });
+                // const fetchedUsers = records.items.map(item => ({...item, lastMessage: '', unread: 0, type: item.role, avatar: item.name.substring(0,2).toUpperCase()})) as User[];
+                setUsers(usersPlaceholder);
+            } catch (error) {
+                console.error("Failed to fetch users:", error);
+                setUsers(usersPlaceholder); // Fallback to placeholder
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchUsers();
+    }, []);
+
 
     const baseFilteredUsers = roleFilter ? users.filter(user => user.type === roleFilter) : users;
 
@@ -80,7 +113,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
             </div>
           </div>
           <div className="flex-1 md:overflow-y-auto">
-            {filteredUsers.length > 0 ? filteredUsers.map((user) => (
+            {isLoading ? (
+                 <div className="text-center p-8 text-muted-foreground">Carregando...</div>
+            ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <div 
                 key={user.id} 
                 className="flex items-center gap-3 p-3 cursor-pointer border-b hover:bg-muted/50"
@@ -104,9 +139,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
             <DialogContent className="p-0 sm:max-w-lg md:max-w-xl">
-                <DialogHeader className="p-4">
-                  <DialogTitle>Perfil do Usuário</DialogTitle>
-                  <DialogDescription></DialogDescription>
+                 <DialogHeader className="p-4 sr-only">
+                    <DialogTitle>Perfil do Usuário</DialogTitle>
+                    <DialogDescription></DialogDescription>
                 </DialogHeader>
                 {selectedUser && <UserProfile user={selectedUser} onBack={handleContactUser} isModal={true} />}
             </DialogContent>
