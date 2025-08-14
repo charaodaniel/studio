@@ -1,7 +1,7 @@
-import { ArrowLeft, Car, Mail, Phone, User as UserIcon, Wallet, FileText } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, User as UserIcon, Wallet, FileText, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { type User } from './UserManagement';
 import { ScrollArea } from '../ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
@@ -49,6 +49,11 @@ export default function UserProfile({ user, onBack, isModal = false }: UserProfi
                   <span>{user.phone}</span>
               </div>
             </CardContent>
+            <CardFooter>
+                <Button className="w-full" onClick={onBack}>
+                    <MessageSquare className="mr-2 h-4 w-4"/> Entrar em Contato
+                </Button>
+            </CardFooter>
           </Card>
 
           {user.type === 'Motorista' && (
