@@ -33,7 +33,7 @@ export default function DriverLoginPage() {
             </div>
             <Link href="/driver" passHref legacyBehavior>
               <Button asChild type="submit" className="w-full">
-                Entrar
+                <a>Entrar</a>
               </Button>
             </Link>
             <Button variant="outline" className="w-full">
