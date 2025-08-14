@@ -1,14 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Car, MessageSquare } from "lucide-react";
+import { Users, Car, MessageSquare, Code } from "lucide-react";
 import UserManagementTabs from "./UserManagementTabs";
+import Link from "next/link";
+import { Button } from "../ui/button";
 
 export default function AdminDashboard() {
   return (
     <div className="bg-muted/40 min-h-screen">
       <div className="container mx-auto p-4 sm:p-8">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold font-headline text-slate-800">Painel do Administrador</h1>
-          <p className="text-muted-foreground">Visão geral e gerenciamento da plataforma.</p>
+        <header className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold font-headline text-slate-800">Painel do Administrador</h1>
+            <p className="text-muted-foreground">Visão geral e gerenciamento da plataforma.</p>
+          </div>
+          <Link href="/admin/developer" passHref>
+            <Button variant="outline">
+              <Code className="mr-2 h-4 w-4" />
+              Desenvolvedor
+            </Button>
+          </Link>
         </header>
 
         <div className="grid gap-6 md:grid-cols-3 mb-8">
