@@ -1,4 +1,5 @@
 import AdminDashboard from "@/components/admin/AdminDashboard";
+import UserManagementTabs from "@/components/admin/UserManagementTabs";
 
 export default function AdminPage() {
   return (

@@ -1,8 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users, Car, MessageSquare, List } from "lucide-react";
-import Link from 'next/link';
-import UserManagement from "./UserManagement";
+import { Users, Car, MessageSquare } from "lucide-react";
+import UserManagementTabs from "./UserManagementTabs";
 
 export default function AdminDashboard() {
   return (
@@ -46,9 +44,9 @@ export default function AdminDashboard() {
             </Card>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <Card className="xl:col-span-3 h-[70vh]">
-            <UserManagement />
+        <div className="grid grid-cols-1">
+          <Card className="h-[70vh]">
+            <UserManagementTabs />
           </Card>
         </div>
 

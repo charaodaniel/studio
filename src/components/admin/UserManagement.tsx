@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Send, MoreVertical, ArrowLeft, FileText, User } from "lucide-react"
+import { Search, UserPlus, Send, MoreVertical, ArrowLeft, FileText, User, MessageSquare } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
@@ -41,11 +41,11 @@ export default function UserManagement() {
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-screen overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
         <div className={cn("flex flex-col border-r bg-background", selectedUser && !isProfileOpen && "hidden md:flex")}>
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold font-headline">Usuários</h2>
+                <h2 className="text-xl font-bold font-headline">Conversas</h2>
                  <Dialog>
                   <DialogTrigger asChild>
                     <Button size="icon" variant="ghost"><UserPlus className="w-5 h-5"/></Button>
@@ -64,7 +64,7 @@ export default function UserManagement() {
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Pesquisar usuários..." 
+                placeholder="Pesquisar conversas..." 
                 className="pl-8" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -157,7 +157,8 @@ export default function UserManagement() {
           ) : (
             <div className="flex-1 flex items-center justify-center bg-muted/40 h-full">
               <div className='text-center text-muted-foreground'>
-                  <p>Selecione uma conversa para começar</p>
+                  <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className='mt-2'>Selecione uma conversa para começar</p>
                   <p className='text-xs'>Suas conversas com usuários e motoristas aparecerão aqui.</p>
               </div>
             </div>
