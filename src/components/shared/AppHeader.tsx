@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import Logo from '@/components/shared/Logo';
 import PassengerAuthForm from '@/components/auth/PassengerAuthForm';
+import Link from 'next/link';
 
 export default function AppHeader() {
   return (
@@ -23,17 +24,22 @@ export default function AppHeader() {
             CEOLIN Mobilidade Urbana
           </h1>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Open user menu</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] p-0">
-            <PassengerAuthForm />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Link href="/driver/login">
+            <Button variant="ghost">Área do Motorista</Button>
+          </Link>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <User className="h-5 w-5" />
+                <span className="sr-only">Open user menu</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] p-0">
+              <PassengerAuthForm />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </header>
   );
