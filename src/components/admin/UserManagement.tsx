@@ -57,18 +57,22 @@ interface UserManagementProps {
 }
   
 export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
-    const [selectedUser, setSelectedUser] = useState<User | null>(preselectedUser || users[0]);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [messages, setMessages] = useState(initialMessages);
     const [newMessage, setNewMessage] = useState('');
+    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
+        setIsClient(true);
         if (preselectedUser) {
             setSelectedUser(preselectedUser);
             onUserSelect(null); // Reset preselection after applying it
+        } else if (!selectedUser) {
+            setSelectedUser(users[0]);
         }
-    }, [preselectedUser, onUserSelect]);
+    }, [preselectedUser, onUserSelect, selectedUser]);
 
 
     const filteredUsers = users.filter(user => 
@@ -109,6 +113,10 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             }));
         }, 1500);
     };
+
+    if (!isClient) {
+        return null; // Or a loading spinner
+    }
 
     if (isProfileOpen && selectedUser) {
         return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} isModal={false} />;
