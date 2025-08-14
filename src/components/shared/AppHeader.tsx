@@ -13,6 +13,7 @@ import {
 import Logo from '@/components/shared/Logo';
 import Link from 'next/link';
 import { Card, CardTitle } from '../ui/card';
+import PassengerAuthForm from '../auth/PassengerAuthForm';
 
 export default function AppHeader() {
   return (
@@ -43,12 +44,17 @@ export default function AppHeader() {
                         <CardTitle className="text-md font-semibold">Motorista</CardTitle>
                     </Card>
                  </Link>
-                 <Link href="/" passHref>
-                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
-                        <User className="h-8 w-8 mb-2 text-primary"/>
-                        <CardTitle className="text-md font-semibold">Passageiro</CardTitle>
-                    </Card>
-                </Link>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
+                            <User className="h-8 w-8 mb-2 text-primary"/>
+                            <CardTitle className="text-md font-semibold">Passageiro</CardTitle>
+                        </Card>
+                    </DialogTrigger>
+                    <DialogContent className="p-0">
+                        <PassengerAuthForm />
+                    </DialogContent>
+                </Dialog>
                 <Link href="/admin" passHref>
                     <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
                         <Shield className="h-8 w-8 mb-2 text-primary"/>
