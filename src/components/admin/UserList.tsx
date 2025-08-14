@@ -96,6 +96,10 @@ export default function UserList({ roleFilter }: UserListProps) {
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
             <DialogContent className="p-0 sm:max-w-md">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Perfil do Usuário</DialogTitle>
+                  <DialogDescription>Informações detalhadas do usuário selecionado.</DialogDescription>
+                </DialogHeader>
                 {selectedUser && <UserProfile user={selectedUser} onBack={() => setSelectedUser(null)} isModal={true} />}
             </DialogContent>
         </Dialog>
