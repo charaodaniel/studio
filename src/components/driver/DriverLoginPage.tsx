@@ -31,9 +31,9 @@ export default function DriverLoginPage() {
               </div>
               <Input id="password" type="password" required />
             </div>
-            <Link href="/driver" passHref>
-              <Button type="submit" className="w-full" asChild>
-                <a>Entrar</a>
+            <Link href="/driver" passHref legacyBehavior>
+              <Button asChild type="submit" className="w-full">
+                Entrar
               </Button>
             </Link>
             <Button variant="outline" className="w-full">
