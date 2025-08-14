@@ -8,14 +8,14 @@ import UserList from "./UserList";
 
 export default function UserManagementTabs() {
     return (
-        <Tabs defaultValue="conversations" className="w-full h-full flex flex-col">
-            <div className="p-2 border-b">
-                <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="conversations"><MessageSquare className="mr-2 h-4 w-4"/> Conversas</TabsTrigger>
-                    <TabsTrigger value="passengers"><User className="mr-2 h-4 w-4"/> Passageiros</TabsTrigger>
-                    <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4"/> Motoristas</TabsTrigger>
-                    <TabsTrigger value="operators"><Headset className="mr-2 h-4 w-4"/> Atendentes</TabsTrigger>
-                    <TabsTrigger value="admins"><Shield className="mr-2 h-4 w-4"/> Admin</TabsTrigger>
+        <Tabs defaultValue="conversations" className="w-full h-full flex flex-col md:flex-row">
+            <div className="p-2 border-b md:border-r">
+                <TabsList className="grid w-full grid-cols-1 h-full">
+                    <TabsTrigger value="conversations" className="justify-start"><MessageSquare className="mr-2 h-4 w-4"/> Conversas</TabsTrigger>
+                    <TabsTrigger value="passengers" className="justify-start"><User className="mr-2 h-4 w-4"/> Passageiros</TabsTrigger>
+                    <TabsTrigger value="drivers" className="justify-start"><Car className="mr-2 h-4 w-4"/> Motoristas</TabsTrigger>
+                    <TabsTrigger value="operators" className="justify-start"><Headset className="mr-2 h-4 w-4"/> Atendentes</TabsTrigger>
+                    <TabsTrigger value="admins" className="justify-start"><Shield className="mr-2 h-4 w-4"/> Admin</TabsTrigger>
                 </TabsList>
             </div>
             <TabsContent value="conversations" className="flex-grow mt-0 overflow-hidden">
