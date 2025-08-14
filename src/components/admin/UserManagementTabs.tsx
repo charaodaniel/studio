@@ -4,25 +4,17 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, MessageSquare, Car, Headset, Shield } from "lucide-react";
-import UserManagement, { type User as ChatUser } from "./UserManagement";
-import UserList, { type User } from "./UserList";
+import UserManagement from "./UserManagement";
+import UserList, { type User as UserData } from "./UserList";
 
 export default function UserManagementTabs() {
     const [activeTab, setActiveTab] = useState("conversations");
-    const [selectedUserForChat, setSelectedUserForChat] = useState<ChatUser | null>(null);
+    // The selected user is now managed here, at the top level.
+    const [selectedUserForChat, setSelectedUserForChat] = useState<UserData | null>(null);
 
-    const handleSelectUser = (user: User) => {
-        const userForChat: ChatUser = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            lastMessage: user.lastMessage,
-            unread: user.unread,
-            type: user.type,
-            avatar: user.avatar,
-            phone: user.phone
-        };
-        setSelectedUserForChat(userForChat);
+    const handleSelectUser = (user: UserData) => {
+        setSelectedUserForChat(user);
+        // When a user is selected from a list, switch to the conversations tab.
         setActiveTab("conversations");
     };
 
@@ -38,6 +30,7 @@ export default function UserManagementTabs() {
                 </TabsList>
             </div>
             <TabsContent value="conversations" className="flex-grow mt-0 overflow-y-auto">
+                {/* Pass the selected user and the handler to UserManagement */}
                 <UserManagement preselectedUser={selectedUserForChat} onUserSelect={setSelectedUserForChat} />
             </TabsContent>
             <TabsContent value="passengers" className="flex-grow mt-0 overflow-y-auto">

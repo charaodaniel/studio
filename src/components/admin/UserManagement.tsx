@@ -16,16 +16,14 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
+import type { User as UserData } from './UserList'; // Import the updated User type
   
-const users = [
-    { id: 1, name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: '11987654321' },
-    { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: '11912345678' },
-    { id: 3, name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU', phone: '11988887777' },
-    { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD', phone: '11977778888' },
-    { id: 5, name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM', phone: "11966665555" },
-]
+const usersPlaceholder = [
+    { id: '1', name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: '11987654321' },
+    { id: '2', name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: '11912345678' },
+];
 
-export type User = typeof users[0];
+export type User = UserData; // Use the same type
 
 type Message = {
     id: number;
@@ -34,21 +32,15 @@ type Message = {
     timestamp: string;
 };
 
-const initialMessages: Record<number, Message[]> = {
-    1: [
+// Use string IDs for the message records
+const initialMessages: Record<string, Message[]> = {
+    '1': [
         { id: 1, text: "Olá, tudo bem?", sender: 'user', timestamp: '10:30' },
         { id: 2, text: "Tudo bem por aqui, e com você?", sender: 'me', timestamp: '10:31' },
     ],
-    2: [
+    '2': [
         { id: 1, text: "Ok, estarei lá.", sender: 'user', timestamp: '11:00' },
     ],
-    3: [
-         { id: 1, text: "Verifique os relatórios.", sender: 'me', timestamp: '09:15' },
-    ],
-    4: [
-        { id: 1, text: "A caminho.", sender: 'user', timestamp: '14:05' },
-    ],
-    5: []
 };
 
 interface UserManagementProps {
@@ -64,21 +56,19 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [newMessage, setNewMessage] = useState('');
     const [isClient, setIsClient] = useState(false);
 
+    // This effect ensures the component only renders on the client, avoiding hydration errors.
     useEffect(() => {
         setIsClient(true);
+    }, []);
+
+    // This effect handles user selection changes from other components (like UserList)
+    useEffect(() => {
         if (preselectedUser) {
             setSelectedUser(preselectedUser);
+            setIsProfileOpen(false); // Make sure chat view is open
             onUserSelect(null); // Reset preselection after applying it
-        } else if (!selectedUser) {
-            setSelectedUser(users[0]);
         }
-    }, [preselectedUser, onUserSelect, selectedUser]);
-
-
-    const filteredUsers = users.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    }, [preselectedUser, onUserSelect]);
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
@@ -115,12 +105,19 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     };
 
     if (!isClient) {
-        return null; // Or a loading spinner
+        return <div className="flex-1 flex items-center justify-center bg-muted/40 h-full"><p>Carregando conversas...</p></div>; 
     }
 
     if (isProfileOpen && selectedUser) {
-        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} isModal={false} />;
+        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} isModal={false} />;
     }
+    
+    // We won't pre-select a user to avoid hydration mismatch.
+    const usersForList = usersPlaceholder; // Replace with a real user list fetch later
+    const filteredUsers = usersForList.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
@@ -164,12 +161,12 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 }}
               >
                 <Avatar>
-                  <AvatarImage src={`https://placehold.co/40x40.png?text=${user.avatar}`} data-ai-hint="user portrait"/>
-                  <AvatarFallback>{user.avatar}</AvatarFallback>
+                  <AvatarImage src={user.avatar} data-ai-hint="user portrait"/>
+                  <AvatarFallback>{user.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
                     <p className="font-semibold truncate">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{messages[user.id]?.[messages[user.id].length - 1]?.text || user.lastMessage}</p>
+                    <p className="text-sm text-muted-foreground truncate">{messages[user.id]?.[messages[user.id].length - 1]?.text || 'Nenhuma mensagem ainda'}</p>
                 </div>
                  {user.unread > 0 && (
                   <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
@@ -189,8 +186,8 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   <ArrowLeft className="w-5 h-5"/>
                 </Button>
                 <Avatar>
-                  <AvatarImage src={`https://placehold.co/40x40.png?text=${selectedUser.avatar}`} data-ai-hint="user portrait"/>
-                  <AvatarFallback>{selectedUser.avatar}</AvatarFallback>
+                  <AvatarImage src={selectedUser.avatar} data-ai-hint="user portrait"/>
+                  <AvatarFallback>{selectedUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
                   <p className="font-semibold">{selectedUser.name}</p>

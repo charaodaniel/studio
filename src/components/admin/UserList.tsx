@@ -15,24 +15,18 @@ import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
   
-const usersPlaceholder = [
-    { id: '1', name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: "11987654321" },
-    { id: '2', name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: "11912345678" },
-    { id: '3', name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU', phone: "11988887777" },
-    { id: '4', name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD', phone: "11977778888" },
-    { id: '5', name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM', phone: "11966665555" },
-];
-
-export type User = {
-    id: string;
+// This type is now more aligned with your actual PocketBase schema.
+// We add some UI-specific fields that are not in the database.
+export interface User extends RecordModel {
     name: string;
     email: string;
     lastMessage: string;
     unread: number;
-    type: string;
-    avatar: string;
-    phone: string;
+    type: string; // This can be derived or defaulted
+    avatar: string; // This will be the URL from PocketBase
+    phone: string; // Not in schema, will be empty for now
 }
 
 interface UserListProps {
@@ -48,16 +42,28 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
 
     useEffect(() => {
         const fetchUsers = async () => {
+            setIsLoading(true);
             try {
-                // For now, we will fetch from a placeholder. Later we can fetch from pocketbase
-                // const records = await pb.collection('users').getList(1, 50, {
-                //     // filter: 'created >= "2022-01-01 00:00:00" && someField="test"',
-                // });
-                // const fetchedUsers = records.items.map(item => ({...item, lastMessage: '', unread: 0, type: item.role, avatar: item.name.substring(0,2).toUpperCase()})) as User[];
-                setUsers(usersPlaceholder);
+                // Fetching directly from PocketBase users collection
+                const records = await pb.collection('users').getList<User>(1, 50, {
+                    // You can add filters here if needed in the future
+                });
+
+                // Mapping PocketBase records to our User type for the UI
+                const fetchedUsers = records.items.map(item => ({
+                    ...item,
+                    lastMessage: '', // Default value
+                    unread: 0, // Default value
+                    type: 'Passageiro', // Default or from a 'role' field if you add one
+                    // The avatar field from PocketBase needs to be constructed into a URL
+                    avatar: item.avatar ? pb.getFileUrl(item, item.avatar) : `https://placehold.co/40x40.png?text=${item.name.substring(0, 2).toUpperCase()}`,
+                    phone: '' // Default value
+                }));
+                setUsers(fetchedUsers);
             } catch (error) {
                 console.error("Failed to fetch users:", error);
-                setUsers(usersPlaceholder); // Fallback to placeholder
+                // We can have a placeholder or show an error message
+                setUsers([]); 
             } finally {
                 setIsLoading(false);
             }
@@ -74,11 +80,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const handleContactUser = () => {
-        if (selectedUser) {
-            onSelectUser(selectedUser);
-            setSelectedUser(null); // Close modal
-        }
+    const handleSelectAndClose = (user: User) => {
+        onSelectUser(user);
+        setSelectedUser(null);
     };
 
     return (
@@ -112,9 +116,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
               />
             </div>
           </div>
-          <div className="flex-1 md:overflow-y-auto">
+          <ScrollArea className="flex-1">
             {isLoading ? (
-                 <div className="text-center p-8 text-muted-foreground">Carregando...</div>
+                 <div className="text-center p-8 text-muted-foreground">Carregando usuários...</div>
             ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <div 
                 key={user.id} 
@@ -122,8 +126,8 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                 onClick={() => setSelectedUser(user)}
               >
                 <Avatar>
-                  <AvatarImage src={`https://placehold.co/40x40.png?text=${user.avatar}`} data-ai-hint="user portrait"/>
-                  <AvatarFallback>{user.avatar}</AvatarFallback>
+                  <AvatarImage src={user.avatar} data-ai-hint="user portrait"/>
+                  <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
                     <p className="font-semibold truncate">{user.name}</p>
@@ -132,10 +136,10 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
               </div>
             )) : (
               <div className="text-center p-8 text-muted-foreground">
-                  Nenhum usuário encontrado para este perfil.
+                  Nenhum usuário encontrado. Verifique sua conexão ou adicione novos usuários.
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
             <DialogContent className="p-0 sm:max-w-lg md:max-w-xl">
@@ -143,7 +147,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                     <DialogTitle>Perfil do Usuário</DialogTitle>
                     <DialogDescription></DialogDescription>
                 </DialogHeader>
-                {selectedUser && <UserProfile user={selectedUser} onBack={handleContactUser} isModal={true} />}
+                {selectedUser && <UserProfile user={selectedUser} onContact={() => handleSelectAndClose(selectedUser)} onBack={() => setSelectedUser(null)} isModal={true} />}
             </DialogContent>
         </Dialog>
       </>
