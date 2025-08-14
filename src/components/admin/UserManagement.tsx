@@ -25,11 +25,36 @@ const users = [
 ]
 
 export type User = typeof users[0];
+
+type Message = {
+    id: number;
+    text: string;
+    sender: 'me' | 'user';
+    timestamp: string;
+};
+
+const initialMessages: Record<number, Message[]> = {
+    1: [
+        { id: 1, text: "Olá, tudo bem?", sender: 'user', timestamp: '10:30' },
+        { id: 2, text: "Tudo bem por aqui, e com você?", sender: 'me', timestamp: '10:31' },
+    ],
+    2: [
+        { id: 1, text: "Ok, estarei lá.", sender: 'user', timestamp: '11:00' },
+    ],
+    3: [
+         { id: 1, text: "Verifique os relatórios.", sender: 'me', timestamp: '09:15' },
+    ],
+    4: [
+        { id: 1, text: "A caminho.", sender: 'user', timestamp: '14:05' },
+    ]
+};
   
 export default function UserManagement() {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [messages, setMessages] = useState(initialMessages);
+    const [newMessage, setNewMessage] = useState('');
 
 
     const filteredUsers = users.filter(user => 
@@ -37,13 +62,47 @@ export default function UserManagement() {
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !selectedUser) return;
+
+        const newMsg: Message = {
+            id: Date.now(),
+            text: newMessage,
+            sender: 'me',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        
+        const userMessages = messages[selectedUser.id] || [];
+        setMessages({
+            ...messages,
+            [selectedUser.id]: [...userMessages, newMsg]
+        });
+
+        setNewMessage('');
+
+        // Simulate a reply after a short delay
+        setTimeout(() => {
+            const replyMsg: Message = {
+                id: Date.now() + 1,
+                text: "Obrigado pela sua mensagem. Responderei em breve.",
+                sender: 'user',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setMessages(prevMessages => ({
+                ...prevMessages,
+                [selectedUser.id]: [...(prevMessages[selectedUser.id] || []), replyMsg]
+            }));
+        }, 1500);
+    };
+
     if (isProfileOpen && selectedUser) {
         return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} />;
     }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
-        <div className={cn("flex flex-col border-r bg-background", selectedUser && "hidden md:flex")}>
+        <div className={cn("flex flex-col border-r bg-background", selectedUser && !isProfileOpen && "hidden md:flex")}>
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold font-headline">Conversas</h2>
@@ -88,7 +147,7 @@ export default function UserManagement() {
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
                     <p className="font-semibold truncate">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{user.lastMessage}</p>
+                    <p className="text-sm text-muted-foreground truncate">{messages[user.id]?.[messages[user.id].length - 1]?.text || user.lastMessage}</p>
                 </div>
                  {user.unread > 0 && (
                   <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
@@ -100,7 +159,7 @@ export default function UserManagement() {
           </ScrollArea>
         </div>
         
-        <div className={cn("flex-1 flex-col bg-muted/40", selectedUser ? 'flex' : 'hidden md:flex')}>
+        <div className={cn("flex-1 flex-col bg-muted/40", selectedUser && !isProfileOpen ? 'flex' : 'hidden md:flex')}>
           {selectedUser ? (
             <>
               <div className="p-3 border-b flex items-center gap-3 bg-background shadow-sm">
@@ -134,25 +193,27 @@ export default function UserManagement() {
               </div>
               <ScrollArea className="flex-1 p-4 sm:p-6 bg-[url('https://placehold.co/1000x1000/E3F2FD/E3F2FD.png')] bg-center bg-cover">
                 <div className="flex flex-col gap-4">
-                  <div className="flex items-start gap-3">
-                      <div className="bg-white rounded-lg p-3 text-sm shadow-sm max-w-xs rounded-tl-none">
-                          <p>Olá, tudo bem?</p>
+                  {(messages[selectedUser.id] || []).map((msg) => (
+                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === 'me' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
+                          <p>{msg.text}</p>
                       </div>
                   </div>
-                  <div className="flex items-start gap-3 flex-row-reverse">
-                      <div className="bg-primary/90 text-primary-foreground rounded-lg p-3 text-sm shadow-sm max-w-xs rounded-br-none">
-                          <p>Tudo bem por aqui, e com você?</p>
-                      </div>
-                  </div>
+                  ))}
                 </div>
               </ScrollArea>
               <div className="p-4 bg-background border-t">
-                  <div className="relative">
-                      <Input placeholder="Digite sua mensagem..." className="pr-12" />
-                      <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost">
+                  <form onSubmit={handleSendMessage} className="relative">
+                      <Input 
+                        placeholder="Digite sua mensagem..." 
+                        className="pr-12" 
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                      />
+                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost">
                           <Send className="w-5 h-5 text-primary"/>
                       </Button>
-                  </div>
+                  </form>
               </div>
             </>
           ) : (
