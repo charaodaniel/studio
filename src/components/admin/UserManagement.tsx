@@ -25,7 +25,13 @@ const users = [
 type User = typeof users[0];
   
 export default function UserManagement() {
-    const [selectedUser, setSelectedUser] = useState<User>(users[0]);
+    const [selectedUser, setSelectedUser] = useState<User | null>(users.length > 0 ? users[0] : null);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredUsers = users.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-screen">
@@ -50,14 +56,19 @@ export default function UserManagement() {
             </div>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Pesquisar usuários..." className="pl-8" />
+              <Input 
+                placeholder="Pesquisar usuários..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
           <ScrollArea className="flex-1">
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <div 
                 key={user.id} 
-                className={`flex items-center gap-3 p-3 cursor-pointer border-b border-l-4 ${selectedUser.id === user.id ? 'bg-muted/50 border-primary' : 'border-transparent hover:bg-muted/50'}`}
+                className={`flex items-center gap-3 p-3 cursor-pointer border-b border-l-4 ${selectedUser?.id === user.id ? 'bg-muted/50 border-primary' : 'border-transparent hover:bg-muted/50'}`}
                 onClick={() => setSelectedUser(user)}
               >
                 <Avatar>
