@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import ProfileForm from "../driver/ProfileForm"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
+import { ScrollArea } from '../ui/scroll-area';
   
 const users = [
     { id: 1, name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Passageiro", unread: 0, type: 'Passageiro', avatar: 'AC' },
@@ -41,7 +42,9 @@ export default function UserManagement() {
                       <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                       <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
                     </DialogHeader>
-                    <AddUserForm />
+                    <ScrollArea className="max-h-[80vh]">
+                      <AddUserForm />
+                    </ScrollArea>
                   </DialogContent>
                 </Dialog>
             </div>
@@ -50,7 +53,7 @@ export default function UserManagement() {
               <Input placeholder="Pesquisar usuários..." className="pl-8" />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <ScrollArea className="flex-1">
             {users.map((user) => (
               <div 
                 key={user.id} 
@@ -67,7 +70,7 @@ export default function UserManagement() {
                 </div>
               </div>
             ))}
-          </div>
+          </ScrollArea>
         </div>
         
         {selectedUser ? (
@@ -85,7 +88,7 @@ export default function UserManagement() {
                 </p>
               </div>
             </div>
-            <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+            <ScrollArea className="flex-1 p-4 sm:p-6">
               <div className="grid grid-cols-1 gap-6">
                   <Card>
                       <CardHeader>
@@ -105,7 +108,7 @@ export default function UserManagement() {
                       </CardContent>
                   </Card>
               </div>
-            </div>
+            </ScrollArea>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-muted/40">
