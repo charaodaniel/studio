@@ -16,11 +16,11 @@ import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
   
 const users = [
-    { id: 1, name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC' },
-    { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA' },
-    { id: 3, name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU' },
-    { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD' },
-    { id: 5, name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM' },
+    { id: 1, name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: "11987654321" },
+    { id: 2, name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: "11912345678" },
+    { id: 3, name: "Admin User", email: "admin@ceolin.com", lastMessage: "Verifique os relatórios.", unread: 0, type: 'Admin', avatar: 'AU', phone: "11988887777" },
+    { id: 4, name: "Carlos Dias", email: "carlos.dias@email.com", lastMessage: "A caminho.", unread: 0, type: 'Motorista', avatar: 'CD', phone: "11977778888" },
+    { id: 5, name: "Sofia Mendes", email: "sofia.mendes@email.com", lastMessage: "Preciso de ajuda.", unread: 1, type: 'Atendente', avatar: 'SM', phone: "11966665555" },
 ];
 
 export type User = typeof users[0];
@@ -96,7 +96,7 @@ export default function UserList({ roleFilter }: UserListProps) {
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
             <DialogContent className="p-0 sm:max-w-md">
-                <DialogHeader className="sr-only">
+                <DialogHeader className="p-4">
                   <DialogTitle>Perfil do Usuário</DialogTitle>
                   <DialogDescription>Informações detalhadas do usuário selecionado.</DialogDescription>
                 </DialogHeader>

@@ -25,6 +25,12 @@ export default function AddUserForm() {
                 <Input id="email" type="email" />
             </div>
             <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="phone">
+                    Telefone
+                </Label>
+                <Input id="phone" type="tel" />
+            </div>
+            <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="role">
                     Perfil
                 </Label>

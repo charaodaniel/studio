@@ -1,4 +1,4 @@
-import { ArrowLeft, Car, Mail, User as UserIcon, Wallet, FileText } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, User as UserIcon, Wallet, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -44,6 +44,10 @@ export default function UserProfile({ user, onBack, isModal = false }: UserProfi
                   <Mail className="w-4 h-4 text-muted-foreground" />
                   <span>{user.email}</span>
               </div>
+               <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <span>{user.phone}</span>
+              </div>
             </CardContent>
           </Card>
 
@@ -66,7 +70,7 @@ export default function UserProfile({ user, onBack, isModal = false }: UserProfi
                             </div>
                         </DialogTrigger>
                         <DialogContent className="p-0 max-w-xl">
-                             <DialogHeader className="p-4 sr-only">
+                             <DialogHeader className="p-4">
                                 <DialogTitle>Foto do Veículo</DialogTitle>
                                 <DialogDescription>Foto ampliada do veículo do motorista.</DialogDescription>
                             </DialogHeader>
