@@ -95,9 +95,10 @@ export default function UserList({ roleFilter }: UserListProps) {
           </ScrollArea>
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
-            <DialogContent className="p-0 sm:max-w-md">
-                <DialogHeader className="p-4">
+            <DialogContent className="p-0 sm:max-w-lg md:max-w-xl">
+                <DialogHeader className="p-4 sr-only">
                   <DialogTitle>Perfil do Usuário</DialogTitle>
+                  <DialogDescription></DialogDescription>
                 </DialogHeader>
                 {selectedUser && <UserProfile user={selectedUser} onBack={() => setSelectedUser(null)} isModal={true} />}
             </DialogContent>
