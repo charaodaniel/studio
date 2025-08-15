@@ -15,7 +15,7 @@ import PocketBase from 'pocketbase';
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export default function DeveloperPage() {
-    const [apiUrl, setApiUrl] = useState(`${POCKETBASE_URL}`);
+    const [apiUrl, setApiUrl] = useState(POCKETBASE_URL);
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
 
@@ -23,9 +23,7 @@ export default function DeveloperPage() {
         setTestStatus('loading');
         setTestResult(null);
         try {
-            // Create a temporary PocketBase instance with the user-provided URL
             const tempPb = new PocketBase(apiUrl);
-            // A simple health check is a good way to test the connection.
             const health = await tempPb.health.check();
             if (health.code === 200) {
                 setTestStatus('success');
@@ -36,7 +34,7 @@ export default function DeveloperPage() {
         } catch (error: any) {
             setTestStatus('error');
             let errorMessage = "Falha ao conectar na API. Verifique a URL, o status do servidor e as configurações de CORS.";
-            if(error.isAbort) {
+            if (error.isAbort) {
                 errorMessage = "A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
             } else if (error.originalError) {
                 errorMessage += ` Detalhe: ${error.originalError.message || 'Erro de rede'}`;
@@ -184,5 +182,3 @@ export default function DeveloperPage() {
         </div>
     );
 }
-
-    
