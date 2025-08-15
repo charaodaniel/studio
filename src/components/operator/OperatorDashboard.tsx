@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Users, Car, MessageSquare, MonitorPlay } from "lucide-react";
 import Link from 'next/link';
-import MapPlaceholder from "../passenger/MapPlaceholder";
 import Logo from "../shared/Logo";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import MapPlaceholder from "../passenger/MapPlaceholder";
+import OperatorConversationsPage from "./OperatorConversationsPage";
 
 export default function OperatorDashboard() {
   return (
@@ -53,25 +54,33 @@ export default function OperatorDashboard() {
           </Card>
            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ações Rápidas</CardTitle>
+              <CardTitle className="text-sm font-medium">Chamados Urgentes</CardTitle>
+              <Car className="h-4 w-4 text-red-500" />
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Link href="/operator/conversations" passHref>
-                <Button variant="outline" className="w-full">
-                  <MessageSquare className="mr-2 h-4 w-4" /> Ver Conversas
-                </Button>
-              </Link>
+            <CardContent>
+              <div className="text-2xl font-bold">3</div>
+              <p className="text-xs text-muted-foreground">Prioridade alta</p>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><MonitorPlay className="h-5 w-5"/> Monitoramento da Frota</CardTitle>
-            </CardHeader>
-            <CardContent className="h-[60vh] p-0">
-                <MapPlaceholder />
-            </CardContent>
+        <Card className="h-[70vh]">
+          <Tabs defaultValue="monitoring" className="w-full h-full flex flex-col">
+            <div className="p-2 border-b">
+                <TabsList>
+                    <TabsTrigger value="monitoring"><MonitorPlay className="mr-2 h-4 w-4"/> Monitoramento</TabsTrigger>
+                    <TabsTrigger value="conversations"><MessageSquare className="mr-2 h-4 w-4"/> Conversas</TabsTrigger>
+                </TabsList>
+            </div>
+            <TabsContent value="monitoring" className="flex-grow mt-0">
+                <div className="h-full rounded-b-lg overflow-hidden">
+                    <MapPlaceholder />
+                </div>
+            </TabsContent>
+            <TabsContent value="conversations" className="flex-grow mt-0 overflow-hidden">
+                <OperatorConversationsPage />
+            </TabsContent>
+          </Tabs>
         </Card>
 
       </div>
