@@ -19,32 +19,6 @@ interface NegotiationChatProps {
 export default function NegotiationChat({ request }: NegotiationChatProps) {
   const [driverMessage, setDriverMessage] = useState('');
   const [passengerMessage, setPassengerMessage] = useState(`Acho ${request.driverSuggestion} um pouco caro. Consegue fazer por ${request.passengerOffer}?`);
-  const [suggestedPhrases, setSuggestedPhrases] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleGetSuggestions = async () => {
-    setIsLoading(true);
-    setSuggestedPhrases([]);
-    try {
-      const response = await negotiateIntercityFare({
-        passengerMessage,
-        driverMessage,
-        initialFare: 100, // Assuming static values for now
-        suggestedFare: 80,
-      });
-      setSuggestedPhrases(response.suggestedPhrases);
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Erro de IA',
-        description: 'Não foi possível obter sugestões. Tente novamente.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <Card className="flex flex-col h-full">
@@ -80,37 +54,8 @@ export default function NegotiationChat({ request }: NegotiationChatProps) {
                 </div>
             )}
         </div>
-        
-        {suggestedPhrases.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="font-semibold text-sm">Sugestões da IA:</h4>
-            <div className="flex flex-wrap gap-2">
-            {suggestedPhrases.map((phrase, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="p-2 cursor-pointer hover:bg-secondary"
-                onClick={() => setDriverMessage(phrase)}
-              >
-                {phrase}
-              </Badge>
-            ))}
-            </div>
-          </div>
-        )}
-
-        {isLoading && (
-            <div className="space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-2/3" />
-            </div>
-        )}
-        
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2 pt-4">
-        <Button onClick={handleGetSuggestions} disabled={isLoading} className="w-full bg-accent hover:bg-accent/90">
-          <Wand2 className="mr-2 h-4 w-4" /> {isLoading ? 'Gerando...' : 'Obter Sugestões da IA'}
-        </Button>
          <div className="relative">
             <Textarea
               id="driver-message"
