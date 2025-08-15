@@ -44,9 +44,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         const fetchUsers = async () => {
             setIsLoading(true);
             try {
-                // Fetching directly from PocketBase users collection
+                // Fetching directly from PocketBase users collection, sorted by creation date
                 const records = await pb.collection('users').getList<User>(1, 50, {
-                    // You can add filters here if needed in the future
+                    sort: '-created',
                 });
 
                 // Mapping PocketBase records to our User type for the UI

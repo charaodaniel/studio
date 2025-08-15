@@ -8,15 +8,20 @@ Para garantir que o frontend possa se comunicar com seu backend, use a página d
 
 1.  **Inicie sua aplicação.**
 2.  **Abra o painel do administrador** e clique no botão **"Desenvolvedor"**.
-3.  Na página de desenvolvedor, use a ferramenta **"Teste de Conexão com API"**.
+3.  Na página de desenvolvedor, use a ferramenta **"Teste de Conexão com API"**. O teste deve usar a URL pública do seu servidor (ex: `http://SEU_IP_PUBLICO:8090`).
 
-Se o teste de conexão falhar, verifique se a URL do seu backend PocketBase está acessível publicamente e se não há firewalls bloqueando a conexão.
+Se o teste de conexão falhar, verifique os seguintes pontos:
 
-**Observação sobre CORS:** Versões recentes do PocketBase (v0.22+) vêm com configurações de CORS (`--origins="*"`) que permitem a conexão de qualquer origem por padrão ao iniciar o servidor. Se você estiver usando uma versão mais antiga ou tiver alterado essa configuração, certifique-se de que a origem da sua aplicação frontend esteja na lista de permissões.
+**1. Comando de Inicialização (CORS):**
+Versões mais recentes do PocketBase (v0.22+) vêm com a configuração de CORS (`--origins="*"`) habilitada por padrão. Se você estiver usando uma versão mais antiga ou se o teste falhar, certifique-se de iniciar seu servidor com este parâmetro explícito:
+`./pocketbase serve --http="0.0.0.0:8090" --origins="*"`
 
-## Usando um Proxy Reverso (Nginx) - Recomendado
+**2. Firewall:**
+Verifique se a porta `8090` está liberada no firewall do seu servidor (`62.72.9.108`).
 
-Para ambientes de produção, é altamente recomendado rodar o PocketBase por trás de um proxy reverso como o Nginx.
+## Usando um Proxy Reverso (Nginx) - Altamente Recomendado
+
+Para ambientes de produção, a melhor prática é rodar o PocketBase por trás de um proxy reverso como o Nginx. Isso resolve muitos problemas de conexão e segurança.
 
 **Vantagens:**
 *   **Segurança:** Facilita a configuração de HTTPS com certificados SSL/TLS.
