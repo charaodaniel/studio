@@ -1,29 +1,25 @@
-# Guia de Configuração do Backend PocketBase
+# Guia de Configuração do Backend PocketBase com Nginx
 
-Esta aplicação foi projetada para se conectar a um backend PocketBase.
+Esta aplicação foi projetada para se conectar a um backend PocketBase rodando por trás de um proxy reverso, como o Nginx. Esta é a abordagem recomendada para segurança e estabilidade em produção.
 
-## Testando a Conexão
+## Cenário Atual
 
-Para garantir que o frontend possa se comunicar com seu backend, use a página de desenvolvedor da sua aplicação.
+Pela sua configuração (`systemctl status pocketbase`), seu servidor PocketBase está rodando corretamente, mas escutando apenas localmente em `127.0.0.1:8090`. Isso é ótimo para segurança!
 
-1.  **Inicie sua aplicação.**
-2.  **Abra o painel do administrador** e clique no botão **"Desenvolvedor"**.
-3.  Na página de desenvolvedor, use a ferramenta **"Teste de Conexão com API"**. O teste deve usar a URL pública do seu servidor (ex: `http://SEU_IP_PUBLICO:8090`).
+O próximo passo é usar o Nginx para "expor" o PocketBase para a internet de forma segura.
 
-Se o teste de conexão falhar, a causa mais provável é a configuração de rede ou CORS. A solução mais robusta é usar um proxy reverso.
+## Usando Nginx como Proxy Reverso
 
-## Usando um Proxy Reverso (Nginx) - Altamente Recomendado
-
-Para ambientes de produção e para resolver problemas complexos de conexão, a melhor prática é rodar o PocketBase por trás de um proxy reverso como o Nginx.
+Configurar o Nginx como um proxy reverso é a solução definitiva para a conexão.
 
 **Vantagens:**
-*   **Resolve CORS:** O Nginx pode ser configurado para lidar com as permissões de CORS de forma correta e definitiva.
-*   **Domínio Personalizado:** Permite que você acesse sua API através de um subdomínio (ex: `api.seusite.com`) em vez de um IP com uma porta.
-*   **Segurança:** Facilita a configuração de HTTPS com certificados SSL/TLS, protegendo a comunicação.
-*   **Performance:** O Nginx pode lidar com cache e balanceamento de carga, otimizando o acesso à API.
+*   **Resolve CORS:** O Nginx lida com as permissões de CORS de forma correta e definitiva.
+*   **Domínio Personalizado:** Permite que você acesse sua API através de um domínio (ex: `api.seusite.com`) em vez de um IP com uma porta.
+*   **Segurança (HTTPS):** Facilita a configuração de certificados SSL/TLS, protegendo toda a comunicação.
+*   **Performance:** O Nginx pode lidar com cache e otimizar o acesso à API.
 
-O time do PocketBase providenciou um guia excelente e detalhado sobre como fazer essa configuração.
+O time do PocketBase providenciou um guia excelente e detalhado sobre como fazer essa configuração. **Siga as instruções do link abaixo.**
 
 **Consulte o guia oficial aqui:** [https://pocketbase.io/docs/going-to-production/#using-a-reverse-proxy](https://pocketbase.io/docs/going-to-production/#using-a-reverse-proxy)
 
-Seguir este guia é o caminho mais seguro para garantir que sua aplicação se conecte ao PocketBase sem problemas.
+Após seguir o guia, seu Nginx irá receber as requisições do nosso aplicativo (em `http://62.72.9.108`) e as redirecionará para o seu serviço PocketBase (em `http://127.0.0.1:8090`).
