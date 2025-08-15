@@ -184,5 +184,5 @@ export default function DeveloperPage() {
 
       </div>
     </div>
-  )
+  );
 }
