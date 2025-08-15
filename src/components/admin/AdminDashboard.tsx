@@ -3,6 +3,7 @@ import { Users, Car, MessageSquare, Code } from "lucide-react";
 import UserManagementTabs from "./UserManagementTabs";
 import Link from "next/link";
 import { Button } from "../ui/button";
+import Logo from "../shared/Logo";
 
 export default function AdminDashboard() {
   return (
@@ -13,6 +14,10 @@ export default function AdminDashboard() {
             <h1 className="text-4xl font-bold font-headline text-slate-800">Painel do Administrador</h1>
             <p className="text-muted-foreground">Visão geral e gerenciamento da plataforma.</p>
           </div>
+          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+            <Logo className="h-6 w-6" />
+            <span className="font-semibold font-headline">CEOLIN Mobilidade Urbana</span>
+          </Link>
         </header>
 
         <div className="grid gap-6 md:grid-cols-3 mb-8">
