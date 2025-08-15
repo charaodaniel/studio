@@ -19,10 +19,22 @@ Você precisa dizer ao seu PocketBase para aceitar requisições vindas do nosso
     No menu lateral, clique em **Settings** e depois em **Application**.
 
 3.  **Adicione a Origem Permitida:**
-    No campo **Allowed Origins**, cole o endereço do nosso aplicativo:
-    ```
-    http://62.72.9.108
-    ```
+    No campo **Allowed Origins**, cole o endereço **exato** que você usa no navegador para acessar este aplicativo.
+    
+    - **Se você acessa este app pelo IP:**
+      ```
+      http://62.72.9.108
+      ```
+    - **Se você usa um domínio com Nginx:**
+      Cole o seu domínio. Por exemplo:
+      ```
+      https://meuapp.com
+      ```
+      ou
+      ```
+      http://meuapp.com
+      ```
+    
     Se você tiver outras origens, pode adicioná-las em linhas separadas. Para permitir todas as origens (não recomendado para produção), você pode usar `*`.
 
 4.  **Salve as alterações.**
