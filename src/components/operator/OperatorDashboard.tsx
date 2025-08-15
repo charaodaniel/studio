@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Car, MessageSquare, MonitorPlay } from "lucide-react";
+import { Users, Car, MessageSquare, ListChecks } from "lucide-react";
 import Link from 'next/link';
 import Logo from "../shared/Logo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import MapPlaceholder from "../passenger/MapPlaceholder";
 import OperatorConversationsPage from "./OperatorConversationsPage";
+import DriverStatusList from "./DriverStatusList";
 
 export default function OperatorDashboard() {
   return (
@@ -65,17 +65,15 @@ export default function OperatorDashboard() {
         </div>
 
         <Card className="h-[70vh]">
-          <Tabs defaultValue="monitoring" className="w-full h-full flex flex-col">
+          <Tabs defaultValue="status" className="w-full h-full flex flex-col">
             <div className="p-2 border-b">
                 <TabsList>
-                    <TabsTrigger value="monitoring"><MonitorPlay className="mr-2 h-4 w-4"/> Monitoramento</TabsTrigger>
+                    <TabsTrigger value="status"><ListChecks className="mr-2 h-4 w-4"/> Status dos Motoristas</TabsTrigger>
                     <TabsTrigger value="conversations"><MessageSquare className="mr-2 h-4 w-4"/> Conversas</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="monitoring" className="flex-grow mt-0">
-                <div className="h-full rounded-b-lg overflow-hidden">
-                    <MapPlaceholder />
-                </div>
+            <TabsContent value="status" className="flex-grow mt-0 overflow-hidden">
+                <DriverStatusList />
             </TabsContent>
             <TabsContent value="conversations" className="flex-grow mt-0 overflow-hidden">
                 <OperatorConversationsPage />
