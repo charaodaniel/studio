@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +10,7 @@ import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Te
 import { POCKETBASE_URL } from "@/lib/pocketbase"
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import pb from "@/lib/pocketbase";
+import PocketBase from 'pocketbase';
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -23,8 +24,10 @@ export default function DeveloperPage() {
         setTestStatus('loading');
         setTestResult(null);
         try {
+            // Create a temporary PocketBase instance with the user-provided URL
+            const tempPb = new PocketBase(apiUrl);
             // A simple health check is a good way to test the connection.
-            const health = await pb.health.check();
+            const health = await tempPb.health.check();
             if (health.code === 200) {
                 setTestStatus('success');
                 setTestResult(`Conexão bem-sucedida! O servidor respondeu com status ${health.code}: ${health.message}.`);
@@ -38,6 +41,8 @@ export default function DeveloperPage() {
                 errorMessage = "A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
             } else if (error.originalError) {
                 errorMessage += ` Detalhe: ${error.originalError.message || 'Erro de rede'}`;
+            } else if (error.message) {
+                 errorMessage += ` Detalhe: ${error.message}`;
             }
             setTestResult(errorMessage);
         }
@@ -62,8 +67,8 @@ export default function DeveloperPage() {
                         type="url" 
                         placeholder="URL da API" 
                         value={apiUrl}
-                        readOnly
-                        className="bg-muted"
+                        onChange={(e) => setApiUrl(e.target.value)}
+                        disabled={testStatus === 'loading'}
                     />
                     <Button onClick={handleTestConnection} disabled={testStatus === 'loading'}>
                         {testStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -160,7 +165,7 @@ export default function DeveloperPage() {
                             <TableRow><TableCell>/auth</TableCell><TableCell><Badge className="bg-green-100 text-green-800"><CheckCircle className="mr-1 h-3 w-3" /> Operacional</Badge></TableCell></TableRow>
                             <TableRow><TableCell>/rides</TableCell><TableCell><Badge className="bg-green-100 text-green-800"><CheckCircle className="mr-1 h-3 w-3" /> Operacional</Badge></TableCell></TableRow>
                             <TableRow><TableCell>/users</TableCell><TableCell><Badge className="bg-yellow-100 text-yellow-800"><AlertTriangle className="mr-1 h-3 w-3" /> Degradado</Badge></TableCell></TableRow>
-                            <TableRow><TableCell>/payments</TableCell><TableCell><Badge className="bg-red-100 text-red-800"><AlertTriangle className="mr-1 h-3 w-3" /> Interrupção</Badge></TableCell></TableRow>
+                            <TableRow><TableCell>/payments</TableCell><TableCell><Badge className="bg-red-100 text-red-800"><AlertTriangle className="mr-1 h-3 w-3" /> Interrupção</badge></TableCell></TableRow>
                         </TableBody>
                     </Table>
                 </CardContent>
