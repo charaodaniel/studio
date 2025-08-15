@@ -13,12 +13,6 @@ export default function AdminDashboard() {
             <h1 className="text-4xl font-bold font-headline text-slate-800">Painel do Administrador</h1>
             <p className="text-muted-foreground">Visão geral e gerenciamento da plataforma.</p>
           </div>
-          <Link href="/admin/developer" passHref>
-            <Button variant="outline">
-              <Code className="mr-2 h-4 w-4" />
-              Desenvolvedor
-            </Button>
-          </Link>
         </header>
 
         <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -59,6 +53,14 @@ export default function AdminDashboard() {
             <UserManagementTabs />
           </Card>
         </div>
+        
+        <footer className="mt-8 text-center text-sm text-muted-foreground">
+          <Link href="/admin/developer" passHref>
+            <Button variant="link">
+              Painel do Desenvolvedor
+            </Button>
+          </Link>
+        </footer>
 
       </div>
     </div>
