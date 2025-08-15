@@ -66,7 +66,7 @@ export default function AppHeader() {
                         <Headset className="h-8 w-8 mb-2 text-primary"/>
                         <CardTitle className="text-md font-semibold">Atendente</CardTitle>
                     </Card>
-                </Link>
+                 </Link>
               </div>
             </DialogContent>
           </Dialog>

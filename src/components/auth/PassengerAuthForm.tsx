@@ -142,7 +142,7 @@ export default function PassengerAuthForm() {
                 </div>
               </CardContent>
               <CardFooter className="px-0 pb-0">
-                <Button type="submit" className="w-full bg-accent hover:bg-accent/90">Entrar</Button>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Entrar</Button>
               </CardFooter>
             </form>
           </TabsContent>
