@@ -9,11 +9,12 @@ import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Te
 import { POCKETBASE_URL } from "@/lib/pocketbase"
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import pb from "@/lib/pocketbase";
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export default function DeveloperPage() {
-    const [apiUrl, setApiUrl] = useState(`${POCKETBASE_URL}/api/collections`);
+    const [apiUrl, setApiUrl] = useState(`${POCKETBASE_URL}`);
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
 
@@ -22,16 +23,23 @@ export default function DeveloperPage() {
         setTestStatus('loading');
         setTestResult(null);
         try {
-            const response = await fetch(apiUrl);
-            if (response.ok) {
+            // A simple health check is a good way to test the connection.
+            const health = await pb.health.check();
+            if (health.code === 200) {
                 setTestStatus('success');
-                setTestResult(`Conexão bem-sucedida! A API respondeu com status ${response.status}.`);
+                setTestResult(`Conexão bem-sucedida! O servidor respondeu com status ${health.code}: ${health.message}.`);
             } else {
-                throw new Error(`A API respondeu com um erro: ${response.status} ${response.statusText}`);
+                throw new Error(`O servidor respondeu com um status inesperado: ${health.code} ${health.message}`);
             }
         } catch (error: any) {
             setTestStatus('error');
-            setTestResult("Falha ao conectar na API. Verifique a URL, o status do servidor e as configurações de CORS.");
+            let errorMessage = "Falha ao conectar na API. Verifique a URL, o status do servidor e as configurações de CORS.";
+            if(error.isAbort) {
+                errorMessage = "A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
+            } else if (error.originalError) {
+                errorMessage += ` Detalhe: ${error.originalError.message || 'Erro de rede'}`;
+            }
+            setTestResult(errorMessage);
         }
     };
 
@@ -46,7 +54,7 @@ export default function DeveloperPage() {
         <Card className="mb-6">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><LinkIcon /> Teste de Conexão com API</CardTitle>
-                 <CardDescription>Verifique a conexão com o backend do PocketBase.</CardDescription>
+                 <CardDescription>Verifique a conexão com o backend do PocketBase. A URL base da API é usada para os testes.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex w-full max-w-md items-center space-x-2">
@@ -54,7 +62,8 @@ export default function DeveloperPage() {
                         type="url" 
                         placeholder="URL da API" 
                         value={apiUrl}
-                        onChange={(e) => setApiUrl(e.target.value)}
+                        readOnly
+                        className="bg-muted"
                     />
                     <Button onClick={handleTestConnection} disabled={testStatus === 'loading'}>
                         {testStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

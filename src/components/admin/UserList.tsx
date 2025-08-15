@@ -44,9 +44,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         const fetchUsers = async () => {
             setIsLoading(true);
             try {
-                // Fetching directly from PocketBase users collection, sorted by creation date
+                // Fetching directly from PocketBase users collection, sorting by creation date
                 const records = await pb.collection('users').getList<User>(1, 50, {
-                    sort: '-created',
+                    sort: '-created', // Sort by most recently created
                 });
 
                 // Mapping PocketBase records to our User type for the UI
@@ -54,10 +54,10 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                     ...item,
                     lastMessage: '', // Default value
                     unread: 0, // Default value
-                    type: 'Passageiro', // Default or from a 'role' field if you add one
+                    type: item.role || 'Passageiro', // Use 'role' field or default
                     // The avatar field from PocketBase needs to be constructed into a URL
                     avatar: item.avatar ? pb.getFileUrl(item, item.avatar) : `https://placehold.co/40x40.png?text=${item.name.substring(0, 2).toUpperCase()}`,
-                    phone: '' // Default value
+                    phone: item.phone || '' // Use phone field or default
                 }));
                 setUsers(fetchedUsers);
             } catch (error) {
