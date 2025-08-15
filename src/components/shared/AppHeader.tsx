@@ -55,7 +55,7 @@ export default function AppHeader() {
                         <PassengerAuthForm />
                     </DialogContent>
                 </Dialog>
-                <Link href="/admin" passHref>
+                <Link href="/admin/login" passHref>
                     <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
                         <Shield className="h-8 w-8 mb-2 text-primary"/>
                         <CardTitle className="text-md font-semibold">Admin</CardTitle>
