@@ -180,8 +180,9 @@ export default function DeveloperPage() {
                     </CardContent>
                 </Card>
             </div>
-
           </div>
         </div>
     );
 }
+
+    
