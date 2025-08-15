@@ -1,13 +1,20 @@
 
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Car, MessageSquare, ListChecks } from "lucide-react";
+import { Users, Car, MessageSquare, ListChecks, Shield } from "lucide-react";
 import Link from 'next/link';
 import Logo from "../shared/Logo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import OperatorConversationsPage from "./OperatorConversationsPage";
 import DriverStatusList from "./DriverStatusList";
+import UserManagement from "../admin/UserManagement";
+import { useState } from "react";
+import type { User as UserData } from '../admin/UserList';
 
 export default function OperatorDashboard() {
+  const [activeTab, setActiveTab] = useState("status");
+  const [selectedUserForChat, setSelectedUserForChat] = useState<UserData | null>(null);
+
   return (
     <div className="bg-muted/40 min-h-screen">
       <div className="container mx-auto p-4 sm:p-8">
@@ -66,7 +73,7 @@ export default function OperatorDashboard() {
         </div>
 
         <Card className="h-[70vh]">
-          <Tabs defaultValue="status" className="w-full h-full flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
             <div className="p-2 border-b">
                 <TabsList>
                     <TabsTrigger value="status"><ListChecks className="mr-2 h-4 w-4"/> Status dos Motoristas</TabsTrigger>
@@ -76,8 +83,8 @@ export default function OperatorDashboard() {
             <TabsContent value="status" className="flex-grow mt-0 overflow-hidden">
                 <DriverStatusList />
             </TabsContent>
-            <TabsContent value="conversations" className="flex-grow mt-0 overflow-hidden">
-                <OperatorConversationsPage />
+            <TabsContent value="conversations" className="flex-grow mt-0 overflow-y-auto">
+                <UserManagement preselectedUser={selectedUserForChat} onUserSelect={setSelectedUserForChat} />
             </TabsContent>
           </Tabs>
         </Card>
