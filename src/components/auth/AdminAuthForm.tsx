@@ -9,6 +9,7 @@ import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/di
 import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { POCKETBASE_URL } from '@/lib/pocketbase';
 
 export default function AdminAuthForm() {
   const [email, setEmail] = useState('');
@@ -26,9 +27,16 @@ export default function AdminAuthForm() {
       // We can then redirect to the admin dashboard.
       window.location.href = '/admin';
     } catch (error: any) {
+      let description = "Email ou senha inválidos. Por favor, tente novamente.";
+      if (error.isAbort) {
+          description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e as configurações de CORS.`;
+      } else if (error.status === 0) {
+          description = "Erro de rede. Verifique sua conexão com a internet e as configurações de CORS do servidor.";
+      }
+      
       toast({
         title: "Falha no Login",
-        description: "Email ou senha inválidos. Por favor, tente novamente.",
+        description: description,
         variant: "destructive",
       });
       console.error('Failed to login:', error);
