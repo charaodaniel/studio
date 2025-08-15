@@ -11,9 +11,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import Logo from '@/components/shared/Logo';
-import Link from 'next/link';
-import { Card, CardTitle } from '../ui/card';
+import { Card, CardTitle, CardContent } from '../ui/card';
 import PassengerAuthForm from '../auth/PassengerAuthForm';
+import DriverAuthForm from '../auth/DriverAuthForm';
+import AdminAuthForm from '../auth/AdminAuthForm';
+import OperatorAuthForm from '../auth/OperatorAuthForm';
+
 
 export default function AppHeader() {
   return (
@@ -38,12 +41,17 @@ export default function AppHeader() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4 pt-4">
-                 <Link href="/driver/login" passHref>
-                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
-                        <HardHat className="h-8 w-8 mb-2 text-primary"/>
-                        <CardTitle className="text-md font-semibold">Motorista</CardTitle>
-                    </Card>
-                 </Link>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
+                            <HardHat className="h-8 w-8 mb-2 text-primary"/>
+                            <CardTitle className="text-md font-semibold">Motorista</CardTitle>
+                        </Card>
+                    </DialogTrigger>
+                    <DialogContent className="p-0">
+                        <DriverAuthForm />
+                    </DialogContent>
+                 </Dialog>
                  <Dialog>
                     <DialogTrigger asChild>
                         <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
@@ -55,18 +63,28 @@ export default function AppHeader() {
                         <PassengerAuthForm />
                     </DialogContent>
                 </Dialog>
-                <Link href="/admin/login" passHref>
+                <Dialog>
+                  <DialogTrigger asChild>
                     <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
                         <Shield className="h-8 w-8 mb-2 text-primary"/>
                         <CardTitle className="text-md font-semibold">Admin</CardTitle>
                     </Card>
-                </Link>
-                 <Link href="/operator" passHref>
+                  </DialogTrigger>
+                  <DialogContent className="p-0">
+                    <AdminAuthForm />
+                  </DialogContent>
+                </Dialog>
+                <Dialog>
+                  <DialogTrigger asChild>
                     <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
                         <Headset className="h-8 w-8 mb-2 text-primary"/>
                         <CardTitle className="text-md font-semibold">Atendente</CardTitle>
                     </Card>
-                 </Link>
+                  </DialogTrigger>
+                   <DialogContent className="p-0">
+                    <OperatorAuthForm />
+                  </DialogContent>
+                </Dialog>
               </div>
             </DialogContent>
           </Dialog>
