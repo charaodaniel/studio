@@ -112,7 +112,6 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} isModal={false} />;
     }
     
-    // We won't pre-select a user to avoid hydration mismatch.
     const usersForList = usersPlaceholder; // Replace with a real user list fetch later
     const filteredUsers = usersForList.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -121,7 +120,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
-        <div className={cn("flex flex-col border-r bg-background", selectedUser && !isProfileOpen ? 'hidden md:flex' : '')}>
+        <div className={cn("flex flex-col border-r bg-background", selectedUser ? 'hidden md:flex' : 'flex')}>
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold font-headline">Conversas</h2>
@@ -178,7 +177,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
           </ScrollArea>
         </div>
         
-        <div className={cn("flex flex-1 flex-col bg-muted/40", selectedUser && !isProfileOpen ? 'flex' : 'hidden md:flex')}>
+        <div className={cn("flex flex-1 flex-col bg-muted/40", selectedUser ? 'flex' : 'hidden md:flex')}>
           {selectedUser ? (
             <>
               <div className="p-3 border-b flex items-center gap-3 bg-background shadow-sm">
