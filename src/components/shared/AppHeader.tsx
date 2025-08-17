@@ -1,7 +1,9 @@
-'use client';
-
-import { User, Shield, HardHat, Headset } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import type {ReactNode} from 'react';
+import Link from 'next/link';
+import {Button} from '@/components/ui/button';
+import {Car, Rocket, Shield, User, MessageSquare} from 'lucide-react';
+import PassengerAuthForm from '../auth/PassengerAuthForm';
+import {Avatar, AvatarFallback, AvatarImage} from '../ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -10,86 +12,102 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import Logo from '@/components/shared/Logo';
-import { Card, CardTitle, CardContent } from '../ui/card';
-import PassengerAuthForm from '../auth/PassengerAuthForm';
-import DriverAuthForm from '../auth/DriverAuthForm';
+import {ScrollArea} from '../ui/scroll-area';
 import AdminAuthForm from '../auth/AdminAuthForm';
-import OperatorAuthForm from '../auth/OperatorAuthForm';
+import DriverAuthForm from '../auth/DriverAuthForm';
 
+export function AppHeader({
+  title,
+  showDriverAvatar = false,
+}: {
+  title: string;
+  showDriverAvatar?: boolean;
+}) {
+  const renderLogoLink = () => {
+    if (showDriverAvatar) {
+      return (
+        <Link href="/" className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage
+              src={'https://placehold.co/48x48.png'}
+              data-ai-hint="person portrait"
+            />
+            <AvatarFallback>C</AvatarFallback>
+          </Avatar>
+          <span className="font-headline text-lg font-semibold sm:inline">
+            CEOLIN
+          </span>
+        </Link>
+      );
+    }
+    return (
+      <Link href="/" className="flex items-center gap-2">
+        <Rocket className="h-6 w-6 text-primary" />
+        <span className="font-headline text-lg font-semibold sm:inline">
+          CEOLIN Mobilidade Urbana
+        </span>
+      </Link>
+    );
+  };
 
-export default function AppHeader() {
   return (
-    <header className="bg-card shadow-sm">
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Logo className="h-8 w-8 text-primary" />
-          <h1 className="text-xl font-bold font-headline text-primary-dark">
-            CEOLIN Mobilidade Urbana
+      <header className="sticky top-0 z-10 w-full border-b bg-background/80 backdrop-blur-sm">
+        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
+          {renderLogoLink()}
+
+          <h1 className="hidden sm:block flex-1 text-center font-headline text-xl font-bold text-foreground/80">
+            {title}
+          </h1>
+
+          <div className="flex items-center gap-2">
+             <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <Shield className="h-5 w-5" />
+                  <span className="sr-only">Admin</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="p-0">
+                <AdminAuthForm />
+              </DialogContent>
+            </Dialog>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <Car className="h-5 w-5" />
+                  <span className="sr-only">Área do Motorista</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="p-0">
+                <DriverAuthForm />
+              </DialogContent>
+            </Dialog>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <User className="h-5 w-5" />
+                  <span className="sr-only">Toggle user menu</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] flex flex-col p-0">
+                <DialogHeader className="sr-only">
+                    <DialogTitle>Painel do Passageiro</DialogTitle>
+                    <DialogDescription>Faça login, registre-se ou gerencie seu perfil de passageiro.</DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    <PassengerAuthForm />
+                  </ScrollArea>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+        <div className="container sm:hidden pb-2 px-4">
+          <h1 className="text-center font-headline text-lg font-bold text-foreground/80">
+            {title}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-           <Dialog>
-            <DialogTrigger asChild>
-              <Button>ENTRAR</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                <DialogTitle className="font-headline text-2xl">Escolha seu Acesso</DialogTitle>
-                <DialogDescription>
-                  Selecione como você quer entrar na plataforma.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4 pt-4">
-                 <Dialog>
-                    <DialogTrigger asChild>
-                        <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
-                            <HardHat className="h-8 w-8 mb-2 text-primary"/>
-                            <CardTitle className="text-md font-semibold">Motorista</CardTitle>
-                        </Card>
-                    </DialogTrigger>
-                    <DialogContent className="p-0">
-                        <DriverAuthForm />
-                    </DialogContent>
-                 </Dialog>
-                 <Dialog>
-                    <DialogTrigger asChild>
-                        <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
-                            <User className="h-8 w-8 mb-2 text-primary"/>
-                            <CardTitle className="text-md font-semibold">Passageiro</CardTitle>
-                        </Card>
-                    </DialogTrigger>
-                    <DialogContent className="p-0">
-                        <PassengerAuthForm />
-                    </DialogContent>
-                </Dialog>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
-                        <Shield className="h-8 w-8 mb-2 text-primary"/>
-                        <CardTitle className="text-md font-semibold">Admin</CardTitle>
-                    </Card>
-                  </DialogTrigger>
-                  <DialogContent className="p-0">
-                    <AdminAuthForm />
-                  </DialogContent>
-                </Dialog>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Card className="p-4 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer h-28">
-                        <Headset className="h-8 w-8 mb-2 text-primary"/>
-                        <CardTitle className="text-md font-semibold">Atendente</CardTitle>
-                    </Card>
-                  </DialogTrigger>
-                   <DialogContent className="p-0">
-                    <OperatorAuthForm />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-    </header>
+      </header>
   );
 }

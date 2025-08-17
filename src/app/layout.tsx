@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
+import { AppLayout } from '@/components/shared/AppLayout';
 
 const APP_NAME = "CEOLIN Mobilidade Urbana";
 const APP_DEFAULT_TITLE = "CEOLIN Mobilidade Urbana";
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
     template: APP_TITLE_TEMPLATE,
   },
   description: APP_DESCRIPTION,
-  manifest: "/manifest.ts",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -61,7 +62,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased h-full bg-background">
-        {children}
+        <AppLayout title="Bem-vindo!">
+          {children}
+        </AppLayout>
         <Toaster />
       </body>
     </html>

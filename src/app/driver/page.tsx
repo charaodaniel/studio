@@ -1,9 +1,9 @@
-import DriverDashboard from "@/components/driver/DriverDashboard";
+import { DriverProfilePage } from "@/components/driver/DriverProfilePage";
 
 export default function Page() {
     return (
         <div className="bg-muted/40 min-h-screen">
-           <DriverDashboard />
+           <DriverProfilePage />
         </div>
     )
 }
