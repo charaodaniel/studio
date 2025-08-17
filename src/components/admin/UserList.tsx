@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus } from "lucide-react"
+import { Search, UserPlus, WifiOff } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
@@ -39,10 +40,12 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchUsers = async () => {
             setIsLoading(true);
+            setError(null);
             try {
                 // Fetching directly from PocketBase users collection, sorting by creation date
                 const records = await pb.collection('users').getList<User>(1, 50, {
@@ -60,9 +63,9 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                     phone: item.phone || '' // Use phone field or default
                 }));
                 setUsers(fetchedUsers);
-            } catch (error) {
-                console.error("Failed to fetch users:", error);
-                // We can have a placeholder or show an error message
+            } catch (err: any) {
+                console.error("Failed to fetch users:", err);
+                setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor.");
                 setUsers([]); 
             } finally {
                 setIsLoading(false);
@@ -83,6 +86,44 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     const handleSelectAndClose = (user: User) => {
         onSelectUser(user);
         setSelectedUser(null);
+    };
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <div className="text-center p-8 text-muted-foreground">Carregando usuários...</div>;
+        }
+        if (error) {
+            return (
+                <div className="text-center p-8 text-destructive">
+                    <WifiOff className="mx-auto h-10 w-10 mb-2" />
+                    <p className="font-semibold">Erro de Conexão</p>
+                    <p className="text-sm">{error}</p>
+                </div>
+            );
+        }
+        if (filteredUsers.length > 0) {
+            return filteredUsers.map((user) => (
+                <div 
+                  key={user.id} 
+                  className="flex items-center gap-3 p-3 cursor-pointer border-b hover:bg-muted/50"
+                  onClick={() => setSelectedUser(user)}
+                >
+                  <Avatar>
+                    <AvatarImage src={user.avatar} data-ai-hint="user portrait"/>
+                    <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 overflow-hidden">
+                      <p className="font-semibold truncate">{user.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+            ));
+        }
+        return (
+            <div className="text-center p-8 text-muted-foreground">
+                Nenhum usuário encontrado. Verifique sua conexão ou adicione novos usuários.
+            </div>
+        );
     };
 
     return (
@@ -117,28 +158,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
             </div>
           </div>
           <ScrollArea className="flex-1">
-            {isLoading ? (
-                 <div className="text-center p-8 text-muted-foreground">Carregando usuários...</div>
-            ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
-              <div 
-                key={user.id} 
-                className="flex items-center gap-3 p-3 cursor-pointer border-b hover:bg-muted/50"
-                onClick={() => setSelectedUser(user)}
-              >
-                <Avatar>
-                  <AvatarImage src={user.avatar} data-ai-hint="user portrait"/>
-                  <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 overflow-hidden">
-                    <p className="font-semibold truncate">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                </div>
-              </div>
-            )) : (
-              <div className="text-center p-8 text-muted-foreground">
-                  Nenhum usuário encontrado. Verifique sua conexão ou adicione novos usuários.
-              </div>
-            )}
+            {renderContent()}
           </ScrollArea>
         </div>
         <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
