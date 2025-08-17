@@ -8,8 +8,8 @@ import {
   } from "@/components/ui/table";
   import { Badge } from "@/components/ui/badge";
   import { Button } from "@/components/ui/button";
-  import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-  import { MoreHorizontal, FileDown, ShieldAlert, Trash2, Edit, UserPlus, ListVideo } from "lucide-react";
+  import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
+  import { MoreHorizontal, FileDown, ShieldAlert, Trash2, Edit, UserPlus, ListVideo, FileText } from "lucide-react";
   
   const users = [
     { id: 1, name: "Ana Clara", email: "ana.clara@email.com", role: "Passageiro", status: "Ativo" },
@@ -65,8 +65,17 @@ import {
                                 <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4"/>Alterar Senha</DropdownMenuItem>
                                 {user.role === 'Motorista' && (
                                     <>
-                                        <DropdownMenuItem><FileDown className="mr-2 h-4 w-4"/>Gerar Relatório</DropdownMenuItem>
                                         <DropdownMenuItem><ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status</DropdownMenuItem>
+                                        <DropdownMenuSub>
+                                            <DropdownMenuSubTrigger>
+                                                <FileDown className="mr-2 h-4 w-4" />
+                                                Gerar Relatório
+                                            </DropdownMenuSubTrigger>
+                                            <DropdownMenuSubContent>
+                                                <DropdownMenuItem><FileText className="mr-2 h-4 w-4" /> PDF</DropdownMenuItem>
+                                                <DropdownMenuItem><FileText className="mr-2 h-4 w-4" /> CSV</DropdownMenuItem>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuSub>
                                     </>
                                 )}
                                 <DropdownMenuSeparator />
