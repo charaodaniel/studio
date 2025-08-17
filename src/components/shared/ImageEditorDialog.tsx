@@ -6,6 +6,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Camera as CameraIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 interface ImageEditorDialogProps {
     isOpen: boolean;
