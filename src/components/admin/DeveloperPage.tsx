@@ -23,6 +23,7 @@ export default function DeveloperPage() {
         setTestResult(null);
         try {
             const tempPb = new PocketBase(apiUrl);
+            // Pocketbase health check is at /api/health
             const health = await tempPb.health.check();
             if (health.code === 200) {
                 setTestStatus('success');

@@ -30,8 +30,8 @@ export default function AdminAuthForm() {
       let description = "Email ou senha inválidos. Por favor, tente novamente.";
       if (error.isAbort) {
           description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e as configurações de CORS.`;
-      } else if (error.status === 0) {
-          description = "Erro de rede. Verifique sua conexão com a internet e as configurações de CORS do servidor.";
+      } else if (error.status === 0 || error.originalError) {
+          description = `Erro de rede. Verifique sua conexão com a internet e as configurações de CORS do servidor em ${POCKETBASE_URL}.`;
       }
       
       toast({
