@@ -4,11 +4,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { negotiateIntercityFare } from '@/ai/flows/fare-negotiation-tool';
-import { Wand2, Send, Bot, User, Handshake, Check, X } from 'lucide-react';
+import { Send, Bot, User, Handshake, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '../ui/badge';
-import { Skeleton } from '../ui/skeleton';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import type { RideRequest } from './RideRequests';
 
@@ -19,6 +16,16 @@ interface NegotiationChatProps {
 export default function NegotiationChat({ request }: NegotiationChatProps) {
   const [driverMessage, setDriverMessage] = useState('');
   const [passengerMessage, setPassengerMessage] = useState(`Acho ${request.driverSuggestion} um pouco caro. Consegue fazer por ${request.passengerOffer}?`);
+  const { toast } = useToast();
+
+  const handleSendMessage = () => {
+    if (!driverMessage.trim()) return;
+    // Here you would implement sending the message to your backend
+    toast({
+        title: "Mensagem Enviada",
+        description: driverMessage,
+    });
+  }
 
   return (
     <Card className="flex flex-col h-full">
@@ -65,7 +72,7 @@ export default function NegotiationChat({ request }: NegotiationChatProps) {
               className="pr-12"
               rows={1}
             />
-            <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" disabled={!driverMessage}>
+            <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" disabled={!driverMessage} onClick={handleSendMessage}>
                 <Send className="w-4 h-4"/>
                 <span className="sr-only">Enviar</span>
             </Button>
@@ -77,17 +84,4 @@ export default function NegotiationChat({ request }: NegotiationChatProps) {
       </CardFooter>
     </Card>
   );
-}
-
-// Add this type definition
-export interface RideRequest {
-    id: number;
-    title: string;
-    description: string;
-    type: string;
-    from: string;
-    to: string;
-    price: string | null;
-    passengerOffer: string | null;
-    driverSuggestion: string | null;
 }
