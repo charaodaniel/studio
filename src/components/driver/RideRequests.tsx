@@ -45,10 +45,10 @@ export default function RideRequests() {
                 </CardContent>
                 <CardFooter className="p-0">
                     <Button variant={'secondary'} className="flex-1 rounded-none rounded-bl-lg">
-                        <Eye className="mr-2"/> Preview
+                        <X className="mr-2"/> Rejeitar
                     </Button>
                      <Button className="flex-1 rounded-none rounded-br-lg">
-                        <MessageSquare className="mr-2"/> Chat
+                        <Check className="mr-2"/> Aceitar
                     </Button>
                 </CardFooter>
             </Card>

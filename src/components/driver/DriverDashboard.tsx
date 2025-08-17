@@ -22,14 +22,10 @@ import { Card, CardContent } from '../ui/card'
 import Logo from '../shared/Logo'
 import Link from 'next/link'
 import { Button } from '../ui/button'
-import UserManagement from '../admin/UserManagement'
-import type { User as UserData } from '../admin/UserList';
+import ConversationList from './ConversationList'
 
 
 export default function DriverDashboard() {
-  const [activeView, setActiveView] = useState('requests');
-  const [selectedUserForChat, setSelectedUserForChat] = useState<UserData | null>(null);
-
 
   return (
     <div className="max-w-md mx-auto bg-background min-h-screen flex flex-col shadow-lg">
@@ -78,8 +74,8 @@ export default function DriverDashboard() {
           <TabsContent value="requests" className="flex-grow mt-0 overflow-y-auto p-4 bg-muted/40">
             <RideRequests />
           </TabsContent>
-           <TabsContent value="conversations" className="flex-grow mt-0 overflow-y-auto">
-                <UserManagement preselectedUser={selectedUserForChat} onUserSelect={setSelectedUserForChat} />
+           <TabsContent value="conversations" className="flex-grow mt-0 overflow-y-auto p-4 bg-muted/40">
+                <ConversationList />
             </TabsContent>
           <TabsContent value="history" className="flex-grow mt-0 overflow-y-auto p-4 md:p-6 bg-muted/40">
             <DriverRideHistory />
