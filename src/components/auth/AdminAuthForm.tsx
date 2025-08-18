@@ -10,6 +10,7 @@ import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { POCKETBASE_URL } from '@/lib/pocketbase';
+import { Checkbox } from '../ui/checkbox';
 
 export default function AdminAuthForm() {
   const [email, setEmail] = useState('');
@@ -83,6 +84,10 @@ export default function AdminAuthForm() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
             />
+          </div>
+           <div className="flex items-center space-x-2">
+            <Checkbox id="remember-me-admin" />
+            <Label htmlFor="remember-me-admin" className="text-sm font-normal">Mantenha-me conectado</Label>
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

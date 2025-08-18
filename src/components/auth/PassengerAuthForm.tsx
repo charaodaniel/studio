@@ -11,6 +11,7 @@ import { LogOut, PenSquare, ShieldCheck, History, MessageSquare } from 'lucide-r
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '../ui/checkbox';
 
 const conversations = [
     { id: 1, name: "Roberto Andrade", lastMessage: "Olá! Chego em 5 minutos.", unread: 1, time: "14:32" },
@@ -139,6 +140,10 @@ export default function PassengerAuthForm() {
                 <div className="space-y-2">
                   <Label htmlFor="password-login">Senha</Label>
                   <Input id="password-login" type="password" required />
+                </div>
+                 <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox id="remember-me-passenger" />
+                    <Label htmlFor="remember-me-passenger" className="text-sm font-normal">Mantenha-me conectado</Label>
                 </div>
               </CardContent>
               <CardFooter className="px-0 pb-0">

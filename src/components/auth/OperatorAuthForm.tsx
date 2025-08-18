@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/shared/Logo';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '../ui/checkbox';
 
 export default function OperatorAuthForm() {
   return (
@@ -30,6 +31,10 @@ export default function OperatorAuthForm() {
                 </Link>
             </div>
             <Input id="password-operator" type="password" required />
+            </div>
+             <div className="flex items-center space-x-2">
+                <Checkbox id="remember-me-operator" />
+                <Label htmlFor="remember-me-operator" className="text-sm font-normal">Mantenha-me conectado</Label>
             </div>
             <Link href="/operator" className='w-full'>
             <Button type="submit" className="w-full">

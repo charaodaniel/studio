@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Logo from '../shared/Logo';
+import { Checkbox } from '../ui/checkbox';
 
 export default function DriverAuthForm() {
 
@@ -48,6 +49,10 @@ export default function DriverAuthForm() {
                      </Link>
                    </div>
                   <Input id="password-login-driver" type="password" required />
+                </div>
+                 <div className="flex items-center space-x-2">
+                    <Checkbox id="remember-me-driver" />
+                    <Label htmlFor="remember-me-driver" className="text-sm font-normal">Mantenha-me conectado</Label>
                 </div>
                 <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Entrar</Button>
             </form>
