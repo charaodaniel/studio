@@ -7,6 +7,4 @@ export const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://
 const pb = new PocketBase(POCKETBASE_URL);
 
 // Set a higher timeout
-pb.timeout = 10 * 1000; // 10 seconds
-
 export default pb;
