@@ -1,3 +1,4 @@
+'use client';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,14 +18,14 @@ export default function MapPlaceholder() {
     <Card className="w-full h-full overflow-hidden shadow-lg">
       <CardContent className="p-0 relative h-full">
         <Image
-          src="https://placehold.co/1200x800.png"
-          data-ai-hint="city map"
-          alt="Mapa da cidade"
+          src="/ponte-maraba.jpg"
+          data-ai-hint="bridge sunset"
+          alt="Ponte sobre o Rio Tocantins em Marabá ao pôr do sol"
           layout="fill"
           objectFit="cover"
-          className="opacity-70"
+          className="opacity-100"
         />
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-black/20"> {/* Added a slight overlay for text readability */}
           {drivers.map((driver) => (
             <Popover key={driver.id}>
               <PopoverTrigger asChild style={driver.position} className="absolute">
