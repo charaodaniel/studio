@@ -1,7 +1,8 @@
 
+import Link from "next/link";
 import UserManagementTabs from "./UserManagementTabs";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { User } from "lucide-react";
+import { User, Code } from "lucide-react";
 
 
 export default function AdminDashboard() {
@@ -19,6 +20,12 @@ export default function AdminDashboard() {
         </div>
       </div>
        <UserManagementTabs />
+       <div className="text-center p-4 mt-auto">
+        <Link href="/admin/developer" className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-2">
+            <Code className="h-4 w-4" />
+            Ferramentas do Desenvolvedor
+        </Link>
+       </div>
     </div>
   );
 }
