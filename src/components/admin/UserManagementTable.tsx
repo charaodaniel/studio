@@ -29,9 +29,9 @@ import {
                     <TableHeader>
                     <TableRow>
                         <TableHead>Nome</TableHead>
-                        <TableHead className="hidden sm:table-cell">Email</TableHead>
+                        <TableHead className="hidden md:table-cell">Email</TableHead>
                         <TableHead className="hidden sm:table-cell">Perfil</TableHead>
-                        <TableHead className="hidden md:table-cell">Status</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>
                         <span className="sr-only">Ações</span>
                         </TableHead>
@@ -41,14 +41,14 @@ import {
                     {users.map((user) => (
                         <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                        <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                         <TableCell className="hidden sm:table-cell">
                             <Badge variant={
                                 user.role === 'Admin' ? 'destructive' : 
                                 user.role === 'Motorista' ? 'default' : 'secondary'
                             }>{user.role}</Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell>
                             <Badge variant={user.status === 'Ativo' ? 'outline' : 'secondary'} className={user.status === 'Ativo' ? "border-green-500 text-green-600" : ""}>{user.status}</Badge>
                         </TableCell>
                         <TableCell>

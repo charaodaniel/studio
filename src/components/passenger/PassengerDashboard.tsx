@@ -7,7 +7,7 @@ export default function PassengerDashboard() {
       <div className="h-full flex flex-col">
         <RideRequestForm />
       </div>
-      <div className="flex-1 min-h-[300px] h-full hidden lg:block">
+      <div className="flex-1 min-h-[400px] h-full lg:min-h-0">
         <MapPlaceholder />
       </div>
     </div>

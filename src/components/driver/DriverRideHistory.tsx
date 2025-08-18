@@ -293,7 +293,7 @@ export function DriverRideHistory() {
                     </Button>
                 </div>
             )}
-            <ScrollArea className="h-96 w-full">
+            <ScrollArea className="h-[60vh] sm:h-96 w-full">
                 <Table>
                     <TableHeader>
                     <TableRow>
