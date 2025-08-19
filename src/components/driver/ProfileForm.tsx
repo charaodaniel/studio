@@ -1,6 +1,6 @@
 'use client';
 import { Button } from '@/components/ui/button';
-import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut } from 'lucide-react';
+import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -85,6 +85,7 @@ export function ProfileForm() {
   // States for Personal Info
   const [name, setName] = useState('Carlos Motorista');
   const [pixKey, setPixKey] = useState('carlos.motorista@email.com');
+  const [cnpj, setCnpj] = useState('12.345.678/0001-90');
   const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
 
   // States for Vehicle & Docs
@@ -168,6 +169,14 @@ export function ProfileForm() {
                             <Input id="name" value={name} onChange={e => setName(e.target.value)} />
                         ) : (
                             <p className="text-sm font-medium p-2">{name}</p>
+                        )}
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="cnpj">CNPJ</Label>
+                        {isEditingPersonalInfo ? (
+                            <Input id="cnpj" value={cnpj} onChange={e => setCnpj(e.target.value)} placeholder="00.000.000/0000-00"/>
+                        ) : (
+                            <p className="text-sm font-medium p-2">{cnpj || 'Não informado'}</p>
                         )}
                     </div>
                     <div className="space-y-1">

@@ -24,6 +24,12 @@ const initialRides = [
   { id: '4', date: '20/07/2024', passenger: 'Fernanda Lima', origin: 'Centro', destination: 'Hospital Regional', value: '15.00', status: 'Cancelada', startedBy: 'passenger', synced: true },
 ];
 
+// Mock data for the driver
+const driverData = {
+    name: "Carlos Motorista",
+    cnpj: "12.345.678/0001-90"
+};
+
 export function DriverRideHistory() {
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [rides, setRides] = useState(initialRides);
@@ -86,12 +92,14 @@ export function DriverRideHistory() {
         
         doc.setFont("sans-serif", "normal");
         doc.setFontSize(12);
-        doc.text(`Motorista: Carlos Motorista`, 14, 40);
-        doc.text(`Data de Geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 46);
+        doc.text(`Motorista: ${driverData.name}`, 14, 40);
+        doc.text(`CNPJ: ${driverData.cnpj}`, 14, 46);
+        doc.text(`Data de Geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 52);
+
 
         // Table
         (doc as any).autoTable({
-            startY: 55,
+            startY: 60,
             head: [tableColumn],
             body: tableRows,
             theme: 'striped',

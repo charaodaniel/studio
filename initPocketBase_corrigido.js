@@ -30,6 +30,7 @@ const collections = [
       { name: "driver_vehicle_model", type: "text" },
       { name: "driver_vehicle_plate", type: "text" },
       { name: "driver_vehicle_photo", type: "file", options: { maxSelect: 1 } },
+      { name: "driver_cnpj", type: "text" },
       { name: "driver_pix_key", type: "text" },
       { name: "driver_fare_type", type: "select", options: { values: ["fixed", "km"] } },
       { name: "driver_fixed_rate", type: "number" },
@@ -158,4 +159,3 @@ async function main() {
 
 // Executa a função principal
 main();
-

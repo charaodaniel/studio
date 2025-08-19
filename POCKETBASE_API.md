@@ -27,6 +27,7 @@ Armazena os dados de todos os tipos de usuários da plataforma.
 | `driver_vehicle_model`     | `text`       | Não          | Ex: "Chevrolet Onix".                                                             |
 | `driver_vehicle_plate`     | `text`       | Não          | Placa do veículo.                                                                 |
 | `driver_vehicle_photo`     | `file`       | Não          | Foto do veículo do motorista (1 arquivo).                                         |
+| `driver_cnpj`              | `text`       | Não          | CNPJ do motorista, se aplicável (MEI, etc.).                                      |
 | `driver_pix_key`           | `text`       | Não          | Chave PIX para pagamentos.                                                        |
 | `driver_fare_type`         | `select`     | Não          | **Opções:** `fixed` (Fixo), `km` (Por KM). Default: `fixed`.                       |
 | `driver_fixed_rate`        | `number`     | Não          | Valor da tarifa fixa para corridas urbanas.                                       |
