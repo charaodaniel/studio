@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Loader2 } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Loader2, Info } from "lucide-react";
 import { POCKETBASE_URL } from "@/lib/pocketbase";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import PocketBase from 'pocketbase';
+import Link from "next/link";
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -22,8 +23,10 @@ export default function DeveloperPage() {
         setTestStatus('loading');
         setTestResult(null);
         try {
+            // We create a temporary client with the URL from the input to test it.
             const tempPb = new PocketBase(apiUrl);
-            // Pocketbase health check is at /api/health
+            // Pocketbase health check is at /api/health, but the SDK abstracts this.
+            // The health check doesn't require authentication.
             const health = await tempPb.health.check();
             if (health.code === 200) {
                 setTestStatus('success');
@@ -33,11 +36,11 @@ export default function DeveloperPage() {
             }
         } catch (error: any) {
             setTestStatus('error');
-            let errorMessage = "Falha ao conectar na API. Verifique a URL, o status do servidor e as configurações de CORS.";
+            let errorMessage = `Falha ao conectar na API em ${apiUrl}.`;
             if (error.isAbort) {
-                errorMessage = "A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
-            } else if (error.originalError) {
-                errorMessage += ` Detalhe: ${error.originalError.message || 'Erro de rede'}`;
+                errorMessage += " A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
+            } else if (error.originalError || error.message.includes('Failed to fetch')) {
+                 errorMessage += " Verifique se o servidor está no ar e se as configurações de CORS e do proxy Nginx estão corretas. O navegador bloqueou a requisição.";
             } else if (error.message) {
                  errorMessage += ` Detalhe: ${error.message}`;
             }
@@ -57,7 +60,7 @@ export default function DeveloperPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><LinkIcon /> Teste de Conexão com API</CardTitle>
                         <CardDescription>
-                            Verifique a conexão com o backend do PocketBase. A URL base da API é usada para os testes.
+                            Verifique a conexão com o backend do PocketBase. A URL configurada no app é usada para os testes.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -71,7 +74,7 @@ export default function DeveloperPage() {
                             />
                             <Button onClick={handleTestConnection} disabled={testStatus === 'loading'}>
                                 {testStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Testar
+                                Testar Conexão
                             </Button>
                         </div>
 
@@ -79,7 +82,7 @@ export default function DeveloperPage() {
                             <div className="mt-4">
                                 {testStatus === 'loading' && (
                                     <p className="text-sm text-muted-foreground flex items-center">
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testando conexão...
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testando...
                                     </p>
                                 )}
                                 {testStatus === 'success' && (
@@ -94,9 +97,12 @@ export default function DeveloperPage() {
                                 {testStatus === 'error' && (
                                     <Alert variant="destructive">
                                         <AlertTriangle className="h-4 w-4" />
-                                        <AlertTitle>Erro na Conexão</AlertTitle>
+                                        <AlertTitle>Erro de Conexão</AlertTitle>
                                         <AlertDescription>
                                             {testResult}
+                                            <div className="mt-2 text-xs">
+                                                <p>Consulte o <Link href="/POCKETBASE_SETUP.md" className="underline font-semibold" target="_blank">guia de configuração</Link> para ajuda com erros de CORS e Nginx.</p>
+                                            </div>
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -163,7 +169,7 @@ export default function DeveloperPage() {
                                 </TableHeader>
                                 <TableBody>
                                     <TableRow>
-                                        <TableCell>/auth</TableCell>
+                                        <TableCell>/api/collections/users/auth-with-password</TableCell>
                                         <TableCell>
                                             <Badge className="bg-green-100 text-green-800">
                                                 <CheckCircle className="mr-1 h-3 w-3" /> Operacional
@@ -171,7 +177,7 @@ export default function DeveloperPage() {
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell>/rides</TableCell>
+                                        <TableCell>/api/collections/rides/records</TableCell>
                                         <TableCell>
                                             <Badge className="bg-green-100 text-green-800">
                                                 <CheckCircle className="mr-1 h-3 w-3" /> Operacional
@@ -179,7 +185,7 @@ export default function DeveloperPage() {
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell>/users</TableCell>
+                                        <TableCell>/api/collections/users/records</TableCell>
                                         <TableCell>
                                             <Badge className="bg-yellow-100 text-yellow-800">
                                                 <AlertTriangle className="mr-1 h-3 w-3" /> Degradado
@@ -187,7 +193,7 @@ export default function DeveloperPage() {
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell>/payments</TableCell>
+                                        <TableCell>/api/realtime</TableCell>
                                         <TableCell>
                                             <Badge className="bg-red-100 text-red-800">
                                                 <AlertTriangle className="mr-1 h-3 w-3" /> Interrupção
