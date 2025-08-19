@@ -46,8 +46,8 @@ const collections = [
     name: "rides",
     type: "base",
     schema: [
-      { name: "passenger", type: "relation", required: true, options: { collectionId: "users", maxSelect: 1 } },
-      { name: "driver", type: "relation", options: { collectionId: "users", maxSelect: 1 } },
+      { name: "passenger", type: "relation", required: true, options: { collectionId: "_pb_users_auth_", maxSelect: 1 } },
+      { name: "driver", type: "relation", options: { collectionId: "_pb_users_auth_", maxSelect: 1 } },
       { name: "origin_address", type: "text", required: true },
       { name: "destination_address", type: "text", required: true },
       { name: "status", type: "select", required: true, options: { values: ["requested", "accepted", "in_progress", "completed", "canceled"] } },
@@ -66,7 +66,7 @@ const collections = [
     type: "base",
     schema: [
       { name: "ride", type: "relation", required: true, options: { collectionId: "rides", maxSelect: 1 } },
-      { name: "sender", type: "relation", required: true, options: { collectionId: "users", maxSelect: 1 } },
+      { name: "sender", type: "relation", required: true, options: { collectionId: "_pb_users_auth_", maxSelect: 1 } },
       { name: "text", type: "text", required: true },
     ],
     createRule: '@request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver',
@@ -79,7 +79,7 @@ const collections = [
     name: "driver_documents",
     type: "base",
     schema: [
-      { name: "driver", type: "relation", required: true, options: { collectionId: "users", maxSelect: 1 } },
+      { name: "driver", type: "relation", required: true, options: { collectionId: "_pb_users_auth_", maxSelect: 1 } },
       { name: "document_type", type: "select", required: true, options: { values: ["CNH", "CRLV"] } },
       { name: "file", type: "file", required: true, options: { maxSelect: 1 } },
       { name: "is_verified", type: "bool" },
@@ -94,7 +94,7 @@ const collections = [
     name: "driver_status_logs",
     type: "base",
     schema: [
-      { name: "driver", type: "relation", required: true, options: { collectionId: "users", maxSelect: 1 } },
+      { name: "driver", type: "relation", required: true, options: { collectionId: "_pb_users_auth_", maxSelect: 1 } },
       { name: "status", type: "text", required: true },
     ],
     createRule: '@request.auth.role = "Admin"',
@@ -111,7 +111,7 @@ const collections = [
 async function main() {
   try {
     // 1. Autentica como superusuário/admin UMA ÚNICA VEZ
-    await pb.collection('_superusers').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await pb.collection('users').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
     console.log("✅ Autenticado no PocketBase como Administrador!");
   } catch (err) {
     console.error("❌ Falha na autenticação. Verifique ADMIN_EMAIL e ADMIN_PASSWORD.", err.message);
@@ -128,7 +128,18 @@ async function main() {
       // Se der erro 404, a coleção não existe, então a criamos
       if (err.status === 404) {
         try {
-          await pb.collections.create(config);
+          // A collectionId para relacionamentos com a tabela de usuários
+          // precisa ser o ID real da coleção (`_pb_users_auth_`) e não o nome (`users`).
+          const schemaWithCorrectedRelations = config.schema.map(field => {
+            if (field.type === 'relation' && field.options.collectionId === 'users') {
+              return { ...field, options: { ...field.options, collectionId: '_pb_users_auth_' } };
+            }
+            return field;
+          });
+          
+          const finalConfig = { ...config, schema: schemaWithCorrectedRelations };
+
+          await pb.collections.create(finalConfig);
           console.log(`✅ Coleção '${config.name}' criada com sucesso!`);
         } catch (createErr) {
           console.error(`❌ Erro ao criar a coleção '${config.name}':`, createErr?.response?.data || createErr.message);
