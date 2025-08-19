@@ -50,15 +50,16 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 
 2.  **Configuração de Ambiente:**
     -   Renomeie o arquivo `.env.example` para `.env.local`.
-    -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase:
+    -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase (fornecida pelo seu serviço de hospedagem como Easypanel, VPS, etc.):
 
     ```env
-    NEXT_PUBLIC_POCKETBASE_URL=http://<SEU_IP_AQUI>:8090
+    # Exemplo: NEXT_PUBLIC_POCKETBASE_URL=https://minha-api.easypanel.app
+    NEXT_PUBLIC_POCKETBASE_URL=https://<SUA_URL_DO_POCKETBASE>
     ```
 
     Isso garantirá que o aplicativo saiba onde encontrar a API do seu backend.
 
-3.  **Configurações de CORS e Proxy:** Para que a comunicação entre o frontend (Next.js) e o backend (PocketBase) funcione, especialmente em produção, é crucial configurar o CORS e, opcionalmente, um proxy reverso (como Nginx). As instruções detalhadas estão no arquivo [**POCKETBASE_SETUP.md**](./POCKETBASE_SETUP.md).
+3.  **Configurações de CORS:** Para que a comunicação entre o frontend (Next.js) e o backend (PocketBase) funcione, é crucial configurar o CORS. As instruções detalhadas estão no arquivo [**POCKETBASE_SETUP.md**](./POCKETBASE_SETUP.md).
 
 ### 5. Executar o Projeto
 

@@ -4,14 +4,14 @@ Para que este aplicativo possa se conectar ao seu servidor PocketBase, é essenc
 
 ## Problema: Erro de Conexão no App Online (mas funciona localmente)
 
-Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa pelo link do Firebase Studio, mas funciona no seu computador local, o problema é 99% das vezes o CORS ou uma configuração incorreta de proxy (Nginx).
+Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa por um link online (Firebase Studio, Vercel, Netlify), mas funciona no seu computador local, o problema é 99% das vezes o CORS.
 
 ### Solução 1: Adicionar os Domínios à Lista de Permissões (CORS)
 
 Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas dos domínios onde o aplicativo está hospedado.
 
 1.  **Acesse o Admin UI do seu PocketBase:**
-    Abra `http://62.72.9.108:8090/_/` no seu navegador.
+    Abra o endereço do seu PocketBase (ex: `https://sua-api.easypanel.app/_/`) no seu navegador.
 
 2.  **Vá para as Configurações:**
     No menu lateral, clique em **Settings** e depois em **Application**.
@@ -34,7 +34,7 @@ Após salvar, o erro de conexão no ambiente online deverá ser resolvido.
 
 ---
 
-### Solução 2: Corrigir Configuração do Proxy Reverso Nginx
+### Solução 2 (Apenas para VPS com Nginx): Corrigir Configuração do Proxy Reverso
 
 Se você configurou o Nginx como proxy reverso e está recebendo erros de rede (`net::ERR_FAILED`) ou 404 da API, o problema geralmente está na diretiva `proxy_pass`. É crucial que o endereço no `proxy_pass` **NÃO** termine com uma barra `/`.
 
