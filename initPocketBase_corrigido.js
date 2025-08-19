@@ -1,4 +1,4 @@
-// initPocketBase_corrigido.js
+// initPocketBase_modified_auth.js
 import PocketBase from "pocketbase";
 
 // -------------------------------------------------------------------
@@ -15,8 +15,8 @@ const pb = new PocketBase(POCKETBASE_URL);
 // DEFINIÇÃO DAS COLEÇÕES
 // -------------------------------------------------------------------
 // As definições das coleções com as regras da API corrigidas.
-// A sintaxe @request.auth.id ?= field é a forma correta de
-// verificar permissões em campos de relacionamento.
+// A sintaxe correta para verificar permissões em campos de relacionamento
+// é usar o operador = para comparar com @request.auth.id
 const collections = [
   {
     name: "users",
@@ -34,12 +34,12 @@ const collections = [
       { name: "driver_fare_type", type: "select", options: { values: ["fixed", "km"] } },
       { name: "driver_fixed_rate", type: "number" },
       { name: "driver_km_rate", type: "number" },
-      { name: "driver_accepts_rural", type: "bool", options: { "def": true } },
+      { name: "driver_accepts_rural", type: "bool" },
     ],
     listRule: '@request.auth.id != ""',
-    viewRule: '@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente" || @request.auth.role = "Motorista"',
+    viewRule: 'id = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente" || @request.auth.role = "Motorista"',
     createRule: "",
-    updateRule: '@request.auth.id = id || @request.auth.role = "Admin"',
+    updateRule: 'id = @request.auth.id || @request.auth.role = "Admin"',
     deleteRule: '@request.auth.role = "Admin"',
   },
   {
@@ -56,9 +56,9 @@ const collections = [
       { name: "started_by", type: "select", required: true, options: { values: ["passenger", "driver"] } },
     ],
     createRule: '@request.auth.role = "Passageiro" || @request.auth.role = "Admin"',
-    listRule: '(@request.auth.id ?= passenger || @request.auth.id ?= driver || @request.auth.role = "Atendente") || @request.auth.role = "Admin"',
-    viewRule: '(@request.auth.id ?= passenger || @request.auth.id ?= driver) || @request.auth.role = "Admin"',
-    updateRule: '@request.auth.id ?= driver || @request.auth.id ?= passenger || @request.auth.role = "Admin"',
+    listRule: '(passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Atendente") || @request.auth.role = "Admin"',
+    viewRule: '(passenger = @request.auth.id || driver = @request.auth.id) || @request.auth.role = "Admin"',
+    updateRule: 'driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin"',
     deleteRule: '@request.auth.role = "Admin"',
   },
   {
@@ -69,9 +69,9 @@ const collections = [
       { name: "sender", type: "relation", required: true, options: { collectionId: "_pb_users_auth_", maxSelect: 1 } },
       { name: "text", type: "text", required: true },
     ],
-    createRule: '@request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver',
-    listRule: '(@request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver || @request.auth.role = "Atendente") || @request.auth.role = "Admin"',
-    viewRule: '(@request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver) || @request.auth.role = "Admin"',
+    createRule: 'ride.passenger = @request.auth.id || ride.driver = @request.auth.id',
+    listRule: '(ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Atendente") || @request.auth.role = "Admin"',
+    viewRule: '(ride.passenger = @request.auth.id || ride.driver = @request.auth.id) || @request.auth.role = "Admin"',
     updateRule: '@request.auth.role = "Admin"',
     deleteRule: '@request.auth.role = "Admin"',
   },
@@ -84,10 +84,10 @@ const collections = [
       { name: "file", type: "file", required: true, options: { maxSelect: 1 } },
       { name: "is_verified", type: "bool" },
     ],
-    createRule: '@request.auth.id ?= driver',
-    listRule: '@request.auth.id ?= driver || @request.auth.role = "Admin"',
-    viewRule: '@request.auth.id ?= driver || @request.auth.role = "Admin"',
-    updateRule: '@request.auth.id ?= driver || @request.auth.role = "Admin"',
+    createRule: 'driver = @request.auth.id',
+    listRule: 'driver = @request.auth.id || @request.auth.role = "Admin"',
+    viewRule: 'driver = @request.auth.id || @request.auth.role = "Admin"',
+    updateRule: 'driver = @request.auth.id || @request.auth.role = "Admin"',
     deleteRule: '@request.auth.role = "Admin"',
   },
   {
@@ -100,8 +100,8 @@ const collections = [
     createRule: '@request.auth.role = "Admin"',
     listRule: '@request.auth.role = "Admin"',
     viewRule: '@request.auth.role = "Admin"',
-    updateRule: "false",
-    deleteRule: "false",
+    updateRule: '@request.auth.role = "Admin"',
+    deleteRule: '@request.auth.role = "Admin"',
   },
 ];
 
@@ -110,11 +110,13 @@ const collections = [
 // -------------------------------------------------------------------
 async function main() {
   try {
-    // 1. Autentica como superusuário/admin UMA ÚNICA VEZ
-    await pb.collection('users').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
-    console.log("✅ Autenticado no PocketBase como Administrador!");
+    // ATENÇÃO: O PocketBase recomenda o uso de pb.admins.authWithPassword() para autenticação de administradores.
+    // O uso de pb.collection("_superusers").authWithPassword() é uma abordagem não padrão e pode não funcionar
+    // dependendo da sua configuração do PocketBase.
+    await pb.collection('_superusers').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    console.log("✅ Autenticado no PocketBase como Administrador (via _superusers)! ");
   } catch (err) {
-    console.error("❌ Falha na autenticação. Verifique ADMIN_EMAIL e ADMIN_PASSWORD.", err.message);
+    console.error("❌ Falha na autenticação. Verifique ADMIN_EMAIL e ADMIN_PASSWORD. Se o erro persistir, considere usar pb.admins.authWithPassword().", err.message);
     return; // Encerra o script se a autenticação falhar
   }
 
@@ -156,3 +158,4 @@ async function main() {
 
 // Executa a função principal
 main();
+
