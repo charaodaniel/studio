@@ -23,16 +23,19 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
+      // Authenticates an ADMIN user (not a regular user)
       await pb.admins.authWithPassword(email, password);
       // On successful login, PocketBase stores the token in a cookie.
       // We can then redirect to the admin dashboard.
       window.location.href = '/admin';
     } catch (error: any) {
       let description = "Email ou senha inválidos. Por favor, tente novamente.";
-      if (error.isAbort) {
-          description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e as configurações de CORS.`;
-      } else if (error.status === 0 || error.originalError) {
-          description = `Erro de rede. Verifique sua conexão com a internet e as configurações de CORS do servidor em ${POCKETBASE_URL}.`;
+      
+      // Check for network or CORS errors
+      if (error.status === 0 || error.originalError) {
+          description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e se as configurações de CORS estão corretas.`;
+      } else if (error.data?.message) {
+          description = `Erro do servidor: ${error.data.message}`;
       }
       
       toast({
