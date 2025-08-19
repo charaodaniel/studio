@@ -18,24 +18,16 @@ Você precisa dizer ao seu PocketBase para aceitar requisições vindas do nosso
 2.  **Vá para as Configurações:**
     No menu lateral, clique em **Settings** e depois em **Application**.
 
-3.  **Adicione a Origem Permitida:**
-    No campo **Allowed Origins**, cole o endereço **exato** que você usa no navegador para acessar este aplicativo.
+3.  **Adicione as Origens Permitidas:**
+    No campo **Allowed Origins**, cole os endereços **exatos** dos seus domínios Vercel. É importante adicionar todos, um por linha.
+
+    **Copie e cole a lista abaixo:**
+    ```
+    https://studio-git-main-daniel-charao-machados-projects.vercel.app
+    https://studio-dvqom9ok2-daniel-charao-machados-projects.vercel.app
+    ```
     
-    - **Se você acessa este app pelo IP:**
-      ```
-      http://62.72.9.108
-      ```
-    - **Se você usa um domínio com Nginx:**
-      Cole o seu domínio. Por exemplo:
-      ```
-      https://meuapp.com
-      ```
-      ou
-      ```
-      http://meuapp.com
-      ```
-    
-    Se você tiver outras origens, pode adicioná-las em linhas separadas. Para permitir todas as origens (não recomendado para produção), você pode usar `*`.
+    Se você também acessa o app localmente durante o desenvolvimento, adicione a URL local (geralmente `http://localhost:9002` ou `http://localhost:3000`).
 
 4.  **Salve as alterações.**
 
