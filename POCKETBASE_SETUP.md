@@ -4,7 +4,7 @@ Para que este aplicativo possa se conectar ao seu servidor PocketBase, é essenc
 
 ## Problema: Erro de Conexão no App Online (mas funciona localmente)
 
-Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa pelo link da Vercel/Firebase, mas funciona no seu computador local, o problema é 99% das vezes o CORS.
+Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa pelo link do Firebase Studio, mas funciona no seu computador local, o problema é 99% das vezes o CORS.
 
 Por padrão, o PocketBase bloqueia requisições de outros domínios (como o do nosso aplicativo online) por segurança.
 
@@ -19,7 +19,7 @@ Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas
     No menu lateral, clique em **Settings** e depois em **Application**.
 
 3.  **Adicione as Origens Permitidas ("Allowed Origins"):**
-    No campo **Allowed Origins**, cole os endereços **exatos** dos seus domínios Vercel. É importante adicionar todos, um por linha.
+    No campo **Allowed Origins**, cole os endereços **exatos** dos seus domíniais do Firebase Studio (Vercel). É importante adicionar todos, um por linha.
 
     **Copie e cole a lista abaixo:**
     ```
