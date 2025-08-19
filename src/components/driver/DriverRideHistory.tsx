@@ -1,3 +1,4 @@
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,11 @@ const driverData = {
     name: "Carlos Motorista",
     cnpj: "12.345.678/0001-90"
 };
+
+const appData = {
+    name: "CEOLIN Mobilidade Urbana",
+    cnpj: "99.999.999/0001-99"
+}
 
 export function DriverRideHistory() {
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -85,21 +91,29 @@ export function DriverRideHistory() {
 
         // Header
         doc.setFont("sans-serif", "bold");
-        doc.setFontSize(22);
-        doc.text("CEOLIN Mobilidade urbana", 14, 22);
+        doc.setFontSize(20);
+        doc.text(appData.name, 14, 22);
+        
+        doc.setFont("sans-serif", "normal");
+        doc.setFontSize(10);
+        doc.text(`CNPJ: ${appData.cnpj}`, 14, 28);
+        
         doc.setFontSize(16);
-        doc.text("Relatório de Corridas", 14, 30);
+        doc.setFont("sans-serif", "bold");
+        doc.text("Relatório de Corridas", 14, 40);
         
         doc.setFont("sans-serif", "normal");
         doc.setFontSize(12);
-        doc.text(`Motorista: ${driverData.name}`, 14, 40);
-        doc.text(`CNPJ: ${driverData.cnpj}`, 14, 46);
-        doc.text(`Data de Geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 52);
+        doc.text(`Motorista: ${driverData.name}`, 14, 50);
+        if (driverData.cnpj) {
+            doc.text(`CNPJ do Motorista: ${driverData.cnpj}`, 14, 56);
+        }
+        doc.text(`Data de Geração: ${new Date().toLocaleDateString('pt-BR')}`, 14, 62);
 
 
         // Table
         (doc as any).autoTable({
-            startY: 60,
+            startY: 70,
             head: [tableColumn],
             body: tableRows,
             theme: 'striped',
