@@ -53,15 +53,15 @@ export function RideChat({ children, passengerName, isNegotiation, isReadOnly = 
             {children}
         </DialogTrigger>
         <DialogContent className="flex flex-col h-[90vh] max-h-[700px] p-0">
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
-                <Handshake /> {isNegotiation ? `Negociação com ${passengerName}` : `Chat com ${passengerName}`}
-                </CardTitle>
-                <CardDescription>
+            <DialogHeader className="p-6 pb-0">
+                <DialogTitle className="font-headline flex items-center gap-2">
+                    <Handshake /> {isNegotiation ? `Negociação com ${passengerName}` : `Chat com ${passengerName}`}
+                </DialogTitle>
+                <DialogDescription>
                     {isNegotiation ? 'Negocie o valor e finalize o acordo para iniciar a viagem.' : 'Troque mensagens com o passageiro.'}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4 flex flex-col overflow-y-auto px-4">
+                </DialogDescription>
+            </DialogHeader>
+            <CardContent className="flex-grow space-y-4 flex flex-col overflow-y-auto px-4 pt-0">
                 <div className="space-y-4">
                     {messages.map((msg, index) => (
                         <div key={index} className={`flex items-start gap-3 ${msg.sender === 'me' ? 'flex-row-reverse' : ''}`}>

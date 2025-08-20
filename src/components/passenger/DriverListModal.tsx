@@ -44,7 +44,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
     }
 
     return (
-        <>
+        <DialogHeader>
             <DialogTitle className="font-headline">Motoristas Disponíveis</DialogTitle>
             <DialogDescription>
                 Escolha um motorista para sua corrida.
@@ -110,6 +110,6 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
                     ))}
                 </div>
             </ScrollArea>
-        </>
+        </DialogHeader>
     );
 }

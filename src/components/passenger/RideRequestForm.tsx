@@ -55,9 +55,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                       <Button variant="outline" className="w-full" size="lg" disabled={isSearching}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                           <DriverListModal onSelectDriver={onRideRequest} />
-                        </DialogHeader>
+                       <DriverListModal onSelectDriver={onRideRequest} />
                     </DialogContent>
                 </Dialog>
              </div>
@@ -86,9 +84,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                     <Button className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                       <DriverListModal onSelectDriver={onRideRequest}/>
-                    </DialogHeader>
+                   <DriverListModal onSelectDriver={onRideRequest}/>
                 </DialogContent>
             </Dialog>
           </TabsContent>
