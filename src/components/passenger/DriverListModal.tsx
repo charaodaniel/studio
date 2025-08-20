@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Star, Car, Info } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, DialogHeader } from "@/components/ui/dialog";
+import { Star, Car, Info, Send } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, DialogHeader, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Image from 'next/image';
+import { useToast } from '@/hooks/use-toast';
 
 const drivers = [
     { id: 1, name: 'João Silva', vehicle: 'Toyota Corolla - ABC1234', rating: 4.8, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Toyota Corolla branco' },
@@ -19,12 +20,28 @@ const drivers = [
     { id: 6, name: 'Beatriz Costa', vehicle: 'Fiat Mobi - MNO7890', rating: 4.8, img: 'https://placehold.co/128x128.png', vehicleImg: 'https://placehold.co/600x400.png', vehicleDescription: 'Fiat Mobi cinza' },
 ];
 
-export default function DriverListModal() {
+interface DriverListModalProps {
+    onSelectDriver: (driverId: number) => void;
+}
+
+export default function DriverListModal({ onSelectDriver }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<number | null>(null);
+    const { toast } = useToast();
 
     const handleToggle = (driverId: number) => {
         setOpenDriverId(prevId => prevId === driverId ? null : driverId);
     };
+
+    const handleSelectDriver = (driver: typeof drivers[0]) => {
+        onSelectDriver(driver.id);
+        toast({
+            title: "Chamada Enviada!",
+            description: `Aguardando ${driver.name} aceitar sua corrida.`,
+        });
+        // This is a way to programmatically close the parent dialog
+        // A better way would be to control the open state from the parent
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    }
 
     return (
         <>
@@ -82,7 +99,10 @@ export default function DriverListModal() {
                                                 <Image src={driver.vehicleImg} alt={driver.vehicleDescription} layout="fill" objectFit="cover" data-ai-hint="car photo" />
                                             </div>
                                         </div>
-                                        <Button className="w-full bg-accent hover:bg-accent/90">Chamar</Button>
+                                        <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleSelectDriver(driver)}>
+                                            <Send className="mr-2 h-4 w-4" />
+                                            Chamar {driver.name.split(' ')[0]}
+                                        </Button>
                                     </div>
                                 </CollapsibleContent>
                             </Card>

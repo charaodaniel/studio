@@ -5,11 +5,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Locate, Users, ArrowRight } from 'lucide-react';
+import { MapPin, Locate, Users, ArrowRight, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 
-export default function RideRequestForm() {
+interface RideRequestFormProps {
+  onRideRequest: () => void;
+  isSearching: boolean;
+}
+
+export default function RideRequestForm({ onRideRequest, isSearching }: RideRequestFormProps) {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
@@ -27,8 +32,8 @@ export default function RideRequestForm() {
               <Label htmlFor="pickup-local">Local de Partida</Label>
               <div className="flex items-center gap-2">
                 <MapPin className="text-muted-foreground" />
-                <Input id="pickup-local" placeholder="Insira seu local de partida" />
-                <Button variant="ghost" size="icon" aria-label="Usar localização atual">
+                <Input id="pickup-local" placeholder="Insira seu local de partida" defaultValue="Rua Principal, 123" disabled={isSearching}/>
+                <Button variant="ghost" size="icon" aria-label="Usar localização atual" disabled={isSearching}>
                   <Locate />
                 </Button>
               </div>
@@ -37,18 +42,21 @@ export default function RideRequestForm() {
               <Label htmlFor="destination-local">Destino</Label>
               <div className="flex items-center gap-2">
                 <MapPin className="text-muted-foreground" />
-                <Input id="destination-local" placeholder="Insira seu destino" />
+                <Input id="destination-local" placeholder="Insira seu destino" defaultValue="Shopping da Cidade" disabled={isSearching}/>
               </div>
             </div>
              <div className="space-y-2">
-                <Button className="w-full" size="lg">Pedir Corrida</Button>
+                <Button className="w-full" size="lg" onClick={onRideRequest} disabled={isSearching}>
+                  {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSearching ? 'Procurando Motorista...' : 'Pedir Corrida'}
+                </Button>
                  <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full" size="lg">Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                      <Button variant="outline" className="w-full" size="lg" disabled={isSearching}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                           <DriverListModal />
+                           <DriverListModal onSelectDriver={onRideRequest} />
                         </DialogHeader>
                     </DialogContent>
                 </Dialog>
@@ -79,7 +87,7 @@ export default function RideRequestForm() {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                       <DriverListModal />
+                       <DriverListModal onSelectDriver={onRideRequest}/>
                     </DialogHeader>
                 </DialogContent>
             </Dialog>
