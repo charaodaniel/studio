@@ -7,6 +7,7 @@ import { Car, Star, Phone, MessageSquare, Shield, CheckCircle2 } from 'lucide-re
 import type { RideDetails } from './PassengerDashboard';
 import { Progress } from '../ui/progress';
 import { useState, useEffect } from 'react';
+import { RideChat } from '../driver/NegotiationChat';
 
 interface RideStatusCardProps {
   rideDetails: RideDetails;
@@ -94,7 +95,9 @@ export default function RideStatusCard({ rideDetails, rideStatus, onCancel, onCo
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-2">
         <Button variant="outline"><Phone className="mr-2"/> Ligar</Button>
-        <Button><MessageSquare className="mr-2"/> Mensagem</Button>
+        <RideChat passengerName={rideDetails.driverName} isNegotiation={false}>
+          <Button className="w-full"><MessageSquare className="mr-2"/> Mensagem</Button>
+        </RideChat>
         <Button variant="destructive" className="col-span-2" onClick={onCancel}>
             <Shield className="mr-2"/> Cancelar Corrida
         </Button>
