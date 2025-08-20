@@ -25,9 +25,9 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
     <Card className="w-full h-full overflow-hidden shadow-lg">
       <CardContent className="p-0 relative h-full">
         <Image
-          src="/ponte-maraba.jpg"
-          data-ai-hint="bridge sunset"
-          alt="Ponte sobre o Rio Tocantins em Marabá ao pôr do sol"
+          src="https://placehold.co/1200x800.png"
+          data-ai-hint="Manoel Viana bridge"
+          alt="Imagem da ponte de Manoel Viana"
           layout="fill"
           objectFit="cover"
           className="opacity-100"
