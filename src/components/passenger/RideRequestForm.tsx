@@ -25,7 +25,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
         <Tabs defaultValue="local" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local">Corrida Local</TabsTrigger>
-            <TabsTrigger value="intercity">Interior/Intermunicipal</TabsTrigger>
+            <TabsTrigger value="intercity">Viagens</TabsTrigger>
           </TabsList>
           <TabsContent value="local" className="pt-6 space-y-6">
             <div className="space-y-2">
