@@ -6,20 +6,26 @@ Para que este aplicativo possa se conectar ao seu servidor PocketBase, é essenc
 
 Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa por um link online (Firebase Studio, Vercel, Netlify), mas funciona no seu computador local, o problema é 99% das vezes o CORS ou uma incompatibilidade de protocolo (HTTP/HTTPS).
 
-### Solução 1: Adicionar os Domínios à Lista de Permissões (CORS)
+**O problema mais comum é o "Conteúdo Misto" (Mixed Content):** seu app online roda em `HTTPS`, mas sua API PocketBase na VPS roda em `HTTP`. Navegadores modernos bloqueiam essa comunicação por segurança.
 
-Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas dos domínios onde o aplicativo está hospedado.
+### Solução 1 (Recomendada): Configurar HTTPS na sua VPS
+
+A solução definitiva é instalar um certificado SSL/TLS no seu servidor para que sua API PocketBase rode em `HTTPS`. Ferramentas como **Nginx Proxy Manager**, **Caddy**, ou **Let's Encrypt (com Certbot)** podem automatizar isso. Serviços como **Easypanel** ou **Coolify** também fazem isso por padrão.
+
+### Solução 2 (Temporária): Adicionar Domínios à Lista de Permissões (CORS)
+
+Se você já tem HTTPS configurado, o problema pode ser apenas o CORS. Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas dos domínios onde o aplicativo está hospedado.
 
 1.  **Acesse o Admin UI do seu PocketBase:**
-    Abra o endereço do seu PocketBase (ex: `https://seu-servidor.com/_/` ou `https://seu-projeto.easypanel.app/_/`) no seu navegador.
+    Abra o endereço do seu PocketBase (ex: `https://sua-api.com/_/`) no seu navegador.
 
 2.  **Vá para as Configurações:**
     No menu lateral, clique em **Settings** e depois em **Application**.
 
 3.  **Adicione as Origens Permitidas ("Allowed Origins"):**
-    No campo **Allowed Origins**, cole os endereços **exatos** dos seus domíniais do Firebase Studio (Vercel). É importante adicionar todos, um por linha.
+    No campo **Allowed Origins**, cole os endereços **exatos** dos seus domínios do Firebase Studio, Vercel, Netlify, etc. É importante adicionar todos, um por linha.
 
-    **Copie e cole a lista abaixo:**
+    **Copie e cole a lista abaixo como ponto de partida:**
     ```
     https://studio-git-main-daniel-charao-machados-projects.vercel.app
     https://studio-dvqom9ok2-daniel-charao-machados-projects.vercel.app
@@ -30,11 +36,9 @@ Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas
 
 4.  **Salve as alterações.**
 
-Após salvar, o erro de conexão no ambiente online deverá ser resolvido.
-
 ---
 
-### Solução 2 (Apenas para VPS com Nginx): Corrigir Configuração do Proxy Reverso
+### Solução 3 (Para VPS com Nginx): Corrigir Configuração do Proxy Reverso
 
 Se você configurou o Nginx como proxy reverso e está recebendo erros de rede (`net::ERR_FAILED`) ou 404 da API, o problema geralmente está na diretiva `proxy_pass`. É crucial que o endereço no `proxy_pass` **NÃO** termine com uma barra `/`.
 
