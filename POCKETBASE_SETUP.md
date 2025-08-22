@@ -4,14 +4,14 @@ Para que este aplicativo possa se conectar ao seu servidor PocketBase, é essenc
 
 ## Problema: Erro de Conexão no App Online (mas funciona localmente)
 
-Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa por um link online (Firebase Studio, Vercel, Netlify), mas funciona no seu computador local, o problema é 99% das vezes o CORS.
+Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa por um link online (Firebase Studio, Vercel, Netlify), mas funciona no seu computador local, o problema é 99% das vezes o CORS ou uma incompatibilidade de protocolo (HTTP/HTTPS).
 
 ### Solução 1: Adicionar os Domínios à Lista de Permissões (CORS)
 
 Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas dos domínios onde o aplicativo está hospedado.
 
 1.  **Acesse o Admin UI do seu PocketBase:**
-    Abra o endereço do seu PocketBase (ex: `https://sua-api.easypanel.app/_/`) no seu navegador.
+    Abra o endereço do seu PocketBase (ex: `https://seu-servidor.com/_/` ou `https://seu-projeto.easypanel.app/_/`) no seu navegador.
 
 2.  **Vá para as Configurações:**
     No menu lateral, clique em **Settings** e depois em **Application**.

@@ -53,7 +53,7 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
     -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase (fornecida pelo seu serviço de hospedagem como Easypanel, VPS, etc.):
 
     ```env
-    # Exemplo: NEXT_PUBLIC_POCKETBASE_URL=https://minha-api.easypanel.app
+    # Exemplo: NEXT_PUBLIC_POCKETBASE_URL=https://meu-app.easypanel.app
     NEXT_PUBLIC_POCKETBASE_URL=https://<SUA_URL_DO_POCKETBASE>
     ```
 
@@ -88,7 +88,7 @@ O protótipo atual possui a interface completa e a lógica visual para as seguin
 
 ### Para o Passageiro
 
--   **Interface de Solicitação de Corrida** (Urbana e Intermunicipal).
+-   **Interface de Solicitação de Corrida** (Urbana e Interior).
 -   **Visualização de Motoristas** em um mapa simulado.
 -   **Formulários de Login e Cadastro**.
 -   **Painel de Perfil** com abas para Histórico, Conversas e Segurança.
