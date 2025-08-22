@@ -1,9 +1,8 @@
 import PocketBase from 'pocketbase';
 
-// AVISO: Usar HTTP para a API enquanto o frontend está em HTTPS causará erros de "Mixed Content".
-// A solução recomendada é configurar HTTPS no servidor do PocketBase.
-// Esta URL é para desenvolvimento e testes em ambiente sem HTTPS.
-export const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://62.72.9.108:8090';
+// AVISO: A URL da API deve usar HTTPS para funcionar corretamente com o frontend na Vercel.
+// Defina esta variável de ambiente no seu provedor de hospedagem (ex: Vercel).
+export const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://sua-api.seudominio.com';
 
 // Inicializa o SDK do PocketBase com a URL explícita do seu backend.
 const pb = new PocketBase(POCKETBASE_URL);

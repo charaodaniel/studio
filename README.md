@@ -49,18 +49,17 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 1.  **Guia de Schema e API:** Toda a estrutura de banco de dados necessária (coleções, campos, regras de acesso) está detalhada no arquivo [**POCKETBASE_API.md**](./POCKETBASE_API.md). Use este guia para configurar suas coleções no painel do PocketBase.
 
 2.  **Configuração de Ambiente:**
-    -   Renomeie o arquivo `.env.example` para `.env.local`.
-    -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase.
+    -   Renomeie o arquivo `.env.example` para `.env.local` (se existir) ou crie um novo.
+    -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase. **É crucial que a URL comece com `https://`**.
 
     ```env
-    # Exemplo com Easypanel/Coolify: NEXT_PUBLIC_POCKETBASE_URL=https://meu-app.servidor.app
-    # Exemplo com VPS (IP direto): NEXT_PUBLIC_POCKETBASE_URL=http://SEU_IP:8090
-    NEXT_PUBLIC_POCKETBASE_URL=http://62.72.9.108:8090
+    # Substitua pelo seu domínio do PocketBase
+    NEXT_PUBLIC_POCKETBASE_URL=https://sua-api.seudominio.com
     ```
 
     Isso garantirá que o aplicativo saiba onde encontrar a API do seu backend.
 
-3.  **Configurações de CORS e HTTPS (IMPORTANTE):** Para que a comunicação entre o frontend (Next.js) e o backend (PocketBase) funcione online, é crucial configurar o CORS e garantir que sua API rode em `HTTPS`. As instruções detalhadas estão no arquivo [**POCKETBASE_SETUP.md**](./POCKETBASE_SETUP.md).
+3.  **Configurações de CORS e HTTPS (IMPORTANTE):** Para que a comunicação entre o frontend (Next.js na Vercel) e o backend (PocketBase) funcione, é crucial configurar o CORS na sua instância do PocketBase. As instruções detalhadas estão no arquivo [**POCKETBASE_SETUP.md**](./POCKETBASE_SETUP.md).
 
 ### 5. Executar o Projeto
 
