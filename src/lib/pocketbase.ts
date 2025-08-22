@@ -1,8 +1,9 @@
 import PocketBase from 'pocketbase';
 
-// A URL agora aponta para a variável de ambiente, com um fallback para o novo endereço sslip.io.
-// É crucial que a URL final use https://.
-export const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://pocketbase-wokw0ck4oo84kgk80w8kgog8.62.72.9.108.sslip.io';
+// AVISO: Usar HTTP para a API enquanto o frontend está em HTTPS causará erros de "Mixed Content".
+// A solução recomendada é configurar HTTPS no servidor do PocketBase.
+// Esta URL é para desenvolvimento e testes em ambiente sem HTTPS.
+export const POCKETBASE_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://62.72.9.108:8090';
 
 // Inicializa o SDK do PocketBase com a URL explícita do seu backend.
 const pb = new PocketBase(POCKETBASE_URL);
