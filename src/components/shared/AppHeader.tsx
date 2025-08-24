@@ -1,20 +1,31 @@
-import type {ReactNode} from 'react';
+
+'use client';
+
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import {Button} from '@/components/ui/button';
-import {Car, Rocket, Shield, User, MessageSquare} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Car, Rocket, Shield, User, Download } from 'lucide-react';
 import PassengerAuthForm from '../auth/PassengerAuthForm';
-import {Avatar, AvatarFallback, AvatarImage} from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {ScrollArea} from '../ui/scroll-area';
 import AdminAuthForm from '../auth/AdminAuthForm';
 import DriverAuthForm from '../auth/DriverAuthForm';
+import { useState, useEffect } from 'react';
+
+// Define the interface for the BeforeInstallPromptEvent
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: Array<string>;
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 
 export function AppHeader({
   title,
@@ -23,6 +34,44 @@ export function AppHeader({
   title: string;
   showDriverAvatar?: boolean;
 }) {
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+
+  const handleInstallClick = () => {
+    if (!installPrompt) {
+      return;
+    }
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+      setInstallPrompt(null);
+    });
+  };
+
+
   const renderLogoLink = () => {
     if (showDriverAvatar) {
       return (
@@ -60,6 +109,12 @@ export function AppHeader({
           </h1>
 
           <div className="flex items-center gap-2">
+            {installPrompt && (
+              <Button onClick={handleInstallClick}>
+                <Download className="mr-2 h-4 w-4" />
+                Instalar
+              </Button>
+            )}
              <Dialog>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
@@ -91,9 +146,7 @@ export function AppHeader({
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] flex flex-col p-0">
                 <div className="flex-1 overflow-hidden">
-                  <ScrollArea className="h-full">
                     <PassengerAuthForm />
-                  </ScrollArea>
                 </div>
               </DialogContent>
             </Dialog>
