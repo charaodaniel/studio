@@ -54,7 +54,7 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 
     ```env
     # Substitua pelo seu domínio do PocketBase
-    NEXT_PUBLIC_POCKETBASE_URL=https://sua-api.seudominio.com
+    NEXT_PUBLIC_POCKETBASE_URL=https://mobmv.shop
     ```
 
     Isso garantirá que o aplicativo saiba onde encontrar a API do seu backend.

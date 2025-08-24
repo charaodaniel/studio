@@ -40,7 +40,7 @@ export default function DeveloperPage() {
             if (error.isAbort) {
                 errorMessage += " A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
             } else if (error.originalError || error.message.includes('Failed to fetch')) {
-                 errorMessage += " Verifique se o servidor está no ar e se as configurações de CORS e do proxy Nginx estão corretas. O navegador bloqueou a requisição.";
+                 errorMessage += " Verifique se o servidor está no ar e se as configurações de CORS estão corretas. O navegador bloqueou a requisição.";
             } else if (error.message) {
                  errorMessage += ` Detalhe: ${error.message}`;
             }
@@ -101,7 +101,7 @@ export default function DeveloperPage() {
                                         <AlertDescription>
                                             {testResult}
                                             <div className="mt-2 text-xs">
-                                                <p>Consulte o <Link href="/POCKETBASE_SETUP.md" className="underline font-semibold" target="_blank">guia de configuração</Link> para ajuda com erros de CORS e Nginx.</p>
+                                                <p>Consulte o <Link href="/POCKETBASE_SETUP.md" className="underline font-semibold" target="_blank">guia de configuração</Link> para ajuda com erros de CORS.</p>
                                             </div>
                                         </AlertDescription>
                                     </Alert>
