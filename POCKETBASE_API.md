@@ -195,3 +195,5 @@ Esta coleção deve ser escrita apenas pelo backend ou por um usuário com privi
 @api.update: false
 @api.delete: false
 ```
+
+    

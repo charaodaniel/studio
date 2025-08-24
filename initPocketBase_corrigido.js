@@ -112,7 +112,7 @@ const collections = [
 async function main() {
   try {
     // Autentica como superusuário/admin
-    await pb.collection('_superusers').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
     console.log("✅ Autenticado no PocketBase como Administrador!");
   } catch (err) {
     console.error("❌ Falha na autenticação. Verifique ADMIN_EMAIL e ADMIN_PASSWORD.", err.message);
@@ -160,3 +160,4 @@ async function main() {
 
 // Executa a função principal
 main();
+    
