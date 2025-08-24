@@ -77,7 +77,20 @@ export default function DeveloperPage() {
     
     // Initial check on component mount
     useEffect(() => {
-        checkApiEndpoints();
+        const handleAdminAuth = async () => {
+            try {
+                // This is a simplistic auth check. In a real app, you'd have a proper login flow.
+                if (!pb.authStore.isValid) {
+                     // IMPORTANT: Replace with your actual admin credentials or a secure auth method
+                    await pb.admins.authWithPassword("admin@teste.com", "12345678");
+                }
+            } catch (err) {
+                 console.error("Admin authentication failed:", err);
+            } finally {
+                checkApiEndpoints();
+            }
+        };
+        handleAdminAuth();
     }, []);
 
 
@@ -86,6 +99,7 @@ export default function DeveloperPage() {
         setTestResult(null);
         try {
             const tempPb = new PocketBase(apiUrl);
+            // The health check is on the `/api/health` endpoint.
             const health = await tempPb.health.check();
 
             if (health && health.code === 200) {
@@ -207,7 +221,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu host (Coolify).</p>
+                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -227,7 +241,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu host (Coolify).</p>
+                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -237,7 +251,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu host (Coolify).</p>
+                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -277,8 +291,9 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
                              {isRefreshing && <p>Carregando logs...</p>}
-                             {!isRefreshing && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
-                             {logs.map(log => (
+                             {!isRefreshing && !pb.authStore.isAdmin && <p className="text-yellow-400">Faça login como admin para ver os logs.</p>}
+                             {!isRefreshing && pb.authStore.isAdmin && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
+                             {pb.authStore.isAdmin && logs.map(log => (
                                 <p key={log.id}>
                                     <span className={getLogLevelColor(log.level)}>[{getLogLevelName(log.level)}]</span>
                                     <span className="text-slate-400 mx-2">{new Date(log.created).toLocaleTimeString()}</span>
