@@ -1,0 +1,556 @@
+
+[
+  {
+    "id": "systemprofiles",
+    "name": "users",
+    "type": "auth",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "users_name",
+        "name": "name",
+        "type": "text",
+        "required": true,
+        "presentable": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "users_avatar",
+        "name": "avatar",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/svg+xml",
+            "image/gif",
+            "image/webp"
+          ],
+          "thumbs": [
+            "100x100"
+          ],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
+      },
+      {
+        "system": false,
+        "id": "users_role",
+        "name": "role",
+        "type": "select",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "Passageiro",
+            "Motorista",
+            "Admin",
+            "Atendente"
+          ]
+        }
+      },
+      {
+        "system": false,
+        "id": "f8cveude",
+        "name": "phone",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "j7vvkb2x",
+        "name": "driver_status",
+        "type": "select",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "Online",
+            "Offline",
+            "Em Viagem (Urbano)",
+            "Em Viagem (Rural)"
+          ]
+        }
+      },
+      {
+        "system": false,
+        "id": "d0o2m8e5",
+        "name": "driver_vehicle_model",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "s8vgyfpx",
+        "name": "driver_vehicle_plate",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "v3x6x6yq",
+        "name": "driver_vehicle_photo",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/png",
+            "image/jpeg"
+          ],
+          "thumbs": [],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
+      },
+      {
+        "system": false,
+        "id": "sbfjpcwz",
+        "name": "driver_cnpj",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "z9cjhf2s",
+        "name": "driver_pix_key",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "w3wzzvys",
+        "name": "driver_fare_type",
+        "type": "select",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "fixed",
+            "km"
+          ]
+        }
+      },
+      {
+        "system": false,
+        "id": "09ywbokw",
+        "name": "driver_fixed_rate",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "noDecimal": false
+        }
+      },
+      {
+        "system": false,
+        "id": "hfr9m2ql",
+        "name": "driver_km_rate",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "noDecimal": false
+        }
+      },
+      {
+        "system": false,
+        "id": "v35bcloz",
+        "name": "driver_accepts_rural",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id = id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\" || @request.auth.role = \"Motorista\"",
+    "createRule": "",
+    "updateRule": "@request.auth.id = id || @request.auth.role = \"Admin\"",
+    "deleteRule": "@request.auth.role = \"Admin\"",
+    "options": {
+      "allowEmailAuth": true,
+      "allowOAuth2Auth": true,
+      "allowUsernameAuth": false,
+      "exceptEmailDomains": null,
+      "manageRule": null,
+      "onlyEmailDomains": null,
+      "requireEmail": false
+    }
+  },
+  {
+    "id": "b1wtu7ah1l75gen",
+    "name": "rides",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "p2n5jpgo",
+        "name": "passenger",
+        "type": "relation",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "systemprofiles",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "oalld2ek",
+        "name": "driver",
+        "type": "relation",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "systemprofiles",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "8zkskfgq",
+        "name": "origin_address",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "v3hdlqam",
+        "name": "destination_address",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "i4luhpga",
+        "name": "status",
+        "type": "select",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "requested",
+            "accepted",
+            "in_progress",
+            "completed",
+            "canceled"
+          ]
+        }
+      },
+      {
+        "system": false,
+        "id": "y9x5n6od",
+        "name": "fare",
+        "type": "number",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "noDecimal": false
+        }
+      },
+      {
+        "system": false,
+        "id": "7v9kpxf4",
+        "name": "is_negotiated",
+        "type": "bool",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "system": false,
+        "id": "m11ddf4a",
+        "name": "started_by",
+        "type": "select",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "passenger",
+            "driver"
+          ]
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "(passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Atendente\") || @request.auth.role = \"Admin\"",
+    "viewRule": "(passenger = @request.auth.id || driver = @request.auth.id) || @request.auth.role = \"Admin\"",
+    "createRule": "@request.auth.role = \"Passageiro\" || @request.auth.role = \"Admin\"",
+    "updateRule": "driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\"",
+    "deleteRule": "@request.auth.role = \"Admin\"",
+    "options": {}
+  },
+  {
+    "id": "a9qal6i3j2f9n5h",
+    "name": "messages",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "xsv6a4m9",
+        "name": "ride",
+        "type": "relation",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "b1wtu7ah1l75gen",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "z8vrflgn",
+        "name": "sender",
+        "type": "relation",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "systemprofiles",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "xewd5s9m",
+        "name": "text",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "(ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Atendente\") || @request.auth.role = \"Admin\"",
+    "viewRule": "(ride.passenger = @request.auth.id || ride.driver = @request.auth.id) || @request.auth.role = \"Admin\"",
+    "createRule": "ride.passenger = @request.auth.id || ride.driver = @request.auth.id",
+    "updateRule": "@request.auth.role = \"Admin\"",
+    "deleteRule": "@request.auth.role = \"Admin\"",
+    "options": {}
+  },
+  {
+    "id": "4zfn2f8w63o9v1r",
+    "name": "driver_documents",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "iynm4nct",
+        "name": "driver",
+        "type": "relation",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "systemprofiles",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "7y7qg6sa",
+        "name": "document_type",
+        "type": "select",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "CNH",
+            "CRLV"
+          ]
+        }
+      },
+      {
+        "system": false,
+        "id": "89kifvto",
+        "name": "file",
+        "type": "file",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [],
+          "thumbs": [],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
+      },
+      {
+        "system": false,
+        "id": "g4b1zemb",
+        "name": "is_verified",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "driver = @request.auth.id || @request.auth.role = \"Admin\"",
+    "viewRule": "driver = @request.auth.id || @request.auth.role = \"Admin\"",
+    "createRule": "driver = @request.auth.id",
+    "updateRule": "driver = @request.auth.id || @request.auth.role = \"Admin\"",
+    "deleteRule": "@request.auth.role = \"Admin\"",
+    "options": {}
+  },
+  {
+    "id": "6qitn1932lf3x1g",
+    "name": "driver_status_logs",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "tazdwfll",
+        "name": "driver",
+        "type": "relation",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "systemprofiles",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "c76b9gvv",
+        "name": "status",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.role = \"Admin\"",
+    "viewRule": "@request.auth.role = \"Admin\"",
+    "createRule": "@request.auth.role = \"Admin\"",
+    "updateRule": "false",
+    "deleteRule": "false",
+    "options": {}
+  }
+]
