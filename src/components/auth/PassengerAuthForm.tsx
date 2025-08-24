@@ -53,9 +53,22 @@ export default function PassengerAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await pb.collection('users').authWithPassword(loginEmail, loginPassword);
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${pb.authStore.model?.name}!` });
-      // The useEffect will handle updating the state
+      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+
+      // Verify that the user logging in is a Passenger
+      if (authData.record.role !== 'Passageiro') {
+        pb.authStore.clear(); // Log out immediately
+        toast({
+          variant: 'destructive',
+          title: 'Acesso Negado',
+          description: 'Este formulário é apenas para passageiros. Use o formulário de motorista.',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
+      // The useEffect will handle updating the state and UI
     } catch (error: any) {
       toast({
         variant: 'destructive',
