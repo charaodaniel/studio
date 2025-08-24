@@ -2,7 +2,9 @@
 
 Este documento serve como guia para a configuração do backend no PocketBase, detalhando as coleções (schemas), os campos necessários e as regras de API para cada recurso do aplicativo CEOLIN Mobilidade Urbana.
 
-**IMPORTANTE:** As regras de acesso (`API Rules`) foram corrigidas para usar a sintaxe correta do PocketBase para campos de relacionamento. Em vez de `@request.auth.id = passenger.id`, o correto é `@request.auth.id ?= passenger`. Use as regras abaixo.
+**URL da API:** `https://mobmv.shop`
+
+**IMPORTANTE:** As regras de acesso (`API Rules`) foram corrigidas para usar a sintaxe correta e mais segura do PocketBase para campos de relacionamento. Em vez de `campo ?= @request.auth.id`, o correto é `campo = @request.auth.id` quando o relacionamento não permite múltiplos valores. Use as regras abaixo.
 
 ---
 
@@ -84,11 +86,11 @@ Armazena os dados de todas as corridas, desde a solicitação até a conclusão.
 @api.create: @request.auth.role = "Passageiro" || @request.auth.role = "Admin"
 
 // Passageiros, Motoristas e Atendentes podem ver corridas em que estão envolvidos. Admins podem ver todas.
-@api.list: (@request.auth.id ?= passenger || @request.auth.id ?= driver || @request.auth.role = "Atendente") || @request.auth.role = "Admin"
-@api.view: (@request.auth.id ?= passenger || @request.auth.id ?= driver) || @request.auth.role = "Admin"
+@api.list: (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Atendente") || @request.auth.role = "Admin"
+@api.view: (passenger = @request.auth.id || driver = @request.auth.id) || @request.auth.role = "Admin"
 
 // Motoristas podem atualizar corridas para aceitá-las. Passageiros podem cancelar. Admins podem editar tudo.
-@api.update: @request.auth.id ?= driver || @request.auth.id ?= passenger || @request.auth.role = "Admin"
+@api.update: driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin"
 
 // Admins podem deletar registros de corrida.
 @api.delete: @request.auth.role = "Admin"
@@ -115,11 +117,11 @@ Armazena as mensagens dos chats entre passageiros e motoristas.
 
 ```json
 // Apenas o passageiro ou motorista da corrida associada podem criar mensagens.
-@api.create: @request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver
+@api.create: ride.passenger = @request.auth.id || ride.driver = @request.auth.id
 
 // Apenas os participantes da corrida e administradores/atendentes podem ver as mensagens.
-@api.list: (@request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver || @request.auth.role = "Atendente") || @request.auth.role = "Admin"
-@api.view: (@request.auth.id ?= ride.passenger || @request.auth.id ?= ride.driver) || @request.auth.role = "Admin"
+@api.list: (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Atendente") || @request.auth.role = "Admin"
+@api.view: (ride.passenger = @request.auth.id || ride.driver = @request.auth.id) || @request.auth.role = "Admin"
 
 // Mensagens não podem ser editadas ou deletadas pelos usuários.
 @api.update: @request.auth.role = "Admin"
@@ -148,14 +150,14 @@ Armazena os arquivos de documentos dos motoristas (CNH, CRLV).
 
 ```json
 // O motorista pode enviar seus próprios documentos.
-@api.create: @request.auth.id ?= driver
+@api.create: driver = @request.auth.id
 
 // O motorista pode ver seus próprios documentos. Admins podem ver todos.
-@api.list: @request.auth.id ?= driver || @request.auth.role = "Admin"
-@api.view: @request.auth.id ?= driver || @request.auth.role = "Admin"
+@api.list: driver = @request.auth.id || @request.auth.role = "Admin"
+@api.view: driver = @request.auth.id || @request.auth.role = "Admin"
 
 // O motorista pode atualizar (reenviar) seus documentos. Admins podem atualizar (ex: para verificar).
-@api.update: @request.auth.id ?= driver || @request.auth.role = "Admin"
+@api.update: driver = @request.auth.id || @request.auth.role = "Admin"
 
 // Apenas Admins podem deletar documentos.
 @api.delete: @request.auth.role = "Admin"
