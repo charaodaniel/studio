@@ -35,21 +35,28 @@ export default function DriverAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await pb.collection('users').authWithPassword(loginEmail, loginPassword);
-      
-      if (pb.authStore.model?.role !== 'Motorista') {
-          pb.authStore.clear(); // Log out non-drivers
-          toast({
-              variant: 'destructive',
-              title: 'Acesso Negado',
-              description: 'Este login é exclusivo para motoristas.',
-          });
-          return;
+      // Step 1: Authenticate the user first
+      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+
+      // Step 2: Check if the authenticated user is a Driver
+      if (authData.record.role !== 'Motorista') {
+        // If not a driver, log them out immediately and show an error
+        pb.authStore.clear();
+        toast({
+          variant: 'destructive',
+          title: 'Acesso Negado',
+          description: 'Este login é exclusivo para motoristas.',
+        });
+        setIsLoading(false);
+        return;
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${pb.authStore.model?.name}!` });
+      // Step 3: If it is a driver, show success and redirect
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
       window.location.href = '/driver';
+
     } catch (error) {
+      // This catch block will now correctly handle failed authentications (e.g., wrong password)
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
@@ -75,15 +82,15 @@ export default function DriverAuthForm() {
     };
 
     try {
-        await pb.collection('users').create(data);
-        
-        // After successful registration, log the user in automatically
-        await pb.collection('users').authWithPassword(registerEmail, registerPassword);
-        
-        toast({ title: 'Conta de Motorista Criada!', description: 'Sua conta foi criada com sucesso. Bem-vindo!' });
-        
-        // Redirect to the driver's dashboard
-        window.location.href = '/driver';
+      await pb.collection('users').create(data);
+      
+      // After successful registration, log the user in automatically
+      await pb.collection('users').authWithPassword(registerEmail, registerPassword);
+      
+      toast({ title: 'Conta de Motorista Criada!', description: 'Sua conta foi criada com sucesso. Bem-vindo!' });
+      
+      // Redirect to the driver's dashboard
+      window.location.href = '/driver';
         
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
