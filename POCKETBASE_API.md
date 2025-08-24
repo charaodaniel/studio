@@ -6,23 +6,52 @@ Este documento serve como guia para a configuração do backend no PocketBase.
 
 ---
 
-## Configuração Rápida via Importação
+## Passo a Passo para Configuração
 
-A maneira mais fácil e recomendada de configurar as coleções é importar o arquivo de schema JSON. Isso elimina a necessidade de criação manual e garante que todos os campos e regras estejam corretos.
+Para garantir que o aplicativo funcione corretamente, você precisa configurar as coleções do banco de dados. O processo é feito em duas etapas para garantir a segurança e integridade dos seus dados de usuário.
 
-### Passos para Importar:
+### Etapa 1: Importar Coleções Não-Sistema
+
+A maneira mais fácil de configurar as coleções de corridas, mensagens e documentos é importar um arquivo JSON.
 
 1.  **Faça o Download do Schema:**
-    -   Baixe o arquivo `pocketbase_schema.json` que está na raiz deste projeto.
+    *   Baixe o arquivo `pocketbase_schema.json` que está na raiz deste projeto.
 
 2.  **Acesse seu Painel PocketBase:**
-    -   Faça login no seu painel administrativo (ex: `https://mobmv.shop/_/`).
+    *   Faça login no seu painel administrativo (ex: `https://mobmv.shop/_/`).
 
 3.  **Vá para a Seção de Importação:**
-    -   No menu lateral, clique em **Settings > Import collections**.
+    *   No menu lateral, clique em **Settings > Import collections**.
 
 4.  **Importe o Arquivo:**
-    -   Clique no botão **"Load from JSON"** e selecione o arquivo `pocketbase_schema.json` que você baixou.
-    -   Confirme a importação.
+    *   Clique no botão **"Load from JSON"** e selecione o arquivo `pocketbase_schema.json` que você baixou.
+    *   Confirme a importação. Isso irá criar as coleções: `rides`, `messages`, `driver_documents`, e `driver_status_logs`.
 
-Isso irá criar e configurar automaticamente todas as coleções: `users` (com todos os campos personalizados), `rides`, `messages`, `driver_documents`, e `driver_status_logs`.
+### Etapa 2: Configurar a Coleção `users` Manualmente
+
+Como a coleção `users` já existe no seu sistema, vamos apenas adicionar os campos que faltam. **Isso preserva seus usuários existentes.**
+
+1.  No painel do PocketBase, clique na coleção **users**.
+2.  Clique em **"Edit collection"**.
+3.  Adicione os seguintes campos um por um, clicando em **"+ Add field"**:
+
+| Nome do Campo              | Tipo (`Type`) | Opções e Observações                                                                                                       |
+| -------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **name**                   | `Text`        | Já deve existir. Se não, crie-o e marque como "Required".                                                                  |
+| **avatar**                 | `File`        | Já deve existir. Tipo `Image`.                                                                                             |
+| **role**                   | `Select`      | **Obrigatório**. Valores: `Passageiro`, `Motorista`, `Admin`, `Atendente`.                                                 |
+| `phone`                    | `Text`        | Telefone do usuário.                                                                                                       |
+| `driver_status`            | `Select`      | Status do motorista. Valores: `Online`, `Offline`, `Em Viagem (Urbano)`, `Em Viagem (Rural)`.                              |
+| `driver_vehicle_model`     | `Text`        | Modelo do veículo. Ex: "Chevrolet Onix".                                                                                   |
+| `driver_vehicle_plate`     | `Text`        | Placa do veículo. Ex: "BRA2E19".                                                                                           |
+| `driver_vehicle_photo`     | `File`        | Foto do veículo. Tipo `Image`.                                                                                             |
+| `driver_cnpj`              | `Text`        | CNPJ do motorista (opcional).                                                                                              |
+| `driver_pix_key`           | `Text`        | Chave PIX do motorista.                                                                                                    |
+| `driver_fare_type`         | `Select`      | Tipo de tarifa. Valores: `fixed`, `km`.                                                                                    |
+| `driver_fixed_rate`        | `Number`      | Valor da tarifa fixa.                                                                                                      |
+| `driver_km_rate`           | `Number`      | Valor da tarifa por km.                                                                                                    |
+| `driver_accepts_rural`     | `Bool`        | Se o motorista aceita corridas para o interior/rurais.                                                                     |
+
+4.  Após adicionar todos os campos, salve as alterações.
+
+Com isso, seu backend estará totalmente configurado para funcionar com o aplicativo.

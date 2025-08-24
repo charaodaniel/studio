@@ -1,246 +1,6 @@
 
 [
   {
-    "id": "systemprofiles",
-    "name": "users",
-    "type": "auth",
-    "system": false,
-    "schema": [
-      {
-        "system": false,
-        "id": "users_name",
-        "name": "name",
-        "type": "text",
-        "required": true,
-        "presentable": true,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "users_avatar",
-        "name": "avatar",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/svg+xml",
-            "image/gif",
-            "image/webp"
-          ],
-          "thumbs": [
-            "100x100"
-          ],
-          "maxSelect": 1,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "users_role",
-        "name": "role",
-        "type": "select",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSelect": 1,
-          "values": [
-            "Passageiro",
-            "Motorista",
-            "Admin",
-            "Atendente"
-          ]
-        }
-      },
-      {
-        "system": false,
-        "id": "f8cveude",
-        "name": "phone",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "j7vvkb2x",
-        "name": "driver_status",
-        "type": "select",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSelect": 1,
-          "values": [
-            "Online",
-            "Offline",
-            "Em Viagem (Urbano)",
-            "Em Viagem (Rural)"
-          ]
-        }
-      },
-      {
-        "system": false,
-        "id": "d0o2m8e5",
-        "name": "driver_vehicle_model",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "s8vgyfpx",
-        "name": "driver_vehicle_plate",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "v3x6x6yq",
-        "name": "driver_vehicle_photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/png",
-            "image/jpeg"
-          ],
-          "thumbs": [],
-          "maxSelect": 1,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbfjpcwz",
-        "name": "driver_cnpj",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "z9cjhf2s",
-        "name": "driver_pix_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "w3wzzvys",
-        "name": "driver_fare_type",
-        "type": "select",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "maxSelect": 1,
-          "values": [
-            "fixed",
-            "km"
-          ]
-        }
-      },
-      {
-        "system": false,
-        "id": "09ywbokw",
-        "name": "driver_fixed_rate",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "hfr9m2ql",
-        "name": "driver_km_rate",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": null,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "v35bcloz",
-        "name": "driver_accepts_rural",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
-    ],
-    "indexes": [],
-    "listRule": "@request.auth.id != \"\"",
-    "viewRule": "@request.auth.id = id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\" || @request.auth.role = \"Motorista\"",
-    "createRule": "",
-    "updateRule": "@request.auth.id = id || @request.auth.role = \"Admin\"",
-    "deleteRule": "@request.auth.role = \"Admin\"",
-    "options": {
-      "allowEmailAuth": true,
-      "allowOAuth2Auth": true,
-      "allowUsernameAuth": false,
-      "exceptEmailDomains": null,
-      "manageRule": null,
-      "onlyEmailDomains": null,
-      "requireEmail": false
-    }
-  },
-  {
     "id": "b1wtu7ah1l75gen",
     "name": "rides",
     "type": "base",
@@ -255,7 +15,7 @@
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "systemprofiles",
+          "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
           "minSelect": null,
           "maxSelect": 1,
@@ -271,7 +31,7 @@
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "systemprofiles",
+          "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
           "minSelect": null,
           "maxSelect": 1,
@@ -405,7 +165,7 @@
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "systemprofiles",
+          "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
           "minSelect": null,
           "maxSelect": 1,
@@ -450,7 +210,7 @@
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "systemprofiles",
+          "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
           "minSelect": null,
           "maxSelect": 1,
@@ -523,7 +283,7 @@
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "systemprofiles",
+          "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
           "minSelect": null,
           "maxSelect": 1,
