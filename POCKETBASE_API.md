@@ -8,7 +8,7 @@ Este documento serve como guia para a configuração do backend no PocketBase.
 
 ## Passo a Passo para Configuração
 
-Para garantir que o aplicativo funcione corretamente, você precisa configurar as coleções do banco de dados. O processo agora é feito em **três etapas** para garantir a segurança e integridade dos seus dados de usuário.
+Para garantir que o aplicativo funcione corretamente, você precisa configurar as coleções do banco de dados. O processo agora é feito em **duas etapas** para garantir a segurança e integridade dos seus dados de usuário.
 
 ### Etapa 1: Importar Coleções
 
@@ -24,7 +24,7 @@ Para garantir que o aplicativo funcione corretamente, você precisa configurar a
 4.  **Importe o Arquivo:**
     *   Clique no botão **"Load from JSON"** e selecione o arquivo `pocketbase_schema.json` que você baixou.
     *   **IMPORTANTE:** Certifique-se de que a opção **"Mesclar" (Merge) esteja ATIVADA**.
-    *   Confirme a importação. Isso irá criar as coleções: `rides`, `messages`, `driver_documents`, e `driver_status_logs`.
+    *   Confirme a importação. Isso irá criar as coleções `rides`, `messages`, `driver_documents`, e `driver_status_logs` e/ou atualizar as regras de API se elas já existirem.
 
 ### Etapa 2: Configurar a Coleção `users` Manualmente
 
@@ -51,42 +51,11 @@ Como a coleção `users` já existe no seu sistema, vamos apenas adicionar os ca
     | `driver_km_rate`           | `Number`      | Valor da tarifa por km.                                                                                                    |
     | `driver_accepts_rural`     | `Bool`        | Se o motorista aceita corridas para o interior/rurais.                                                                     |
 
-### Etapa 3: Adicionar Regras de API Manualmente
-
-Após importar as coleções e configurar a `users`, você precisa adicionar as regras de segurança. Vá para cada coleção, clique em **"Edit collection"** e cole as regras abaixo na aba **"API Rules"**.
-
-#### Coleção `users`
-*   **List Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
-*   **View Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
-*   **Update Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin")`
-*   **Delete Rule**: `@request.auth.role = "Admin"`
-
-#### Coleção `rides`
-*   **List Rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Atendente" || @request.auth.role = "Admin")`
-*   **View Rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
-*   **Create Rule**: `@request.auth.id != "" && (@request.auth.role = "Passageiro" || @request.auth.role = "Admin")`
-*   **Update Rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
-*   **Delete Rule**: `@request.auth.role = "Admin"`
-
-#### Coleção `messages`
-*   **List Rule**: `@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Atendente" || @request.auth.role = "Admin")`
-*   **View Rule**: `@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Admin")`
-*   **Create Rule**: `@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id)`
-*   **Update Rule**: `@request.auth.role = "Admin"`
-*   **Delete Rule**: `@request.auth.role = "Admin"`
-
-#### Coleção `driver_documents`
-*   **List Rule**: `@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")`
-*   **View Rule**: `@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")`
-*   **Create Rule**: `@request.auth.id != "" && driver = @request.auth.id`
-*   **Update Rule**: `@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")`
-*   **Delete Rule**: `@request.auth.role = "Admin"`
-
-#### Coleção `driver_status_logs`
-*   **List Rule**: `@request.auth.role = "Admin"`
-*   **View Rule**: `@request.auth.role = "Admin"`
-*   **Create Rule**: `@request.auth.role = "Admin"`
-*   **Update Rule**: `""`
-*   **Delete Rule**: `""`
+4.  **Adicione as Regras de API:**
+    *   Ainda em **"Edit collection"**, vá para a aba **"API Rules"** e cole as regras abaixo:
+    *   **List Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
+    *   **View Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
+    *   **Update Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin")`
+    *   **Delete Rule**: `@request.auth.role = "Admin"`
 
 Com isso, seu backend estará totalmente configurado para funcionar com o aplicativo. Lembre-se de criar seu primeiro administrador seguindo o guia no arquivo `ADMIN_SETUP.md`.

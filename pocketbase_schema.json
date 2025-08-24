@@ -127,11 +127,11 @@
       }
     ],
     "indexes": [],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": "",
+    "listRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Atendente\" || @request.auth.role = \"Admin\")",
+    "viewRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\")",
+    "createRule": "@request.auth.id != \"\" && (@request.auth.role = \"Passageiro\" || @request.auth.role = \"Admin\")",
+    "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
+    "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}
   },
   {
@@ -188,11 +188,11 @@
       }
     ],
     "indexes": [],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": "",
+    "listRule": "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Atendente\" || @request.auth.role = \"Admin\")",
+    "viewRule": "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Admin\")",
+    "createRule": "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id)",
+    "updateRule": "@request.auth.role = \"Admin\"",
+    "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}
   },
   {
@@ -261,11 +261,11 @@
       }
     ],
     "indexes": [],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": "",
+    "listRule": "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
+    "viewRule": "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
+    "createRule": "@request.auth.id != \"\" && driver = @request.auth.id",
+    "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
+    "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}
   },
   {
@@ -306,11 +306,11 @@
       }
     ],
     "indexes": [],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": "",
+    "listRule": "@request.auth.role = \"Admin\"",
+    "viewRule": "@request.auth.role = \"Admin\"",
+    "createRule": "@request.auth.role = \"Admin\"",
+    "updateRule": "\"\"",
+    "deleteRule": "\"\"",
     "options": {}
   }
 ]

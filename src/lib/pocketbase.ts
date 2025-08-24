@@ -11,4 +11,10 @@ const pb = new PocketBase(POCKETBASE_URL);
 // Definir um timeout maior pode ajudar em redes mais lentas.
 pb.autoCancellation(false);
 
+// Add an event listener to handle token expiration
+pb.authStore.onChange((token, model) => {
+    console.log('Auth changed', token, model);
+}, true);
+
+
 export default pb;
