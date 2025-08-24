@@ -11,31 +11,44 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { POCKETBASE_URL } from '@/lib/pocketbase';
 import { Checkbox } from '../ui/checkbox';
+import { useRouter } from 'next/navigation';
 
 export default function AdminAuthForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Authenticates an ADMIN user (not a regular user)
+      // Authenticates an ADMIN user (not a regular user from the 'users' collection)
       await pb.admins.authWithPassword(email, password);
-      // On successful login, PocketBase stores the token in a cookie.
+      
+      // On successful login, PocketBase SDK automatically handles the auth token.
       // We can then redirect to the admin dashboard.
+      toast({
+        title: "Login bem-sucedido!",
+        description: "Bem-vindo ao painel de administração.",
+      });
+
+      // Redirect to the admin page
       window.location.href = '/admin';
+
     } catch (error: any) {
       let description = "Email ou senha inválidos. Por favor, tente novamente.";
       
-      // Check for network or CORS errors
-      if (error.status === 0 || error.originalError) {
+      // Check for network or CORS errors which typically result in status 0
+      if (error.status === 0 || (error.originalError && !error.response)) {
           description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e se as configurações de CORS estão corretas.`;
       } else if (error.data?.message) {
+          // Use the specific message from PocketBase if available
           description = `Erro do servidor: ${error.data.message}`;
+      } else if (error.status === 401 || error.status === 403) {
+          description = "As credenciais fornecidas são inválidas ou você não tem permissão para acessar.";
       }
       
       toast({
@@ -43,7 +56,7 @@ export default function AdminAuthForm() {
         description: description,
         variant: "destructive",
       });
-      console.error('Failed to login:', error);
+      console.error('Failed to login as admin:', error);
     } finally {
       setIsLoading(false);
     }
