@@ -6,56 +6,38 @@ Este documento serve como guia para a configuração do backend no PocketBase.
 
 ---
 
-## Passo a Passo para Configuração
+## Processo de Configuração Automatizado
 
-Para garantir que o aplicativo funcione corretamente, você precisa configurar as coleções do banco de dados. O processo agora é feito em **duas etapas** para garantir a segurança e integridade dos seus dados de usuário.
+Para garantir que o aplicativo funcione corretamente, criamos um script que automatiza toda a configuração do banco de dados. Isso elimina a necessidade de importação de JSON ou criação manual de coleções.
 
-### Etapa 1: Importar Coleções
+### Passo 1: Instale as Dependências do Projeto
 
-1.  **Faça o Download do Schema:**
-    *   Use o arquivo `pocketbase_schema.json` que está na raiz deste projeto.
+Se você ainda não o fez, abra um terminal na pasta do projeto e instale todas as dependências necessárias.
+```bash
+pnpm install
+```
+Isso garantirá que a dependência `isomorphic-fetch`, necessária para o script, seja instalada.
 
-2.  **Acesse seu Painel PocketBase:**
-    *   Faça login no seu painel administrativo (ex: `https://mobmv.shop/_/`).
+### Passo 2: Configure o Script de Setup
 
-3.  **Vá para a Seção de Importação:**
-    *   No menu lateral, clique em **Settings > Import collections**.
+1.  Abra o arquivo `src/scripts/setup-pocketbase.js` no seu editor de código.
+2.  Localize a seção de **CONFIGURAÇÃO** no topo do arquivo.
+3.  Preencha as três variáveis com os dados do **seu painel de administrador (Super-Admin)** do PocketBase:
+    *   `POCKETBASE_URL`: A URL base do seu servidor (ex: `https://seu-dominio.com`).
+    *   `POCKETBASE_ADMIN_EMAIL`: O email que você usa para fazer login no painel de admin.
+    *   `POCKETBASE_ADMIN_PASSWORD`: A senha correspondente.
 
-4.  **Importe o Arquivo:**
-    *   Clique no botão **"Load from JSON"** e selecione o arquivo `pocketbase_schema.json` que você baixou.
-    *   **IMPORTANTE:** Certifique-se de que a opção **"Mesclar" (Merge) esteja ATIVADA**.
-    *   Confirme a importação. Isso irá criar as coleções `rides`, `messages`, `driver_documents`, e `driver_status_logs` e/ou atualizar as regras de API se elas já existirem.
+### Passo 3: Execute o Script
 
-### Etapa 2: Configurar a Coleção `users` Manualmente
+Com o arquivo configurado e salvo, execute o seguinte comando no seu terminal:
 
-Como a coleção `users` já existe no seu sistema, vamos apenas adicionar os campos que faltam. **Isso preserva seus usuários existentes.**
+```bash
+pnpm run setup:pb
+```
 
-1.  No painel do PocketBase, clique na coleção **users**.
-2.  Clique em **"Edit collection"**.
+O script irá se conectar ao seu PocketBase, criar todas as coleções necessárias (`rides`, `messages`, etc.), adicionar os campos personalizados à coleção `users`, e aplicar todas as regras de API.
 
-3.  **Adicione os Seguintes Campos:**
-    Clique em **"+ Add field"** e adicione os campos abaixo, um por um:
+**O que esperar no terminal:**
+O script mostrará o progresso, indicando quais coleções estão sendo criadas ou puladas (se já existirem) e se a coleção `users` foi atualizada com sucesso.
 
-    | Nome do Campo              | Tipo (`Type`) | Opções e Observações                                                                                                       |
-    | -------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
-    | **role**                   | `Select`      | **Obrigatório**. Valores: `Passageiro`, `Motorista`, `Admin`, `Atendente`.                                                 |
-    | `phone`                    | `Text`        | Telefone do usuário.                                                                                                       |
-    | `driver_status`            | `Select`      | Status do motorista. Valores: `Online`, `Offline`, `Em Viagem (Urbano)`, `Em Viagem (Interior/Intermunicipal)`.             |
-    | `driver_vehicle_model`     | `Text`        | Modelo do veículo. Ex: "Chevrolet Onix".                                                                                   |
-    | `driver_vehicle_plate`     | `Text`        | Placa do veículo. Ex: "BRA2E19".                                                                                           |
-    | `driver_vehicle_photo`     | `File`        | Foto do veículo. Tipo `Image`.                                                                                             |
-    | `driver_cnpj`              | `Text`        | CNPJ do motorista (opcional).                                                                                              |
-    | `driver_pix_key`           | `Text`        | Chave PIX do motorista.                                                                                                    |
-    | `driver_fare_type`         | `Select`      | Tipo de tarifa. Valores: `fixed`, `km`.                                                                                    |
-    | `driver_fixed_rate`        | `Number`      | Valor da tarifa fixa.                                                                                                      |
-    | `driver_km_rate`           | `Number`      | Valor da tarifa por km.                                                                                                    |
-    | `driver_accepts_rural`     | `Bool`        | Se o motorista aceita corridas para o interior/rurais.                                                                     |
-
-4.  **Adicione as Regras de API:**
-    *   Ainda em **"Edit collection"**, vá para a aba **"API Rules"** e cole as regras abaixo:
-    *   **List Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
-    *   **View Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
-    *   **Update Rule**: `@request.auth.id != "" && (@request.auth.id = id || @request.auth.role = "Admin")`
-    *   **Delete Rule**: `@request.auth.role = "Admin"`
-
-Com isso, seu backend estará totalmente configurado para funcionar com o aplicativo. Lembre-se de criar seu primeiro administrador seguindo o guia no arquivo `ADMIN_SETUP.md`.
+Após a execução do script, seu backend estará totalmente configurado para funcionar com o aplicativo.
