@@ -50,11 +50,11 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 
 2.  **Configuração de Ambiente:**
     -   Renomeie o arquivo `.env.example` para `.env.local` (se existir) ou crie um novo.
-    -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase. **É crucial que a URL comece com `https://`**.
+    -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase. **É crucial que a URL comece com `https://` e não contenha a parte `/_/` no final**.
 
     ```env
     # Substitua pelo seu domínio do PocketBase
-    NEXT_PUBLIC_POCKETBASE_URL=https://mobmv.shop
+    NEXT_PUBLIC_API_BASE=https://mobmv.shop
     ```
 
     Isso garantirá que o aplicativo saiba onde encontrar a API do seu backend.
