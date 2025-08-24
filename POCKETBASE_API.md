@@ -20,10 +20,10 @@ Isso garantirá que a dependência `pocketbase`, necessária para o script, seja
 
 ### Passo 2: Configure o Script de Setup
 
-1.  Abra o arquivo `src/scripts/setup-pocketbase.js` no seu editor de código.
+1.  Abra o arquivo `src/scripts/setup-pocketbase.cjs` no seu editor de código.
 2.  Localize a seção de **CONFIGURAÇÃO** no topo do arquivo.
 3.  Preencha as três variáveis com os dados do **seu painel de administrador (Super-Admin)** do PocketBase:
-    *   `POCKETBASE_URL`: A URL base do seu servidor (ex: `https://seu-dominio.com`).
+    *   `POCKETBASE_URL`: A URL base do seu servidor (ex: `https://seu-dominio.com`). **Não adicione a parte `/_/` ou `/api/` no final.**
     *   `POCKETBASE_ADMIN_EMAIL`: O email que você usa para fazer login no painel de admin.
     *   `POCKETBASE_ADMIN_PASSWORD`: A senha correspondente.
 
@@ -35,9 +35,9 @@ Com o arquivo configurado e salvo, execute o seguinte comando no seu terminal:
 pnpm run setup:pb
 ```
 
-O script irá se conectar ao seu PocketBase, criar todas as coleções necessárias (`rides`, `messages`, etc.) se elas não existirem, adicionar os campos personalizados à coleção `users`, e aplicar todas as regras de API.
+O script irá se conectar ao seu PocketBase. Ele verificará cada coleção e cada campo, adicionando apenas o que estiver faltando e aplicando as regras de API corretas no final. Ele pode ser executado várias vezes com segurança.
 
 **O que esperar no terminal:**
-O script mostrará o progresso, indicando quais coleções estão sendo criadas ou atualizadas e se a coleção `users` foi configurada com sucesso.
+O script mostrará o progresso, indicando quais coleções e campos estão sendo criados ou atualizados e se as regras de API foram aplicadas com sucesso.
 
 Após a execução do script, seu backend estará totalmente configurado para funcionar com o aplicativo.

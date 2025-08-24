@@ -1,245 +1,195 @@
-// Import 'node-fetch' to provide the 'fetch' global that PocketBase SDK needs.
+
 require('isomorphic-fetch');
 const PocketBase = require('pocketbase/cjs');
 
-// ====================================================================
-// CONFIGURAÇÃO - PREENCHA SEUS DADOS AQUI
-// ====================================================================
+// --- CONFIGURAÇÃO ---
+// Preencha estas variáveis com os dados do seu painel de Super-Admin do PocketBase
 const POCKETBASE_URL = 'https://mobmv.shop';
-// IMPORTANTE: Use as credenciais de um SUPER-ADMINISTRADOR do seu painel PocketBase.
-// Este script não funcionará com credenciais de usuários normais.
-const POCKETBASE_ADMIN_EMAIL = 'daniel.kokynhw@gmail.com';
-const POCKETBASE_ADMIN_PASSWORD = 'Dcm02061994@@';
-// ====================================================================
+const POCKETBASE_ADMIN_EMAIL = 'admin@example.com';
+const POCKETBASE_ADMIN_PASSWORD = 'password123';
+// --- FIM DA CONFIGURAÇÃO ---
+
+
+// Definição completa do schema desejado para o aplicativo
+const collections = [
+    {
+        name: 'users',
+        type: 'auth',
+        schema: [
+            { name: 'name', type: 'text' },
+            { name: 'avatar', type: 'file', options: { maxSelect: 1, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] } },
+            { name: 'phone', type: 'text' },
+            { name: 'role', type: 'select', options: { values: ['Passageiro', 'Motorista', 'Admin', 'Atendente'], maxSelect: 1 }, required: true },
+            { name: 'driver_status', type: 'select', options: { values: ['online', 'offline', 'in_trip'], maxSelect: 1 } },
+            { name: 'driver_vehicle_model', type: 'text' },
+            { name: 'driver_vehicle_plate', type: 'text' },
+            { name: 'driver_vehicle_photo', type: 'file', options: { maxSelect: 1 } },
+            { name: 'driver_cnpj', type: 'text' },
+            { name: 'driver_pix_key', type: 'text' },
+            { name: 'driver_fare_type', type: 'select', options: { values: ['fixed', 'km'], maxSelect: 1 } },
+            { name: 'driver_fixed_rate', type: 'number' },
+            { name: 'driver_km_rate', type: 'number' },
+            { name: 'driver_accepts_rural', type: 'bool' },
+        ],
+        rules: {
+            listRule: '@request.auth.id != ""',
+            viewRule: 'id = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente" || @request.auth.role = "Motorista"',
+            updateRule: 'id = @request.auth.id || @request.auth.role = "Admin"',
+            deleteRule: '@request.auth.role = "Admin"',
+        }
+    },
+    {
+        name: 'rides',
+        type: 'base',
+        schema: [
+            { name: 'passenger', type: 'relation', options: { collectionId: '_pb_users_auth_', maxSelect: 1 }, required: true },
+            { name: 'driver', type: 'relation', options: { collectionId: '_pb_users_auth_', maxSelect: 1 } },
+            { name: 'origin_address', type: 'text', required: true },
+            { name: 'destination_address', type: 'text', required: true },
+            { name: 'status', type: 'select', options: { maxSelect: 1, values: ['requested', 'accepted', 'in_progress', 'completed', 'canceled'] }, required: true },
+            { name: 'fare', type: 'number', required: true },
+            { name: 'is_negotiated', type: 'bool', required: true },
+            { name: 'started_by', type: 'select', options: { maxSelect: 1, values: ['passenger', 'driver'] }, required: true },
+        ],
+        rules: {
+            listRule: '@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Atendente" || @request.auth.role = "Admin")',
+            viewRule: '@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")',
+            createRule: '@request.auth.id != "" && (@request.auth.role = "Passageiro" || @request.auth.role = "Admin")',
+            updateRule: '@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")',
+            deleteRule: '@request.auth.role = "Admin"',
+        }
+    },
+    {
+        name: 'messages',
+        type: 'base',
+        schema: [
+            { name: 'ride', type: 'relation', options: { collectionId: 'b1wtu7ah1l75gen' }, required: true },
+            { name: 'sender', type: 'relation', options: { collectionId: '_pb_users_auth_' }, required: true },
+            { name: 'text', type: 'text', required: true },
+        ],
+        rules: {
+            listRule: '@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Atendente" || @request.auth.role = "Admin")',
+            viewRule: '@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Admin")',
+            createRule: '@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id)',
+            updateRule: '@request.auth.role = "Admin"',
+            deleteRule: '@request.auth.role = "Admin"',
+        }
+    },
+    {
+        name: 'driver_documents',
+        type: 'base',
+        schema: [
+            { name: 'driver', type: 'relation', options: { collectionId: '_pb_users_auth_' }, required: true },
+            { name: 'document_type', type: 'select', options: { maxSelect: 1, values: ['CNH', 'CRLV'] }, required: true },
+            { name: 'file', type: 'file', options: { maxSelect: 1 }, required: true },
+            { name: 'is_verified', type: 'bool' },
+        ],
+        rules: {
+            listRule: '@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")',
+            viewRule: '@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")',
+            createRule: '@request.auth.id != "" && driver = @request.auth.id',
+            updateRule: '@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")',
+            deleteRule: '@request.auth.role = "Admin"',
+        }
+    },
+    {
+        name: 'driver_status_logs',
+        type: 'base',
+        schema: [
+            { name: 'driver', type: 'relation', options: { collectionId: '_pb_users_auth_' }, required: true },
+            { name: 'status', type: 'text', required: true },
+        ],
+        rules: {
+            listRule: '@request.auth.role = "Admin"',
+            viewRule: '@request.auth.role = "Admin"',
+            createRule: '@request.auth.role = "Admin"',
+            updateRule: '""',
+            deleteRule: '""',
+        }
+    }
+];
 
 const pb = new PocketBase(POCKETBASE_URL);
 
-/**
- * Representa a configuração de uma coleção no PocketBase.
- * @typedef {object} CollectionConfig
- * @property {string} name - O nome da coleção.
- * @property {string} type - O tipo da coleção ('base' ou 'auth').
- * @property {Array<object>} schema - O schema de campos da coleção.
- * @property {string} [listRule] - Regra de API para listar registros.
- * @property {string} [viewRule] - Regra de API para visualizar um registro.
- * @property {string} [createRule] - Regra de API para criar um registro.
- * @property {string} [updateRule] - Regra de API para atualizar um registro.
- * @property {string} [deleteRule] - Regra de API para deletar um registro.
- */
-
-/**
- * @type {CollectionConfig}
- */
-const usersConfig = {
-    name: 'users',
-    type: 'auth',
-    schema: [
-        // Campos que queremos garantir que existam.
-        // O script não remove campos, apenas adiciona os que faltam.
-        { "name": "name", "type": "text", "required": false },
-        { "name": "avatar", "type": "file", "options": { "maxSelect": 1, "maxSize": 5242880, "mimeTypes": ["image/jpeg", "image/png", "image/webp"] } },
-        { "name": "phone", "type": "text" },
-        { "name": "role", "type": "select", "required": true, "options": { "values": ["Passageiro", "Motorista", "Admin", "Atendente"] } },
-        { "name": "driver_status", "type": "select", "options": { "values": ["Online", "Offline", "Em Viagem"] } },
-        { "name": "driver_vehicle_model", "type": "text" },
-        { "name": "driver_vehicle_plate", "type": "text" },
-        { "name": "driver_vehicle_photo", "type": "file", "options": { "maxSelect": 1 } },
-        { "name": "driver_cnpj", "type": "text" },
-        { "name": "driver_pix_key", "type": "text" },
-        { "name": "driver_fare_type", "type": "select", "options": { "values": ["fixed", "km"] } },
-        { "name": "driver_fixed_rate", "type": "number" },
-        { "name": "driver_km_rate", "type": "number" },
-        { "name": "driver_accepts_rural", "type": "bool" },
-    ],
-    listRule: "@request.auth.id != \"\"",
-    viewRule: "id = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\"",
-    updateRule: "id = @request.auth.id || @request.auth.role = \"Admin\"",
-    deleteRule: '@request.auth.role = "Admin"',
-};
-
-/**
- * @type {Array<CollectionConfig>}
- */
-const collections = [
-    {
-        name: "rides",
-        type: "base",
-        schema: [
-            { "name": "passenger", "type": "relation", "required": true, "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
-            { "name": "driver", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
-            { "name": "origin_address", "type": "text", "required": true },
-            { "name": "destination_address", "type": "text", "required": true },
-            { "name": "status", "type": "select", "required": true, "options": { "maxSelect": 1, "values": ["requested", "accepted", "in_progress", "completed", "canceled"] } },
-            { "name": "fare", "type": "number", "required": true },
-            { "name": "is_negotiated", "type": "bool", "required": true },
-            { "name": "started_by", "type": "select", "required": true, "options": { "maxSelect": 1, "values": ["passenger", "driver"] } },
-        ],
-        listRule: "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Atendente\" || @request.auth.role = \"Admin\")",
-        viewRule: "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\")",
-        createRule: "@request.auth.id != \"\" && (@request.auth.role = \"Passageiro\" || @request.auth.role = \"Admin\")",
-        updateRule: "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
-        deleteRule: "@request.auth.role = \"Admin\"",
-    },
-    {
-        name: "messages",
-        type: "base",
-        schema: [
-            { "name": "ride", "type": "relation", "required": true, "options": { "collectionId": "b1wtu7ah1l75gen", "maxSelect": 1 } },
-            { "name": "sender", "type": "relation", "required": true, "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
-            { "name": "text", "type": "text", "required": true },
-        ],
-        listRule: "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Atendente\" || @request.auth.role = \"Admin\")",
-        viewRule: "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Admin\")",
-        createRule: "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id)",
-        updateRule: "@request.auth.role = \"Admin\"",
-        deleteRule: "@request.auth.role = \"Admin\"",
-    },
-    {
-        name: "driver_documents",
-        type: "base",
-        schema: [
-            { "name": "driver", "type": "relation", "required": true, "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
-            { "name": "document_type", "type": "select", "required": true, "options": { "maxSelect": 1, "values": ["CNH", "CRLV"] } },
-            { "name": "file", "type": "file", "required": true, "options": { "maxSelect": 1, "maxSize": 5242880, "mimeTypes": ["image/jpeg", "image/png", "image/webp", "application/pdf"] } },
-            { "name": "is_verified", "type": "bool" },
-        ],
-        listRule: "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
-        viewRule: "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
-        createRule: "@request.auth.id != \"\" && driver = @request.auth.id",
-        updateRule: "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
-        deleteRule: "@request.auth.role = \"Admin\"",
-    },
-    {
-        name: "driver_status_logs",
-        type: "base",
-        schema: [
-            { "name": "driver", "type": "relation", "required": true, "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
-            { "name": "status", "type": "text", "required": true },
-        ],
-        listRule: "@request.auth.role = \"Admin\"",
-        viewRule: "@request.auth.role = \"Admin\"",
-        createRule: "@request.auth.role = \"Admin\"",
-        updateRule: "\"\"", // Ninguém deve atualizar logs
-        deleteRule: "\"\"", // Ninguém deve apagar logs
-    },
-];
-
-async function syncCollection(config) {
-    let existingCollection;
+async function syncCollectionSchema(collectionInfo) {
     try {
-        existingCollection = await pb.collections.getOne(config.name);
-        console.log(`- Coleção '${config.name}' já existe. Verificando campos...`);
-    } catch (err) {
-        if (err.status === 404) {
-            console.log(`- Coleção '${config.name}' não encontrada. Criando...`);
-            try {
-                // Ao criar, especialmente para 'messages', precisamos garantir que a coleção 'rides' exista.
-                // Como elas são criadas em ordem, isso deve funcionar.
-                 if (config.name === 'messages') {
-                    try {
-                        const ridesCollection = await pb.collections.getOne('rides');
-                        // Substitui o nome 'rides' pelo ID real.
-                        const rideField = config.schema.find(f => f.name === 'ride');
-                        if (rideField) {
-                            rideField.options.collectionId = ridesCollection.id;
-                        }
-                    } catch (e) {
-                         console.error("❌ Erro: A coleção 'rides' precisa existir antes de 'messages'. A ordem no array 'collections' está correta?");
-                         return;
-                    }
-                }
-                
-                const newCollection = await pb.collections.create({
-                    name: config.name,
-                    type: config.type,
-                    schema: config.schema,
-                    // Deixar regras em branco na criação para evitar erros de validação
-                    listRule: null,
-                    viewRule: null,
-                    createRule: null,
-                    updateRule: null,
-                    deleteRule: null,
+        let collection;
+        try {
+            collection = await pb.collections.getOne(collectionInfo.name);
+            console.log(`- Coleção '${collectionInfo.name}' já existe. Verificando campos...`);
+        } catch (e) {
+            if (e.status === 404) {
+                console.log(`- Coleção '${collectionInfo.name}' não encontrada, criando...`);
+                await pb.collections.create({
+                    name: collectionInfo.name,
+                    type: collectionInfo.type,
+                    schema: [],
+                    ...collectionInfo.rules
                 });
-                console.log(`✅ Coleção '${config.name}' criada.`);
-                existingCollection = newCollection; // Usar a recém-criada para aplicar regras depois
-            } catch (createErr) {
-                console.error(`❌ Erro ao criar a coleção '${config.name}':`, createErr?.response?.data || createErr.message);
-                return;
-            }
-        } else {
-             console.error(`❌ Erro ao buscar a coleção '${config.name}':`, err?.response?.data || err.message);
-            return;
-        }
-    }
-
-    // Com a coleção em mãos (existente ou nova), vamos atualizar o schema e as regras
-    try {
-        const existingSchema = existingCollection.schema || [];
-        const newSchema = [...existingSchema];
-        const existingFieldNames = new Set(existingSchema.map(field => field.name));
-        
-         if (config.name === 'messages') {
-            try {
-                const ridesCollection = await pb.collections.getOne('rides');
-                const rideField = newSchema.find(f => f.name === 'ride');
-                if (rideField) {
-                    rideField.options.collectionId = ridesCollection.id;
-                }
-            } catch (e) {
-                 console.error("❌ Erro ao buscar ID da coleção 'rides' para atualizar 'messages'.");
+                collection = await pb.collections.getOne(collectionInfo.name);
+                console.log(`  - Coleção '${collectionInfo.name}' criada.`);
+            } else {
+                throw e;
             }
         }
 
+        const form = new PocketBase.forms.CollectionForm(pb, collection);
+        const existingFieldNames = new Set(form.schema.map(f => f.name));
 
-        // Adiciona apenas os campos que não existem
-        for (const field of config.schema) {
+        for (const field of collectionInfo.schema) {
             if (!existingFieldNames.has(field.name)) {
-                newSchema.push(field);
-                console.log(`  - Adicionando campo '${field.name}' à coleção '${config.name}'.`);
+                console.log(`  - Adicionando campo '${field.name}' à coleção '${collectionInfo.name}'.`);
+                form.schema.addField(new PocketBase.models.SchemaField(field));
             }
         }
+        
+        await form.submit();
+        
+    } catch (e) {
+        console.error(`❌ Erro ao sincronizar schema da coleção '${collectionInfo.name}':`, JSON.stringify(e.data?.data, null, 2) || e.message);
+    }
+}
 
-        await pb.collections.update(existingCollection.id, {
-            schema: newSchema,
-            listRule: config.listRule,
-            viewRule: config.viewRule,
-            createRule: config.createRule,
-            updateRule: config.updateRule,
-            deleteRule: config.deleteRule,
-        });
-        console.log(`✅ Coleção '${config.name}' sincronizada com sucesso.`);
-    } catch (updateErr) {
-         console.error(`❌ Erro ao atualizar a coleção '${config.name}':`, updateErr?.response?.data || updateErr.message);
+async function syncCollectionRules(collectionInfo) {
+    if (!collectionInfo.rules) return;
+    try {
+        const collection = await pb.collections.getOne(collectionInfo.name);
+        const form = new PocketBase.forms.CollectionForm(pb, collection);
+
+        Object.assign(form, collectionInfo.rules);
+        
+        await form.submit();
+        console.log(`  - Regras de API da coleção '${collectionInfo.name}' aplicadas.`);
+    } catch (e) {
+        console.error(`❌ Erro ao atualizar regras da coleção '${collectionInfo.name}':`, JSON.stringify(e.data?.data, null, 2) || e.message);
     }
 }
 
 async function main() {
     console.log(`Iniciando configuração no servidor: ${POCKETBASE_URL}`);
-
-    if (!POCKETBASE_ADMIN_EMAIL || !POCKETBASE_ADMIN_PASSWORD || POCKETBASE_ADMIN_EMAIL === 'admin@example.com') {
-        console.error("❌ ERRO: Por favor, configure as variáveis POCKETBASE_ADMIN_EMAIL e POCKETBASE_ADMIN_PASSWORD no topo do script.");
-        return;
-    }
-
     try {
         await pb.admins.authWithPassword(POCKETBASE_ADMIN_EMAIL, POCKETBASE_ADMIN_PASSWORD);
-        console.log("✅ Autenticado no PocketBase como Super Administrador!");
-    } catch (err) {
-        console.error("❌ Falha na autenticação. Verifique suas credenciais de SUPER-ADMIN e a URL do PocketBase.", err.message);
+        console.log('✅ Autenticado no PocketBase como Super Administrador!');
+    } catch (e) {
+        console.error('❌ Falha na autenticação do Super Administrador. Verifique suas credenciais no topo do arquivo.');
+        console.error(e);
         return;
     }
 
-    console.log("\nIniciando sincronização da coleção 'users'...");
-    await syncCollection(usersConfig);
-    
-    console.log("\nIniciando sincronização das outras coleções...");
-    for (const config of collections) {
-        await syncCollection(config);
+    console.log("\n--- Fase 1: Sincronizando Schemas (Campos) ---");
+    for (const collectionInfo of collections) {
+        console.log(`\nIniciando sincronização da coleção '${collectionInfo.name}'...`);
+        await syncCollectionSchema(collectionInfo);
     }
 
-    console.log("\n🎉 Script de configuração concluído!");
+    console.log("\n--- Fase 2: Aplicando Regras de API ---");
+     for (const collectionInfo of collections) {
+        await syncCollectionRules(collectionInfo);
+    }
+
+    console.log('\n🎉 Script de configuração concluído!');
 }
 
 main().catch(err => {
-    console.error("Ocorreu um erro inesperado durante a execução do script:", err);
+    console.error('Ocorreu um erro inesperado:', err);
 });
