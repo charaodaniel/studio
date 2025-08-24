@@ -41,14 +41,14 @@ export default function AdminAuthForm() {
     } catch (error: any) {
       let description = "Email ou senha inválidos. Por favor, tente novamente.";
       
-      // Check for network or CORS errors which typically result in status 0 or 404 on this endpoint
-      if (error.status === 0 || error.status === 404 || (error.originalError && !error.response)) {
-          description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e se o endereço está correto.`;
-      } else if (error.data?.message) {
-          // Use the specific message from PocketBase if available
-          description = `Erro do servidor: ${error.data.message}`;
+      if (error.status === 0) {
+        description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique a conexão do servidor e as configurações de CORS.`;
+      } else if (error.status === 404) {
+        description = `Endpoint de autenticação não encontrado em ${POCKETBASE_URL}. Verifique a URL da API.`;
       } else if (error.status === 401 || error.status === 403) {
-          description = "As credenciais fornecidas são inválidas ou você não tem permissão para acessar.";
+        description = "Credenciais de administrador inválidas.";
+      } else if (error.data?.message) {
+          description = `Erro do servidor: ${error.data.message}`;
       }
       
       toast({
