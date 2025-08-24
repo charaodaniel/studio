@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "setup:pb": "node src/scripts/setup-pocketbase.cjs"
+    "setup:pb": "python src/scripts/setup_pocketbase.py"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.7",
