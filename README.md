@@ -46,9 +46,11 @@ pnpm install
 
 Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 
-1.  **Guia de Schema e API:** Toda a estrutura de banco de dados necessária (coleções, campos, regras de acesso) está detalhada no arquivo [**POCKETBASE_API.md**](./POCKETBASE_API.md). Use este guia para configurar suas coleções no painel do PocketBase.
+1.  **Criação do Primeiro Administrador:** O passo mais importante é criar seu acesso de administrador. As instruções estão no arquivo [**ADMIN_SETUP.md**](./ADMIN_SETUP.md).
 
-2.  **Configuração de Ambiente:**
+2.  **Guia de Schema e API:** Toda a estrutura de banco de dados necessária (coleções, campos, regras de acesso) está detalhada no arquivo [**POCKETBASE_API.md**](./POCKETBASE_API.md). Use este guia para configurar suas coleções no painel do PocketBase.
+
+3.  **Configuração de Ambiente:**
     -   Renomeie o arquivo `.env.example` para `.env.local` (se existir) ou crie um novo.
     -   Abra o arquivo `.env.local` e insira a URL do seu servidor PocketBase. **É crucial que a URL comece com `https://` e não contenha a parte `/_/` no final**.
 
@@ -59,7 +61,7 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 
     Isso garantirá que o aplicativo saiba onde encontrar a API do seu backend.
 
-3.  **Configurações de CORS e HTTPS (IMPORTANTE):** Para que a comunicação entre o frontend (Next.js na Vercel) e o backend (PocketBase) funcione, é crucial configurar o CORS na sua instância do PocketBase. As instruções detalhadas estão no arquivo [**POCKETBASE_SETUP.md**](./POCKETBASE_SETUP.md).
+4.  **Configurações de CORS e HTTPS (IMPORTANTE):** Para que a comunicação entre o frontend (Next.js na Vercel) e o backend (PocketBase) funcione, é crucial configurar o CORS na sua instância do PocketBase. As instruções detalhadas estão no arquivo [**POCKETBASE_SETUP.md**](./POCKETBASE_SETUP.md).
 
 ### 5. Executar o Projeto
 
