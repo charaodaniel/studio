@@ -24,26 +24,33 @@ export default function DeveloperPage() {
         setTestResult(null);
         try {
             // We create a temporary client with the URL from the input to test it.
-            const tempPb = new PocketBase(apiUrl);
-            // Pocketbase health check is at /api/health, but the SDK abstracts this.
             // The health check doesn't require authentication.
+            // A standard PocketBase setup responds to /api/health
+            const tempPb = new PocketBase(apiUrl);
             const health = await tempPb.health.check();
-            if (health.code === 200) {
+
+            // The SDK returns a health check object on success.
+            // We can check for a property like 'code' and a 200 status.
+            if (health && health.code === 200) {
                 setTestStatus('success');
-                setTestResult(`Conexão bem-sucedida! O servidor respondeu com status ${health.code}: ${health.message}.`);
+                setTestResult(`Conexão bem-sucedida! O servidor em ${apiUrl}/api/health respondeu com status ${health.code}: ${health.message}.`);
             } else {
-                throw new Error(`O servidor respondeu com um status inesperado: ${health.code} ${health.message}`);
+                throw new Error(`O servidor respondeu com um status inesperado: ${JSON.stringify(health)}`);
             }
         } catch (error: any) {
             setTestStatus('error');
             let errorMessage = `Falha ao conectar na API em ${apiUrl}.`;
+
             if (error.isAbort) {
                 errorMessage += " A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
-            } else if (error.originalError || error.message.includes('Failed to fetch')) {
-                 errorMessage += " Verifique se o servidor está no ar e se as configurações de CORS estão corretas. O navegador bloqueou a requisição.";
+            } else if (error.originalError || (error.message && error.message.includes('Failed to fetch'))) {
+                 errorMessage += " Verifique se o servidor está no ar e se as configurações de CORS estão corretas para permitir acesso do seu domínio frontend. O navegador pode ter bloqueado a requisição.";
+            } else if (error.status === 404) {
+                 errorMessage += ` O endpoint da API não foi encontrado (404). Verifique se a URL base está correta (sem /_/ ou /api/).`;
             } else if (error.message) {
                  errorMessage += ` Detalhe: ${error.message}`;
             }
+            
             setTestResult(errorMessage);
         }
     };
@@ -61,6 +68,7 @@ export default function DeveloperPage() {
                         <CardTitle className="flex items-center gap-2"><LinkIcon /> Teste de Conexão com API</CardTitle>
                         <CardDescription>
                             Verifique a conexão com o backend do PocketBase. A URL configurada no app é usada para os testes.
+                             O teste verifica o endpoint <strong>/api/health</strong>.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
