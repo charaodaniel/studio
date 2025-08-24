@@ -77,7 +77,7 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
                      <Dialog>
                         <DialogTrigger asChild>
                             <div className="relative aspect-video rounded-lg overflow-hidden cursor-pointer">
-                                <Image src="https://placehold.co/600x400.png" alt="Foto do veículo" layout="fill" objectFit="cover" data-ai-hint="car photo" />
+                                <Image src="https://placehold.co/600x400.png" alt="Foto do veículo" fill className="object-cover" data-ai-hint="car photo" />
                             </div>
                         </DialogTrigger>
                         <DialogContent className="p-0 max-w-xl">

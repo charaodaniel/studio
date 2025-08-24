@@ -96,7 +96,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
                                                 <Car className="h-4 w-4" /> {driver.vehicle}
                                             </p>
                                             <div className="relative aspect-video rounded-lg overflow-hidden">
-                                                <Image src={driver.vehicleImg} alt={driver.vehicleDescription} layout="fill" objectFit="cover" data-ai-hint="car photo" />
+                                                <Image src={driver.vehicleImg} alt={driver.vehicleDescription} fill className="object-cover" data-ai-hint="car photo" />
                                             </div>
                                         </div>
                                         <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleSelectDriver(driver)}>

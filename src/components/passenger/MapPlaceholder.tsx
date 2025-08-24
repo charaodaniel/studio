@@ -28,9 +28,9 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
           src="https://placehold.co/1200x800.png"
           data-ai-hint="Manoel Viana bridge"
           alt="Imagem da ponte de Manoel Viana"
-          layout="fill"
-          objectFit="cover"
-          className="opacity-100"
+          fill
+          className="object-cover opacity-100"
+          priority
         />
         <div className="absolute inset-0 bg-black/20"> {/* Added a slight overlay for text readability */}
           {!rideInProgress ? (
