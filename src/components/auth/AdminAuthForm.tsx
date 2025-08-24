@@ -41,9 +41,9 @@ export default function AdminAuthForm() {
     } catch (error: any) {
       let description = "Email ou senha inválidos. Por favor, tente novamente.";
       
-      // Check for network or CORS errors which typically result in status 0
-      if (error.status === 0 || (error.originalError && !error.response)) {
-          description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e se as configurações de CORS estão corretas.`;
+      // Check for network or CORS errors which typically result in status 0 or 404 on this endpoint
+      if (error.status === 0 || error.status === 404 || (error.originalError && !error.response)) {
+          description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique se o servidor está no ar e se o endereço está correto.`;
       } else if (error.data?.message) {
           // Use the specific message from PocketBase if available
           description = `Erro do servidor: ${error.data.message}`;
