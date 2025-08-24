@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -19,6 +20,7 @@ export default function DriverAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
 
   // States for login form
   const [loginEmail, setLoginEmail] = useState('');
@@ -74,11 +76,15 @@ export default function DriverAuthForm() {
 
     try {
         await pb.collection('users').create(data);
-        toast({ title: 'Conta de Motorista Criada!', description: 'Sua conta foi criada com sucesso. Faça o login para continuar.' });
-        setRegisterName('');
-        setRegisterEmail('');
-        setRegisterPassword('');
-        // You might want to switch to the login tab here automatically
+        
+        // After successful registration, log the user in automatically
+        await pb.collection('users').authWithPassword(registerEmail, registerPassword);
+        
+        toast({ title: 'Conta de Motorista Criada!', description: 'Sua conta foi criada com sucesso. Bem-vindo!' });
+        
+        // Redirect to the driver's dashboard
+        window.location.href = '/driver';
+        
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
         if (error.data?.data?.email?.message) {
@@ -108,7 +114,7 @@ export default function DriverAuthForm() {
         <DialogDescription className="text-center">Faça login ou crie uma conta para começar a dirigir.</DialogDescription>
       </DialogHeader>
       <ScrollArea className="max-h-[80vh]">
-        <Tabs defaultValue="login" className="w-full px-6 pb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full px-6 pb-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="register">Registrar</TabsTrigger>
