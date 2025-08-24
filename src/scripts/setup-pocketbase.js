@@ -34,9 +34,10 @@ const usersConfig = {
     name: 'users',
     type: 'auth',
     schema: [
-        // Campos existentes não precisam ser listados, apenas os que queremos garantir que existam.
+        // Campos que queremos garantir que existam.
+        // O script não remove campos, apenas adiciona os que faltam.
         { "name": "name", "type": "text", "required": false },
-        { "name": "avatar", "type": "file", "options": { "maxSelect": 1, "maxSize": 5242880 } },
+        { "name": "avatar", "type": "file", "options": { "maxSelect": 1, "maxSize": 5242880, "mimeTypes": ["image/jpeg", "image/png", "image/webp"] } },
         { "name": "phone", "type": "text" },
         { "name": "role", "type": "select", "required": true, "options": { "values": ["Passageiro", "Motorista", "Admin", "Atendente"] } },
         { "name": "driver_status", "type": "select", "options": { "values": ["Online", "Offline", "Em Viagem"] } },
@@ -68,10 +69,10 @@ const collections = [
             { "name": "driver", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
             { "name": "origin_address", "type": "text", "required": true },
             { "name": "destination_address", "type": "text", "required": true },
-            { "name": "status", "type": "select", "required": true, "options": { "values": ["requested", "accepted", "in_progress", "completed", "canceled"] } },
+            { "name": "status", "type": "select", "required": true, "options": { "maxSelect": 1, "values": ["requested", "accepted", "in_progress", "completed", "canceled"] } },
             { "name": "fare", "type": "number", "required": true },
-            { "name": "is_negotiated", "type": "bool", "required": true, "options": { "true": true } },
-            { "name": "started_by", "type": "select", "required": true, "options": { "values": ["passenger", "driver"] } },
+            { "name": "is_negotiated", "type": "bool", "required": true },
+            { "name": "started_by", "type": "select", "required": true, "options": { "maxSelect": 1, "values": ["passenger", "driver"] } },
         ],
         listRule: "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Atendente\" || @request.auth.role = \"Admin\")",
         viewRule: "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\")",
@@ -98,8 +99,8 @@ const collections = [
         type: "base",
         schema: [
             { "name": "driver", "type": "relation", "required": true, "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
-            { "name": "document_type", "type": "select", "required": true, "options": { "values": ["CNH", "CRLV"] } },
-            { "name": "file", "type": "file", "required": true, "options": { "maxSelect": 1, "maxSize": 5242880 } },
+            { "name": "document_type", "type": "select", "required": true, "options": { "maxSelect": 1, "values": ["CNH", "CRLV"] } },
+            { "name": "file", "type": "file", "required": true, "options": { "maxSelect": 1, "maxSize": 5242880, "mimeTypes": ["image/jpeg", "image/png", "image/webp", "application/pdf"] } },
             { "name": "is_verified", "type": "bool" },
         ],
         listRule: "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")",
@@ -118,8 +119,8 @@ const collections = [
         listRule: "@request.auth.role = \"Admin\"",
         viewRule: "@request.auth.role = \"Admin\"",
         createRule: "@request.auth.role = \"Admin\"",
-        updateRule: "\"\"",
-        deleteRule: "\"\"",
+        updateRule: "\"\"", // Ninguém deve atualizar logs
+        deleteRule: "\"\"", // Ninguém deve apagar logs
     },
 ];
 
@@ -136,34 +137,48 @@ async function syncCollection(config) {
                     name: config.name,
                     type: config.type,
                     schema: config.schema,
-                    listRule: config.listRule,
-                    viewRule: config.viewRule,
-                    createRule: config.createRule,
-                    updateRule: config.updateRule,
-                    deleteRule: config.deleteRule,
+                    // Deixar regras em branco na criação para evitar erros de validação
+                    listRule: null,
+                    viewRule: null,
+                    createRule: null,
+                    updateRule: null,
+                    deleteRule: null,
                 });
-                console.log(`✅ Coleção '${config.name}' criada com sucesso.`);
-                return; // Já criou com tudo, pode sair
+                console.log(`✅ Coleção '${config.name}' criada.`);
+                existingCollection = newCollection; // Usar a recém-criada para aplicar regras depois
             } catch (createErr) {
                 console.error(`❌ Erro ao criar a coleção '${config.name}':`, createErr?.response?.data || createErr.message);
                 return;
             }
+        } else {
+             console.error(`❌ Erro ao buscar a coleção '${config.name}':`, err?.response?.data || err.message);
+            return;
         }
-        console.error(`❌ Erro ao buscar a coleção '${config.name}':`, err.message);
-        return;
     }
 
-    // Se a coleção já existe, atualize-a.
+    // Com a coleção em mãos (existente ou nova), vamos atualizar o schema e as regras
     try {
-        const updatedCollection = await pb.collections.update(existingCollection.id, {
-            schema: config.schema, // PocketBase vai adicionar campos que não existem
+        const existingSchema = existingCollection.schema || [];
+        const newSchema = [...existingSchema];
+        const existingFieldNames = new Set(existingSchema.map(field => field.name));
+
+        // Adiciona apenas os campos que não existem
+        for (const field of config.schema) {
+            if (!existingFieldNames.has(field.name)) {
+                newSchema.push(field);
+                console.log(`  - Adicionando campo '${field.name}' à coleção '${config.name}'.`);
+            }
+        }
+
+        await pb.collections.update(existingCollection.id, {
+            schema: newSchema,
             listRule: config.listRule,
             viewRule: config.viewRule,
             createRule: config.createRule,
             updateRule: config.updateRule,
             deleteRule: config.deleteRule,
         });
-        console.log(`✅ Coleção '${config.name}' atualizada com sucesso.`);
+        console.log(`✅ Coleção '${config.name}' sincronizada com sucesso.`);
     } catch (updateErr) {
          console.error(`❌ Erro ao atualizar a coleção '${config.name}':`, updateErr?.response?.data || updateErr.message);
     }
@@ -186,8 +201,7 @@ async function main() {
     }
 
     console.log("\nIniciando sincronização da coleção 'users'...");
-    // A coleção 'users' é especial, então tratamos ela de forma um pouco diferente
-    await syncCollection({ name: 'users', type: 'auth', ...usersConfig });
+    await syncCollection(usersConfig);
     
     console.log("\nIniciando sincronização das outras coleções...");
     for (const config of collections) {

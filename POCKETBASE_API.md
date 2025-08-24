@@ -35,7 +35,7 @@ Com o arquivo configurado e salvo, execute o seguinte comando no seu terminal:
 pnpm run setup:pb
 ```
 
-O script irá se conectar ao seu PocketBase, criar todas as coleções necessárias (`rides`, `messages`, etc.), adicionar os campos personalizados à coleção `users`, e aplicar todas as regras de API.
+O script irá se conectar ao seu PocketBase, criar todas as coleções necessárias (`rides`, `messages`, etc.) se elas não existirem, adicionar os campos personalizados à coleção `users`, e aplicar todas as regras de API.
 
 **O que esperar no terminal:**
 O script mostrará o progresso, indicando quais coleções estão sendo criadas ou atualizadas e se a coleção `users` foi configurada com sucesso.

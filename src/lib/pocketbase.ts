@@ -11,9 +11,9 @@ const pb = new PocketBase(POCKETBASE_URL);
 // Definir um timeout maior pode ajudar em redes mais lentas.
 pb.autoCancellation(false);
 
-// Add an event listener to handle token expiration
+// Este listener é útil para debugar mudanças no estado de autenticação.
 pb.authStore.onChange((token, model) => {
-    console.log('Auth changed', token, model);
+    console.log('Auth state changed:', { isValid: pb.authStore.isValid, token, model });
 }, true);
 
 
