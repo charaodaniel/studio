@@ -33,16 +33,35 @@ export default function DeveloperPage() {
     );
     const [logs, setLogs] = useState<LogModel[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
     const checkApiEndpoints = async () => {
         setIsRefreshing(true);
-        // We assume the main PB client is authenticated as an admin to perform these checks
-        if (!pb.authStore.isAdmin) {
-             setEndpointStates(collectionsToTest.map(name => ({ name, status: 'error', error: 'Admin não autenticado.' })));
-             setLogs([]);
-             setIsRefreshing(false);
-             return;
+        
+        let adminAuthFailed = false;
+
+        // Attempt to authenticate as admin if not already
+        if (!pb.authStore.isValid || !pb.authStore.isAdmin) {
+            try {
+                // Using credentials directly for debug purposes as requested
+                await pb.admins.authWithPassword("admin@teste.com", "12345678");
+                setIsAdminAuthenticated(true);
+            } catch (err) {
+                console.error("Admin authentication failed for developer page:", err);
+                adminAuthFailed = true;
+                setIsAdminAuthenticated(false);
+            }
+        } else {
+             setIsAdminAuthenticated(true);
         }
+
+        if (adminAuthFailed) {
+            setEndpointStates(collectionsToTest.map(name => ({ name, status: 'error', error: 'Falha na autenticação do admin.' })));
+            setLogs([]);
+            setIsRefreshing(false);
+            return;
+        }
+
 
         // Test each collection endpoint
         const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
@@ -77,20 +96,7 @@ export default function DeveloperPage() {
     
     // Initial check on component mount
     useEffect(() => {
-        const handleAdminAuth = async () => {
-            try {
-                // This is a simplistic auth check. In a real app, you'd have a proper login flow.
-                if (!pb.authStore.isValid) {
-                     // IMPORTANT: Replace with your actual admin credentials or a secure auth method
-                    await pb.admins.authWithPassword("admin@teste.com", "12345678");
-                }
-            } catch (err) {
-                 console.error("Admin authentication failed:", err);
-            } finally {
-                checkApiEndpoints();
-            }
-        };
-        handleAdminAuth();
+        checkApiEndpoints();
     }, []);
 
 
@@ -260,6 +266,11 @@ export default function DeveloperPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Status das Coleções da API</CardTitle>
+                            {!isAdminAuthenticated && (
+                                 <CardDescription className="text-destructive">
+                                     Aviso: A autenticação de administrador falhou. Os resultados podem estar incorretos.
+                                 </CardDescription>
+                            )}
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -288,12 +299,17 @@ export default function DeveloperPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Logs de Erro Recentes</CardTitle>
+                            {!isAdminAuthenticated && (
+                                <CardDescription className="text-destructive">
+                                    Aviso: A autenticação de administrador falhou. Não é possível buscar os logs.
+                                </CardDescription>
+                            )}
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
                              {isRefreshing && <p>Carregando logs...</p>}
-                             {!isRefreshing && !pb.authStore.isAdmin && <p className="text-yellow-400">Faça login como admin para ver os logs.</p>}
-                             {!isRefreshing && pb.authStore.isAdmin && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
-                             {pb.authStore.isAdmin && logs.map(log => (
+                             {!isRefreshing && !isAdminAuthenticated && <p className="text-yellow-400">Não foi possível autenticar como admin para ver os logs.</p>}
+                             {!isRefreshing && isAdminAuthenticated && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
+                             {isAdminAuthenticated && logs.map(log => (
                                 <p key={log.id}>
                                     <span className={getLogLevelColor(log.level)}>[{getLogLevelName(log.level)}]</span>
                                     <span className="text-slate-400 mx-2">{new Date(log.created).toLocaleTimeString()}</span>
