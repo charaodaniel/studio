@@ -26,7 +26,20 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      await pb.admins.authWithPassword(email, password);
+      // Authenticate against the 'users' collection
+      const authData = await pb.collection('users').authWithPassword(email, password);
+
+      // Check if the authenticated user has the 'Admin' role
+      if (authData.record.role !== 'Admin') {
+        pb.authStore.clear(); // Clear auth store if not an admin
+        toast({
+          title: "Acesso Negado",
+          description: "Este usuário não tem permissões de administrador.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
       
       toast({
         title: "Login bem-sucedido!",
@@ -43,9 +56,9 @@ export default function AdminAuthForm() {
       if (error.status === 0) {
         description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique a conexão do servidor e as configurações de CORS.`;
       } else if (error.status === 404) {
-        description = `Endpoint de autenticação de admin não encontrado (404). Verifique se seu proxy reverso está configurado para encaminhar todas as rotas /api/* para o PocketBase, não apenas /api/collections.`;
+         description = `O endpoint de autenticação não foi encontrado (404). Verifique se seu proxy reverso está configurado para encaminhar todas as rotas /api/* para o PocketBase, não apenas /api/collections.`;
       } else if (error.status === 401 || error.status === 403) {
-        description = "Credenciais de administrador inválidas.";
+        description = "Credenciais inválidas.";
       } else if (error.data?.message) {
           description = `Erro do servidor: ${error.data.message}`;
       }

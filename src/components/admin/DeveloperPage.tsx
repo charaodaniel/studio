@@ -41,10 +41,13 @@ export default function DeveloperPage() {
         let adminAuthFailed = false;
 
         // Attempt to authenticate as admin if not already
-        if (!pb.authStore.isValid || !pb.authStore.isAdmin) {
+        if (!pb.authStore.isValid || pb.authStore.model?.role !== 'Admin') {
             try {
-                // Using credentials directly for debug purposes as requested
-                await pb.admins.authWithPassword("admin@teste.com", "12345678");
+                // Using credentials directly for debug purposes
+                await pb.collection('users').authWithPassword("admin@teste.com", "12345678");
+                if (pb.authStore.model?.role !== 'Admin') {
+                    throw new Error("O usuário autenticado não é um administrador.");
+                }
                 setIsAdminAuthenticated(true);
             } catch (err) {
                 console.error("Admin authentication failed for developer page:", err);
