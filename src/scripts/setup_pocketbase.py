@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 import os
 import sys
@@ -9,8 +8,8 @@ from pocketbase.utils import ClientResponseError
 # Preencha estas variáveis com suas credenciais de administrador do PocketBase.
 # É recomendado usar variáveis de ambiente para segurança.
 POCKETBASE_URL = os.environ.get("POCKETBASE_URL", "https://mobmv.shop")
-POCKETBASE_ADMIN_EMAIL = os.environ.get("POCKETBASE_ADMIN_EMAIL", "admin@teste.com")
-POCKETBASE_ADMIN_PASSWORD = os.environ.get("POCKETBASE_ADMIN_PASSWORD", "12345678")
+POCKETBASE_ADMIN_EMAIL = os.environ.get("POCKETBASE_ADMIN_EMAIL", "daniel.kokynhw@gmail.com")
+POCKETBASE_ADMIN_PASSWORD = os.environ.get("POCKETBASE_ADMIN_PASSWORD", "Dcm02061994@@")
 # --- FIM DA CONFIGURAÇÃO ---
 
 
