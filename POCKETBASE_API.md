@@ -25,18 +25,25 @@ Para cada coleção listada abaixo (`users`, `rides`, `messages`, etc.), siga es
 
 ### 1. Coleção: `users` (Coleção de Autenticação)
 
-Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Você só precisa adicionar os campos que faltam.
+Esta é a coleção de usuários padrão do PocketBase, geralmente chamada de `users` (ou `_pb_users_auth_`). 
 
-**Nome da Coleção:** `users`
+#### Campos Padrão (Verificar se existem)
+O PocketBase já cria campos básicos para autenticação. Os campos abaixo (como `name`, `email`, `avatar`) são os que o nosso app utiliza e podem precisar ser adicionados caso não existam.
 
-#### Campos a Adicionar/Verificar:
+| Nome do Campo | Tipo   | Opções (se necessário)                              |
+| ------------- | ------ | --------------------------------------------------- |
+| `name`        | `text` | -                                                   |
+| `avatar`      | `file` | Mime Types: `image/jpeg`, `image/png`, `image/webp` |
+| `phone`       | `text` | -                                                   |
+| `role`        | `select` | Values: `Passageiro`, `Motorista`, `Atendente`, `Admin` |
+
+<br>
+
+#### **Campos a Adicionar (Obrigatório)**
+Os campos abaixo são **específicos para motoristas** e precisam ser adicionados manualmente à sua coleção `users`.
 
 | Nome do Campo            | Tipo       | Opções (se necessário)                                      |
 | ------------------------ | ---------- | ----------------------------------------------------------- |
-| `name`                   | `text`     | -                                                           |
-| `avatar`                 | `file`     | Mime Types: `image/jpeg`, `image/png`, `image/webp`         |
-| `phone`                  | `text`     | -                                                           |
-| `role`                   | `select`   | Values: `Passageiro`, `Motorista`, `Atendente`, `Admin`     |
 | `driver_status`          | `select`   | Values: `online`, `offline`, `urban-trip`, `rural-trip`     |
 | `driver_vehicle_model`   | `text`     | -                                                           |
 | `driver_vehicle_plate`   | `text`     | -                                                           |
@@ -47,7 +54,7 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 | `driver_fixed_rate`      | `number`   | -                                                           |
 | `driver_km_rate`         | `number`   | -                                                           |
 | `driver_accepts_rural`   | `bool`     | -                                                           |
-| `disabled`               | `bool`     | (Pode ser adicionado para desativar usuários)                |
+| `disabled`               | `bool`     | (Usado para desativar usuários)                             |
 
 
 #### Regras de API:
