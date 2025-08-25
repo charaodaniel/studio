@@ -18,6 +18,7 @@ import pb from "@/lib/pocketbase";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { cn } from "@/lib/utils";
   
   export default function UserManagementTable() {
     const { toast } = useToast();
