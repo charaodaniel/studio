@@ -78,7 +78,7 @@ export function DriverProfilePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="requests" className="w-full">
+      <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="requests">Solicitações</TabsTrigger>
           <TabsTrigger value="chats">Conversas</TabsTrigger>

@@ -53,7 +53,7 @@ export default function DriverAuthForm() {
       
       // Step 3: If it is a driver, show success and redirect
       toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
-      window.location.href = '/driver';
+      router.push('/driver');
 
     } catch (error) {
       // This catch block will now correctly handle failed authentications (e.g., wrong password)
@@ -90,7 +90,7 @@ export default function DriverAuthForm() {
       toast({ title: 'Conta de Motorista Criada!', description: 'Sua conta foi criada com sucesso. Bem-vindo!' });
       
       // Redirect to the driver's dashboard
-      window.location.href = '/driver';
+      router.push('/driver');
         
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
