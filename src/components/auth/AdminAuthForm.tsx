@@ -26,17 +26,15 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      // Authenticates an ADMIN user (not a regular user from the 'users' collection)
       await pb.admins.authWithPassword(email, password);
       
-      // On successful login, PocketBase SDK automatically handles the auth token.
-      // We can then redirect to the admin dashboard.
       toast({
         title: "Login bem-sucedido!",
         description: "Bem-vindo ao painel de administração.",
       });
 
-      // Redirect to the admin page
+      // Close dialog and redirect
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/admin');
 
     } catch (error: any) {

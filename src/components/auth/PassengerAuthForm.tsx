@@ -28,6 +28,8 @@ export default function PassengerAuthForm() {
   const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid);
   const [currentUser, setCurrentUser] = useState<RecordModel | null>(pb.authStore.model);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
+
 
   // States for login form
   const [loginEmail, setLoginEmail] = useState('');
@@ -42,7 +44,7 @@ export default function PassengerAuthForm() {
     const unsubscribe = pb.authStore.onChange(() => {
         setIsLoggedIn(pb.authStore.isValid);
         setCurrentUser(pb.authStore.model);
-    }, true); // `true` calls it immediately
+    }, true); 
 
     return () => {
         unsubscribe();
@@ -55,9 +57,8 @@ export default function PassengerAuthForm() {
     try {
       const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
 
-      // Verify that the user logging in is a Passenger
       if (authData.record.role !== 'Passageiro') {
-        pb.authStore.clear(); // Log out immediately
+        pb.authStore.clear(); 
         toast({
           variant: 'destructive',
           title: 'Acesso Negado',
@@ -68,7 +69,7 @@ export default function PassengerAuthForm() {
       }
       
       toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
-      // The useEffect will handle updating the state and UI
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -87,7 +88,6 @@ export default function PassengerAuthForm() {
     
     const data = {
         "email": registerEmail,
-        "emailVisibility": true,
         "password": registerPassword,
         "passwordConfirm": registerPassword,
         "name": registerName,
@@ -96,11 +96,11 @@ export default function PassengerAuthForm() {
 
     try {
         await pb.collection('users').create(data);
-        toast({ title: 'Conta Criada!', description: 'Sua conta foi criada com sucesso. Faça o login para continuar.' });
-        // Maybe switch to login tab? For now, user can do it manually.
+        toast({ title: 'Conta Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
         setRegisterName('');
         setRegisterEmail('');
         setRegisterPassword('');
+        setActiveTab('login');
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
         if (error.data?.data?.email?.message) {
@@ -127,7 +127,6 @@ export default function PassengerAuthForm() {
   };
   
   const handleRedirectToProfile = () => {
-    // This is a workaround to close the dialog before navigating.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     router.push('/passenger');
   }
@@ -215,7 +214,7 @@ export default function PassengerAuthForm() {
         <DialogDescription>Faça login ou crie uma conta para continuar.</DialogDescription>
       </DialogHeader>
       <ScrollArea className="max-h-[80vh]">
-        <Tabs defaultValue="login" className="w-full px-6 pb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full px-6 pb-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="register">Registrar</TabsTrigger>

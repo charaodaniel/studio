@@ -35,12 +35,9 @@ export default function DriverAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Step 1: Authenticate the user first
       const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
 
-      // Step 2: Check if the authenticated user is a Driver
       if (authData.record.role !== 'Motorista') {
-        // If not a driver, log them out immediately and show an error
         pb.authStore.clear();
         toast({
           variant: 'destructive',
@@ -51,12 +48,11 @@ export default function DriverAuthForm() {
         return;
       }
       
-      // Step 3: If it is a driver, show success and redirect
       toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/driver');
 
     } catch (error) {
-      // This catch block will now correctly handle failed authentications (e.g., wrong password)
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
@@ -74,23 +70,19 @@ export default function DriverAuthForm() {
     
     const data = {
         "email": registerEmail,
-        "emailVisibility": true,
         "password": registerPassword,
         "passwordConfirm": registerPassword,
         "name": registerName,
-        "role": "Motorista" // Crucial for driver registration
+        "role": "Motorista"
     };
 
     try {
       await pb.collection('users').create(data);
-      
-      // After successful registration, log the user in automatically
-      await pb.collection('users').authWithPassword(registerEmail, registerPassword);
-      
-      toast({ title: 'Conta de Motorista Criada!', description: 'Sua conta foi criada com sucesso. Bem-vindo!' });
-      
-      // Redirect to the driver's dashboard
-      router.push('/driver');
+      toast({ title: 'Conta de Motorista Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
+      setRegisterName('');
+      setRegisterEmail('');
+      setRegisterPassword('');
+      setActiveTab('login');
         
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';

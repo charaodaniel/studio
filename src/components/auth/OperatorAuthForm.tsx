@@ -38,6 +38,7 @@ export default function OperatorAuthForm() {
       }
       
       toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${authData.record.name}!` });
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/operator');
 
     } catch (error) {
