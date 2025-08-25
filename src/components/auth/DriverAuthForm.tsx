@@ -61,7 +61,7 @@ export default function DriverAuthForm() {
         title: 'Falha no Login',
         description: 'Email ou senha inválidos. Por favor, tente novamente.'
       });
-      console.error("Driver login failed:", error);
+      console.error("Driver login failed: Invalid credentials or server error.", error);
     } finally {
       setIsLoading(false);
     }
