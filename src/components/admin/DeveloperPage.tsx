@@ -11,7 +11,7 @@ import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Lo
 import { POCKETBASE_URL } from "@/lib/pocketbase";
 import { useState, useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import PocketBase, { type LogModel } from 'pocketbase';
+import PocketBase, { type RecordModel } from 'pocketbase';
 import Link from "next/link";
 import pb from "@/lib/pocketbase";
 
@@ -23,6 +23,15 @@ type EndpointState = {
     error: string | null;
 };
 
+interface DriverStatusLog extends RecordModel {
+    driver: string;
+    status: string;
+    expand: {
+        driver: RecordModel;
+    }
+}
+
+
 const collectionsToTest: string[] = ['users', 'rides', 'messages', 'driver_documents', 'driver_status_logs'];
 
 export default function DeveloperPage() {
@@ -32,34 +41,51 @@ export default function DeveloperPage() {
     const [endpointStates, setEndpointStates] = useState<EndpointState[]>(
         collectionsToTest.map(name => ({ name, status: 'loading', error: null }))
     );
-    const [logs, setLogs] = useState<LogModel[]>([]);
+    const [logs, setLogs] = useState<DriverStatusLog[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [logErrorMessage, setLogErrorMessage] = useState<string | null>("Apenas administradores do painel PocketBase podem ver os logs.");
+    const [logErrorMessage, setLogErrorMessage] = useState<string | null>(null);
     
     const checkApiEndpoints = async () => {
         setIsRefreshing(true);
+        setLogErrorMessage(null);
         
-        // Test each collection endpoint using standard user auth
-        const testUserPb = new PocketBase(POCKETBASE_URL);
-        try {
-            await testUserPb.collection('users').authWithPassword('passageiro@teste.com', '12345678');
-        } catch (e) {
-            console.warn("Could not authenticate as test passenger to check collections.");
+        // Test each collection endpoint using standard user auth if available
+        if (pb.authStore.isValid) {
+            const testUserPb = new PocketBase(POCKETBASE_URL);
+            testUserPb.authStore.loadFromCookie(document.cookie);
+
+            const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
+                try {
+                    await testUserPb.collections.getOne(name, { requestKey: null }); // requestKey: null to prevent caching
+                    return { name, status: 'success', error: null };
+                } catch (error: any) {
+                    return { name, status: 'error', error: error.message || 'Falha ao buscar' };
+                }
+            });
+             const results = await Promise.all(promises);
+            setEndpointStates(results);
+        } else {
+             const results = collectionsToTest.map(name => ({ name, status: 'error' as 'error', error: "Não autenticado" }));
+             setEndpointStates(results);
         }
 
-        const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
-            try {
-                // Use the test user client to check collections
-                await testUserPb.collections.getOne(name, { requestKey: null }); // requestKey: null to prevent caching
-                return { name, status: 'success', error: null };
-            } catch (error: any) {
-                return { name, status: 'error', error: error.message || 'Falha ao buscar' };
-            }
-        });
-        
-        const results = await Promise.all(promises);
 
-        setEndpointStates(results);
+        // Fetch driver status logs
+        try {
+            if (pb.authStore.model?.role !== 'Admin') {
+                 throw new Error("Apenas administradores do aplicativo podem ver os logs de status.");
+            }
+            const logResults = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
+                sort: '-created',
+                expand: 'driver',
+            });
+            setLogs(logResults);
+        } catch(err: any) {
+            console.error("Failed to fetch driver status logs:", err);
+            setLogErrorMessage(err.message || "Não foi possível carregar os logs de status.");
+            setLogs([]);
+        }
+
         setIsRefreshing(false);
     };
     
@@ -100,24 +126,6 @@ export default function DeveloperPage() {
             setTestResult(errorMessage);
         }
     };
-    
-    const getLogLevelVariant = (level: number) => {
-        if (level >= 5) return 'destructive'; // Error
-        if (level === 4) return 'default'; // Warning
-        return 'secondary';
-    }
-    const getLogLevelColor = (level: number) => {
-        if (level >= 5) return 'text-red-400'; // Error
-        if (level === 4) return 'text-yellow-400'; // Warning
-        return 'text-gray-400';
-    }
-    const getLogLevelName = (level: number) => {
-        if (level >= 5) return 'ERROR';
-        if (level === 4) return 'WARN';
-        if (level === 3) return 'INFO';
-        return 'DEBUG';
-    }
-
 
     return (
         <div className="bg-slate-50 min-h-screen">
@@ -205,8 +213,8 @@ export default function DeveloperPage() {
                             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{logs.length > 0 ? `${logs.filter(l => l.level >= 5).length}%` : '-'}</div>
-                            <p className="text-xs text-muted-foreground">Baseado nos últimos logs de erro.</p>
+                             <div className="text-2xl font-bold">-</div>
+                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -236,7 +244,7 @@ export default function DeveloperPage() {
                         <CardHeader>
                             <CardTitle>Status das Coleções da API</CardTitle>
                              <CardDescription>
-                                 Testado com credenciais de um usuário 'Passageiro' comum.
+                                 Testado com as credenciais do usuário logado no momento.
                              </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -265,27 +273,28 @@ export default function DeveloperPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Logs de Erro Recentes</CardTitle>
+                            <CardTitle>Logs de Status do Motorista</CardTitle>
                              <CardDescription>
-                                 Apenas administradores do painel PocketBase podem ver os logs.
+                                 Exibe os últimos logs da coleção `driver_status_logs`.
                              </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
                              {isRefreshing && <p>Carregando...</p>}
                              {!isRefreshing && logErrorMessage && (
                                 <p className="text-yellow-400">
+                                    <AlertTriangle className="inline-block h-4 w-4 mr-2"/>
                                     {logErrorMessage}
                                 </p>
                              )}
                              {!isRefreshing && logs.length > 0 && logs.map(log => (
                                 <p key={log.id}>
-                                    <span className={getLogLevelColor(log.level)}>[{getLogLevelName(log.level)}]</span>
-                                    <span className="text-slate-400 mx-2">{new Date(log.created).toLocaleTimeString()}</span>
-                                    {log.message}
+                                    <span className="text-cyan-400">[{new Date(log.created).toLocaleString('pt-BR')}]</span>
+                                    <span className="text-violet-400 mx-2">{log.expand.driver.name}:</span>
+                                    <span className="text-slate-300">{log.status}</span>
                                 </p>
                              ))}
-                             {!isRefreshing && logs.length === 0 && (
-                                 <p className="text-gray-400">Nenhum log de erro ou aviso encontrado.</p>
+                             {!isRefreshing && logs.length === 0 && !logErrorMessage &&(
+                                 <p className="text-gray-400">Nenhum log de status encontrado.</p>
                              )}
                         </CardContent>
                     </Card>
