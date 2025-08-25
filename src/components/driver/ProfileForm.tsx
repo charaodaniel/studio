@@ -1,10 +1,11 @@
 
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
@@ -15,21 +16,65 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import pb from '@/lib/pocketbase';
+import type { User } from '../admin/UserList';
+import type { RecordModel } from 'pocketbase';
 
+interface DocumentRecord extends RecordModel {
+    driver: string;
+    document_type: 'CNH' | 'CRLV';
+    file: string;
+    is_verified: boolean;
+}
 
-const DocumentUploader = ({ label, docId, value, onFileChange, isEditing }: { label: string, docId: string, value: string | null, onFileChange: (file: string | null) => void, isEditing: boolean }) => {
+const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: string, docType: 'CNH' | 'CRLV', driverId: string, onUpdate: () => void }) => {
     const { toast } = useToast();
+    const [document, setDocument] = useState<DocumentRecord | null>(null);
     const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+
+    useEffect(() => {
+        const fetchDocument = async () => {
+            try {
+                const record = await pb.collection('driver_documents').getFirstListItem<DocumentRecord>(`driver="${driverId}" && document_type="${docType}"`);
+                setDocument(record);
+            } catch (error) {
+                // It's ok if not found
+                setDocument(null);
+            }
+        };
+        fetchDocument();
+    }, [driverId, docType]);
+
+    const handleFileSave = async (newImage: string) => {
+        try {
+            const formData = new FormData();
+            const blob = await(await fetch(newImage)).blob();
+            formData.append('file', blob, `${docType}-${driverId}.png`);
+            formData.append('driver', driverId);
+            formData.append('document_type', docType);
+
+            if (document?.id) {
+                await pb.collection('driver_documents').update(document.id, formData);
+            } else {
+                await pb.collection('driver_documents').create(formData);
+            }
+            toast({ title: `${label} atualizado com sucesso!`});
+            onUpdate(); // Trigger parent re-fetch
+        } catch(error) {
+            toast({ variant: 'destructive', title: `Erro ao salvar ${label}`, description: "Tente novamente." });
+        }
+    }
+    
+    const docUrl = document ? pb.getFileUrl(document, document.file) : null;
 
     return (
         <div className="space-y-2">
-            <Label htmlFor={docId}>{label}</Label>
+            <Label>{label}</Label>
             <div className="flex flex-col items-center gap-4 p-4 border rounded-lg">
-                {value ? (
+                {docUrl ? (
                     <Dialog>
                         <DialogTrigger asChild>
                             <div className="relative cursor-pointer group">
-                                <Image src={value} alt={`Pré-visualização de ${label}`} width={128} height={96} className="rounded-lg object-cover" />
+                                <Image src={docUrl} alt={`Pré-visualização de ${label}`} width={128} height={96} className="rounded-lg object-cover" />
                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
                                     <Eye className="h-8 w-8 text-white" />
                                 </div>
@@ -40,7 +85,7 @@ const DocumentUploader = ({ label, docId, value, onFileChange, isEditing }: { la
                                 <DialogTitle>{label}</DialogTitle>
                             </DialogHeader>
                             <div className="flex justify-center">
-                                <Image src={value} alt={`Visualização de ${label}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
+                                <Image src={docUrl} alt={`Visualização de ${label}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -49,31 +94,27 @@ const DocumentUploader = ({ label, docId, value, onFileChange, isEditing }: { la
                         <p className="text-xs text-muted-foreground">Sem imagem</p>
                     </div>
                 )}
-                {isEditing && (
-                    <div className="flex flex-col sm:flex-row w-full gap-2">
-                        <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" className="w-full">
-                              <Camera className="mr-2" />
-                              Câmera ou Upload
-                            </Button>
-                          </DialogTrigger>
-                          <ImageEditorDialog 
-                            isOpen={isCameraDialogOpen}
-                            currentImage={value || ''}
-                            onImageSave={(image) => onFileChange(image)}
-                            onDialogClose={() => setIsCameraDialogOpen(false)}
-                          />
-                        </Dialog>
-                    </div>
-                )}
+                 <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
+                    <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                        <Camera className="mr-2" />
+                        Câmera ou Upload
+                    </Button>
+                    </DialogTrigger>
+                    <ImageEditorDialog 
+                        isOpen={isCameraDialogOpen}
+                        currentImage={docUrl || ''}
+                        onImageSave={handleFileSave} 
+                        onDialogClose={() => setIsCameraDialogOpen(false)}
+                    />
+                </Dialog>
             </div>
         </div>
     );
 };
 
 
-export function ProfileForm() {
+export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: User) => void }) {
   const { toast } = useToast();
   const router = useRouter();
   const [isPersonalInfoOpen, setIsPersonalInfoOpen] = useState(false);
@@ -85,32 +126,37 @@ export function ProfileForm() {
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   
   // States for Personal Info
-  const [name, setName] = useState('Carlos Motorista');
-  const [pixKey, setPixKey] = useState('carlos.motorista@email.com');
-  const [cnpj, setCnpj] = useState('12.345.678/0001-90');
+  const [formData, setFormData] = useState<Partial<User>>(user);
   const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
 
-  // States for Vehicle & Docs
-  const [vehicleModel, setVehicleModel] = useState('Toyota Corolla');
-  const [licensePlate, setLicensePlate] = useState('BRA2E19');
-  const [cnhDocument, setCnhDocument] = useState<string | null>(null);
-  const [crlvDocument, setCrlvDocument] = useState<string | null>(null);
-  const [vehiclePhoto, setVehiclePhoto] = useState<string | null>(null);
-  
-  // States for Settings
-  const [fareType, setFareType] = useState('fixed');
-  const [fixedRate, setFixedRate] = useState('25.50');
-  const [kmRate, setKmRate] = useState('3.50');
-  const [acceptsRural, setAcceptsRural] = useState(true);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { id, value } = e.target;
+      setFormData(prev => ({...prev, [id]: value }));
+  }
 
-  const handleSave = (section: string) => {
-    toast({
-      title: 'Sucesso!',
-      description: `Suas alterações na seção de ${section} foram salvas.`,
-    });
-    setIsEditingPersonalInfo(false);
-    setIsEditingVehicleInfo(false);
-    setIsEditingSettings(false);
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData(prev => ({...prev, driver_accepts_rural: checked }))
+  }
+
+  const handleRadioChange = (value: string) => {
+    setFormData(prev => ({...prev, driver_fare_type: value as 'fixed' | 'km' }))
+  }
+
+  const handleSave = async (section: string) => {
+    try {
+        const updatedRecord = await pb.collection('users').update<User>(user.id, formData);
+        onUpdate(updatedRecord); // Update parent state
+        toast({
+          title: 'Sucesso!',
+          description: `Suas alterações na seção de ${section} foram salvas.`,
+        });
+        setIsEditingPersonalInfo(false);
+        setIsEditingVehicleInfo(false);
+        setIsEditingSettings(false);
+    } catch (error) {
+        console.error("Failed to save:", error);
+        toast({ variant: 'destructive', title: 'Erro ao salvar', description: "Não foi possível salvar suas alterações."});
+    }
   };
   
   const handleLogout = () => {
@@ -122,7 +168,7 @@ export function ProfileForm() {
     router.push('/');
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword.password || !newPassword.confirmPassword) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Preencha ambos os campos de senha.' });
@@ -132,13 +178,20 @@ export function ProfileForm() {
         toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
         return;
     }
-    toast({ title: 'Senha Alterada!', description: 'Sua senha foi alterada com sucesso.' });
-    setNewPassword({ password: '', confirmPassword: '' });
+    try {
+        await pb.collection('users').update(user.id, {
+            password: newPassword.password,
+            passwordConfirm: newPassword.confirmPassword,
+        });
+        toast({ title: 'Senha Alterada!', description: 'Sua senha foi alterada com sucesso.' });
+        setNewPassword({ password: '', confirmPassword: '' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Tente novamente.' });
+    }
   };
   
   const handleCancelEdit = (section: string) => {
-      // Here you would typically reset the state to its original values
-      // For this prototype, we just switch back to view mode
+      setFormData(user); // Reset form data to original user data
       if (section === 'personal') setIsEditingPersonalInfo(false);
       if (section === 'vehicle') setIsEditingVehicleInfo(false);
       if (section === 'settings') setIsEditingSettings(false);
@@ -169,29 +222,29 @@ export function ProfileForm() {
                     <div className="space-y-1">
                         <Label htmlFor="name">Nome Completo</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="name" value={name} onChange={e => setName(e.target.value)} />
+                            <Input id="name" value={formData.name} onChange={handleInputChange} />
                         ) : (
-                            <p className="text-sm font-medium p-2">{name}</p>
+                            <p className="text-sm font-medium p-2">{formData.name}</p>
                         )}
                     </div>
                     <div className="space-y-1">
-                        <Label htmlFor="cnpj">CNPJ</Label>
+                        <Label htmlFor="driver_cnpj">CNPJ</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="cnpj" value={cnpj} onChange={e => setCnpj(e.target.value)} placeholder="00.000.000/0000-00"/>
+                            <Input id="driver_cnpj" value={formData.driver_cnpj} onChange={handleInputChange} placeholder="00.000.000/0000-00"/>
                         ) : (
-                            <p className="text-sm font-medium p-2">{cnpj || 'Não informado'}</p>
+                            <p className="text-sm font-medium p-2">{formData.driver_cnpj || 'Não informado'}</p>
                         )}
                     </div>
                     <div className="space-y-1">
                         <Label htmlFor="email">Email</Label>
-                        <p className="text-sm text-muted-foreground p-2">carlos@email.com</p>
+                        <p className="text-sm text-muted-foreground p-2">{formData.email}</p>
                     </div>
                     <div className="space-y-1">
-                        <Label htmlFor="pix-key">Chave PIX</Label>
+                        <Label htmlFor="driver_pix_key">Chave PIX</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="pix-key" value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="Insira sua chave PIX" />
+                            <Input id="driver_pix_key" value={formData.driver_pix_key} onChange={handleInputChange} placeholder="Insira sua chave PIX" />
                         ) : (
-                            <p className="text-sm font-medium p-2">{pixKey || 'Não informada'}</p>
+                            <p className="text-sm font-medium p-2">{formData.driver_pix_key || 'Não informada'}</p>
                         )}
                     </div>
 
@@ -254,42 +307,39 @@ export function ProfileForm() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-1">
-                        <Label htmlFor="vehicle-model">Modelo do Veículo</Label>
+                        <Label htmlFor="driver_vehicle_model">Modelo do Veículo</Label>
                         {isEditingVehicleInfo ? (
-                           <Input id="vehicle-model" value={vehicleModel} onChange={e => setVehicleModel(e.target.value)} />
+                           <Input id="driver_vehicle_model" value={formData.driver_vehicle_model} onChange={handleInputChange} />
                         ) : (
-                           <p className="text-sm font-medium p-2">{vehicleModel}</p>
+                           <p className="text-sm font-medium p-2">{formData.driver_vehicle_model}</p>
                         )}
                     </div>
                     <div className="space-y-1">
-                        <Label htmlFor="license-plate">Placa</Label>
+                        <Label htmlFor="driver_vehicle_plate">Placa</Label>
                         {isEditingVehicleInfo ? (
-                           <Input id="license-plate" value={licensePlate} onChange={e => setLicensePlate(e.target.value)} />
+                           <Input id="driver_vehicle_plate" value={formData.driver_vehicle_plate} onChange={handleInputChange} />
                         ) : (
-                           <p className="text-sm font-medium p-2">{licensePlate}</p>
+                           <p className="text-sm font-medium p-2">{formData.driver_vehicle_plate}</p>
                         )}
                     </div>
-                    <DocumentUploader
+                     <DocumentUploader
                         label="Foto do Veículo"
-                        docId="vehicle-photo"
-                        value={vehiclePhoto}
-                        onFileChange={setVehiclePhoto}
-                        isEditing={isEditingVehicleInfo}
+                        docType="CRLV" // Placeholder, maybe create a dedicated type for vehicle photo
+                        driverId={user.id}
+                        onUpdate={() => onUpdate({...user})} // A bit of a hack to trigger re-render
                     />
                     <Separator />
                     <DocumentUploader
                         label="Carteira de Habilitação (CNH)"
-                        docId="cnh-doc"
-                        value={cnhDocument}
-                        onFileChange={setCnhDocument}
-                        isEditing={isEditingVehicleInfo}
+                        docType="CNH"
+                        driverId={user.id}
+                        onUpdate={() => onUpdate({...user})}
                     />
                     <DocumentUploader
                         label="Documento do Veículo (CRLV)"
-                        docId="crlv-doc"
-                        value={crlvDocument}
-                        onFileChange={setCrlvDocument}
-                        isEditing={isEditingVehicleInfo}
+                        docType="CRLV"
+                        driverId={user.id}
+                        onUpdate={() => onUpdate({...user})}
                     />
                 </div>
                 <DialogFooter>
@@ -334,7 +384,7 @@ export function ProfileForm() {
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Tipo de Tarifa (Urbano)</Label>
-                        <RadioGroup value={fareType} onValueChange={setFareType} className="flex items-center gap-4 pt-2" disabled={!isEditingSettings}>
+                        <RadioGroup value={formData.driver_fare_type} onValueChange={handleRadioChange} className="flex items-center gap-4 pt-2" disabled={!isEditingSettings}>
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="fixed" id="r-fixed" />
                                 <Label htmlFor="r-fixed">Valor Fixo</Label>
@@ -345,22 +395,22 @@ export function ProfileForm() {
                             </div>
                         </RadioGroup>
                     </div>
-                    {fareType === 'fixed' ? (
+                    {formData.driver_fare_type === 'fixed' ? (
                         <div className="space-y-1">
-                            <Label htmlFor="fixed-rate">Tarifa Fixa (R$)</Label>
+                            <Label htmlFor="driver_fixed_rate">Tarifa Fixa (R$)</Label>
                             {isEditingSettings ? (
-                               <Input id="fixed-rate" type="number" value={fixedRate} onChange={e => setFixedRate(e.target.value)} placeholder="25,50" />
+                               <Input id="driver_fixed_rate" type="number" value={formData.driver_fixed_rate} onChange={handleInputChange} placeholder="25.50" />
                             ) : (
-                                <p className="text-sm font-medium p-2">R$ {fixedRate}</p>
+                                <p className="text-sm font-medium p-2">R$ {formData.driver_fixed_rate}</p>
                             )}
                         </div>
                     ) : (
                         <div className="space-y-1">
-                            <Label htmlFor="km-rate">Tarifa por KM (R$)</Label>
+                            <Label htmlFor="driver_km_rate">Tarifa por KM (R$)</Label>
                             {isEditingSettings ? (
-                                <Input id="km-rate" type="number" value={kmRate} onChange={e => setKmRate(e.target.value)} placeholder="3,50" />
+                                <Input id="driver_km_rate" type="number" value={formData.driver_km_rate} onChange={handleInputChange} placeholder="3.50" />
                             ) : (
-                                <p className="text-sm font-medium p-2">R$ {kmRate} / km</p>
+                                <p className="text-sm font-medium p-2">R$ {formData.driver_km_rate} / km</p>
                             )}
                         </div>
                     )}
@@ -372,7 +422,7 @@ export function ProfileForm() {
                                 Permite que passageiros negociem valores para fora da cidade.
                             </p>
                         </div>
-                        <Switch id="negotiate-rural" checked={acceptsRural} onCheckedChange={setAcceptsRural} disabled={!isEditingSettings} />
+                        <Switch id="negotiate-rural" checked={formData.driver_accepts_rural} onCheckedChange={handleSwitchChange} disabled={!isEditingSettings} />
                     </div>
                 </div>
                  <DialogFooter>
@@ -422,3 +472,4 @@ export function ProfileForm() {
     </div>
   );
 }
+

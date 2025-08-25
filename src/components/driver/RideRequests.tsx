@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -6,45 +7,60 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RideChat } from './NegotiationChat';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ScrollArea } from '../ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
+import { Loader2, WifiOff } from 'lucide-react';
 
+interface RideRecord extends RecordModel {
+    passenger: string;
+    driver: string;
+    origin_address: string;
+    destination_address: string;
+    status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
+    fare: number;
+    is_negotiated: boolean;
+    started_by: 'passenger' | 'driver';
+    expand: {
+        passenger: RecordModel;
+    }
+}
 
-const RideRequestCard = ({ id, passenger, from, to, price, negotiated, onAccept, onReject }: { id: string, passenger: string, from: string, to: string, price: string, negotiated?: boolean, onAccept: (id: string, negotiated: boolean) => void, onReject: (id: string) => void }) => {
-
+const RideRequestCard = ({ ride, onAccept, onReject }: { ride: RideRecord, onAccept: (ride: RideRecord) => void, onReject: (rideId: string) => void }) => {
     return (
-        <Card className={negotiated ? 'border-primary' : ''}>
+        <Card className={ride.is_negotiated ? 'border-primary' : ''}>
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
                 <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40.png" data-ai-hint="person face" />
-                    <AvatarFallback>{passenger.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={ride.expand.passenger.avatar ? pb.getFileUrl(ride.expand.passenger, ride.expand.passenger.avatar) : ''} data-ai-hint="person face" />
+                    <AvatarFallback>{ride.expand.passenger.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="font-semibold">{passenger}</p>
+                    <p className="font-semibold">{ride.expand.passenger.name}</p>
                     <p className="text-xs text-muted-foreground">★ 4.8</p>
                 </div>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">De:</span> {from}
+                    <span className="font-semibold">De:</span> {ride.origin_address}
                 </div>
                 <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-accent" />
-                    <span className="font-semibold">Para:</span> {to}
+                    <span className="font-semibold">Para:</span> {ride.destination_address}
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                     <DollarSign className="h-4 w-4 text-accent" />
-                    <span className="font-bold text-lg">{price}</span>
+                    <span className="font-bold text-lg">{ride.is_negotiated ? 'A Negociar' : `R$ ${ride.fare.toFixed(2)}`}</span>
                 </div>
             </CardContent>
             <CardFooter className="grid grid-cols-2 gap-2">
-                {negotiated ? (
+                {ride.is_negotiated ? (
                      <RideChat 
-                        passengerName={passenger} 
+                        passengerName={ride.expand.passenger.name} 
                         isNegotiation={true}
-                        onAcceptRide={() => onAccept(id, true)}
+                        onAcceptRide={() => onAccept(ride)}
                      >
                         <Button className="w-full col-span-2">
                             <MessageSquareQuote className="mr-2 h-4 w-4" />
@@ -53,11 +69,11 @@ const RideRequestCard = ({ id, passenger, from, to, price, negotiated, onAccept,
                     </RideChat>
                 ) : (
                     <>
-                        <Button variant="outline" className="w-full" onClick={() => onReject(id)}>
+                        <Button variant="outline" className="w-full" onClick={() => onReject(ride.id)}>
                             <X className="mr-2 h-4 w-4" />
                             Rejeitar
                         </Button>
-                        <Button className="w-full" onClick={() => onAccept(id, negotiated || false)}>
+                        <Button className="w-full" onClick={() => onAccept(ride)}>
                             <Check className="mr-2 h-4 w-4" />
                             Aceitar
                         </Button>
@@ -69,12 +85,6 @@ const RideRequestCard = ({ id, passenger, from, to, price, negotiated, onAccept,
     );
 }
 
-const initialRequests = [
-    { id: 'req1', passenger: "João Passageiro", from: "Shopping Pátio", to: "Centro da Cidade", price: "R$ 25,50", negotiated: false },
-    { id: 'req2', passenger: "Maria Silva", from: "Aeroporto", to: "Zona Rural Leste", price: "A Negociar", negotiated: true },
-    { id: 'req3', passenger: "Lucas Andrade", from: "Av. Principal, 123", to: "Rua do Comércio, 456", price: "R$ 18,00", negotiated: false },
-];
-
 interface AcceptedRideInfo {
     id: string;
     passenger: string;
@@ -84,84 +94,105 @@ interface AcceptedRideInfo {
 
 export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: string) => void }) {
     const { toast } = useToast();
-    const [requests, setRequests] = useState(initialRequests);
-    const [acceptedRide, setAcceptedRide] = useState<AcceptedRideInfo | null>(null);
+    const [requests, setRequests] = useState<RideRecord[]>([]);
+    const [acceptedRide, setAcceptedRide] = useState<RideRecord | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [passengerOnBoard, setPassengerOnBoard] = useState(false);
 
-    const handleAccept = (rideId: string, isNegotiated: boolean) => {
-        const ride = requests.find(r => r.id === rideId);
-        if (!ride) return;
+    const fetchRequests = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            // Find rides requested but not yet accepted by any driver
+            const result = await pb.collection('rides').getFullList<RideRecord>({
+                filter: 'status = "requested"',
+                expand: 'passenger',
+            });
+            setRequests(result);
+        } catch (err) {
+            console.error(err);
+            setError("Não foi possível buscar as solicitações de corrida.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
-        toast({
-            title: "Corrida Aceita!",
-            description: `Você aceitou a corrida de ${ride.passenger}.`,
+    useEffect(() => {
+        fetchRequests();
+
+        // Subscribe to real-time updates
+        const unsubscribe = pb.collection('rides').subscribe<RideRecord>('*', (e) => {
+            if (e.action === 'create' && e.record.status === 'requested') {
+                setRequests(prev => [e.record, ...prev]);
+            }
+            if (e.action === 'update') {
+                setRequests(prev => prev.filter(r => r.id !== e.record.id)); // Remove if another driver accepts
+            }
         });
-        setAcceptedRide({
-            id: ride.id,
-            passenger: ride.passenger,
-            isNegotiated,
-            progress: 'accepted'
-        });
-        
-        // Automatically update driver status
-        if (isNegotiated) {
-            setDriverStatus('rural-trip');
-        } else {
-            setDriverStatus('urban-trip');
+
+        return () => {
+            pb.collection('rides').unsubscribe();
+        };
+
+    }, [fetchRequests]);
+
+
+    const handleAccept = async (ride: RideRecord) => {
+        if (!pb.authStore.model) return;
+
+        try {
+            const updatedRide = await pb.collection('rides').update<RideRecord>(ride.id, {
+                driver: pb.authStore.model.id,
+                status: 'accepted'
+            }, { expand: 'passenger' });
+
+            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${ride.expand.passenger.name}.` });
+            setAcceptedRide(updatedRide);
+            setPassengerOnBoard(false);
+            
+            const newStatus = ride.is_negotiated ? 'rural-trip' : 'urban-trip';
+            setDriverStatus(newStatus);
+        } catch (error) {
+            console.error("Failed to accept ride:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Esta corrida já foi aceita por outro motorista."});
+            fetchRequests(); // Re-sync
         }
     };
     
-    const handleReject = (rideId: string) => {
+    const handleReject = async (rideId: string) => {
+        // In a real scenario, you might just ignore it. 
+        // For the prototype, we remove it from the local list.
         const ride = requests.find(r => r.id === rideId);
         if (!ride) return;
-
-        toast({
-            variant: "destructive",
-            title: "Corrida Rejeitada",
-            description: `Você rejeitou a corrida de ${ride.passenger}.`,
-        });
-        
+        toast({ variant: "destructive", title: "Corrida Rejeitada" });
         setRequests(prev => prev.filter(r => r.id !== rideId));
     };
 
-    const handlePassengerOnBoard = () => {
+    const handlePassengerOnBoard = async () => {
         if (!acceptedRide) return;
-        setAcceptedRide(prev => prev ? {...prev, progress: 'in_progress'} : null);
-        toast({
-            title: "Passageiro a Bordo!",
-            description: "A viagem foi iniciada.",
-        });
+        try {
+            await pb.collection('rides').update(acceptedRide.id, { status: 'in_progress' });
+            setPassengerOnBoard(true);
+            toast({ title: "Passageiro a Bordo!", description: "A viagem foi iniciada." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível iniciar a viagem."});
+        }
     };
 
-    const handleEndRide = () => {
+    const handleEndRide = async () => {
         if (!acceptedRide) return;
-        const passengerName = acceptedRide.passenger;
-
-        setDriverStatus('online');
-        setAcceptedRide(null);
-        setRequests(prev => prev.filter(r => r.id !== acceptedRide?.id));
-
-        toast({
-            title: "Viagem Finalizada!",
-            description: `A corrida com ${passengerName} foi concluída com sucesso.`,
-        });
-
-        // Simulate notification to passenger
-        setTimeout(() => {
-            toast({
-                title: "Avalie sua última viagem!",
-                description: `Sua opinião sobre a corrida com ${passengerName} é importante.`,
-                variant: "default",
-            })
-        }, 1000);
+        try {
+            await pb.collection('rides').update(acceptedRide.id, { status: 'completed' });
+            toast({ title: "Viagem Finalizada!", description: `A corrida com ${acceptedRide.expand.passenger.name} foi concluída.` });
+            setAcceptedRide(null);
+            setPassengerOnBoard(false);
+            setDriverStatus('online');
+            fetchRequests(); // Check for new requests
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível finalizar a viagem."});
+        }
     }
-
-    const handleReportIssue = () => {
-        toast({
-            title: 'Passageiro Notificado',
-            description: 'O passageiro foi notificado do imprevisto e da necessidade de troca.',
-        });
-        // In a real app, this would trigger a WebSocket event to the passenger's UI.
-    };
 
     if (acceptedRide) {
          return (
@@ -173,29 +204,28 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                 <CardContent>
                     <div className="flex flex-row items-center gap-4 space-y-0 pb-4">
                         <Avatar>
-                            <AvatarImage src="https://placehold.co/40x40.png" data-ai-hint="person face" />
-                            <AvatarFallback>{acceptedRide.passenger.charAt(0)}</AvatarFallback>
+                             <AvatarImage src={acceptedRide.expand.passenger.avatar ? pb.getFileUrl(acceptedRide.expand.passenger, acceptedRide.expand.passenger.avatar) : ''} data-ai-hint="person face" />
+                            <AvatarFallback>{acceptedRide.expand.passenger.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <p className="font-semibold">{acceptedRide.passenger}</p>
-                            <p className="text-xs text-green-600 font-bold">{acceptedRide.progress === 'accepted' ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
+                            <p className="font-semibold">{acceptedRide.expand.passenger.name}</p>
+                            <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
-                    <RideChat passengerName={acceptedRide.passenger} isNegotiation={false}>
+                    <RideChat passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
                         <Button className="w-full">
                             <MessageSquareQuote className="mr-2 h-4 w-4" />
-                            Abrir Chat com {acceptedRide.passenger}
+                            Abrir Chat com {acceptedRide.expand.passenger.name}
                         </Button>
                     </RideChat>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
-                    {acceptedRide.progress === 'accepted' && (
+                    {!passengerOnBoard ? (
                         <Button className="w-full" onClick={handlePassengerOnBoard}>
                             <UserCheck className="mr-2 h-4 w-4" />
                             Passageiro a Bordo
                         </Button>
-                    )}
-                     {acceptedRide.progress === 'in_progress' && (
+                    ) : (
                         <Button variant="destructive" className="w-full" onClick={handleEndRide}>
                             <CheckSquare className="mr-2 h-4 w-4" />
                             Finalizar Viagem
@@ -217,13 +247,31 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleReportIssue} className="bg-amber-600 hover:bg-amber-700">Sim, Notificar</AlertDialogAction>
+                                <AlertDialogAction className="bg-amber-600 hover:bg-amber-700">Sim, Notificar</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
                 </CardFooter>
             </Card>
          )
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center p-8 border rounded-lg bg-card text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin mr-2" /> Procurando solicitações...
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="text-center text-destructive p-8 border rounded-lg bg-card">
+                <WifiOff className="mx-auto h-8 w-8 mb-2"/>
+                <CardTitle>Erro de Rede</CardTitle>
+                <CardDescription>{error}</CardDescription>
+            </div>
+        )
     }
     
     if(requests.length === 0) {
@@ -237,18 +285,13 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
 
     return (
         <div className="space-y-4">
-            <h3 className="font-headline text-lg">Você tem {requests.length} novas solicitações.</h3>
+            <h3 className="font-headline text-lg">Você tem {requests.length} nova(s) solicitação(ões).</h3>
             <ScrollArea className="h-96">
                 <div className="space-y-4 pr-4">
                     {requests.map((req) => (
                         <RideRequestCard 
                             key={req.id}
-                            id={req.id}
-                            passenger={req.passenger}
-                            from={req.from}
-                            to={req.to}
-                            price={req.price}
-                            negotiated={req.negotiated}
+                            ride={req}
                             onAccept={handleAccept}
                             onReject={handleReject}
                         />
@@ -258,3 +301,4 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         </div>
     );
 }
+

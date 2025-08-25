@@ -16,23 +16,24 @@ import { Dialog, DialogTrigger } from '../ui/dialog';
 import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
 import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { Skeleton } from '../ui/skeleton';
+import { type User } from '../admin/UserList';
 
 export function DriverProfilePage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<RecordModel | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [status, setStatus] = useState('online');
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   
   useEffect(() => {
-    // This listener will update the component when the auth state changes
-    // It's client-side only, which prevents hydration errors.
-    const unsubscribe = pb.authStore.onChange(() => {
-      setUser(pb.authStore.model);
+    const fetchUser = () => {
+      const currentUser = pb.authStore.model as User | null;
+      setUser(currentUser);
       setIsLoading(false);
-    }, true);
+    };
+    
+    fetchUser();
+    const unsubscribe = pb.authStore.onChange(fetchUser, true);
 
     return () => {
       unsubscribe();
@@ -41,17 +42,34 @@ export function DriverProfilePage() {
 
   const avatarUrl = user?.avatar ? pb.getFileUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
-  const handleStatusChange = (newStatus: string) => {
-    setStatus(newStatus);
-    toast({
-      title: 'Status Atualizado',
-      description: `Seu status foi alterado para ${
-        newStatus === 'online' ? 'Online' 
-        : newStatus === 'offline' ? 'Offline' 
-        : newStatus === 'urban-trip' ? 'Em Viagem (Urbano)' 
-        : 'Em Viagem (Interior/Intermunicipal)'
-      }.`,
-    });
+  const handleStatusChange = async (newStatus: string) => {
+    if (!user) return;
+    
+    try {
+        await pb.collection('users').update(user.id, { 'driver_status': newStatus });
+        
+        // Log the status change
+        await pb.collection('driver_status_logs').create({
+            driver: user.id,
+            status: newStatus,
+        });
+
+        // The user object in authStore will be updated automatically by the SDK
+        // which triggers the `onChange` listener and re-renders the component with the new status.
+
+        toast({
+          title: 'Status Atualizado',
+          description: `Seu status foi alterado para ${
+            newStatus === 'online' ? 'Online' 
+            : newStatus === 'offline' ? 'Offline' 
+            : newStatus === 'urban-trip' ? 'Em Viagem (Urbano)' 
+            : 'Em Viagem (Interior/Intermunicipal)'
+          }.`,
+        });
+    } catch (error) {
+        console.error("Failed to update status:", error);
+        toast({ variant: "destructive", title: "Erro ao atualizar status" });
+    }
   };
 
   const handleAvatarSave = async (newImage: string) => {
@@ -64,7 +82,7 @@ export function DriverProfilePage() {
         const updatedRecord = await pb.collection('users').update(user.id, formData);
         
         // This will trigger the authStore change and update the UI
-        pb.authStore.save(pb.authStore.token, updatedRecord);
+        pb.authStore.save(pb.authStore.token, updatedRecord as any);
         
         toast({ title: 'Avatar atualizado com sucesso!' });
     } catch (error) {
@@ -73,7 +91,7 @@ export function DriverProfilePage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
         <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
             <div className="flex flex-col items-center gap-4 py-8 bg-card">
@@ -122,7 +140,7 @@ export function DriverProfilePage() {
         </div>
         <div className="w-48">
           <Label htmlFor="driver-status" className="sr-only">Status</Label>
-          <Select value={status} onValueChange={handleStatusChange}>
+          <Select value={user.driver_status} onValueChange={handleStatusChange}>
             <SelectTrigger id="driver-status">
               <SelectValue placeholder="Selecione o status" />
             </SelectTrigger>
@@ -145,7 +163,7 @@ export function DriverProfilePage() {
         </TabsList>
         <div className="p-4 md:p-6 lg:p-8">
             <TabsContent value="requests">
-                <RideRequests setDriverStatus={setStatus} />
+                <RideRequests setDriverStatus={handleStatusChange} />
             </TabsContent>
             <TabsContent value="chats">
                 <DriverChatHistory />
@@ -154,10 +172,11 @@ export function DriverProfilePage() {
                 <DriverRideHistory />
             </TabsContent>
             <TabsContent value="profile">
-                <ProfileForm />
+                {user && <ProfileForm user={user} onUpdate={setUser} />}
             </TabsContent>
         </div>
       </Tabs>
     </div>
   );
 }
+
