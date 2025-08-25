@@ -26,20 +26,8 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      // Authenticate against the 'users' collection
-      const authData = await pb.collection('users').authWithPassword(email, password);
-
-      // Check if the authenticated user has the 'Admin' role
-      if (authData.record.role !== 'Admin') {
-        pb.authStore.clear(); // Clear auth store if not an admin
-        toast({
-          title: "Acesso Negado",
-          description: "Este usuário não tem permissões de administrador.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
+      // Authenticate against the 'admins' collection for superusers
+      await pb.admins.authWithPassword(email, password);
       
       toast({
         title: "Login bem-sucedido!",
@@ -51,14 +39,14 @@ export default function AdminAuthForm() {
       router.push('/admin');
 
     } catch (error: any) {
-      let description = "Email ou senha inválidos. Por favor, tente novamente.";
+      let description = "Email ou senha de administrador inválidos. Por favor, tente novamente.";
       
       if (error.status === 0) {
         description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique a conexão do servidor e as configurações de CORS.`;
       } else if (error.status === 404) {
-         description = `O endpoint de autenticação não foi encontrado (404). Verifique se seu proxy reverso está configurado para encaminhar todas as rotas /api/* para o PocketBase, não apenas /api/collections.`;
+         description = `O endpoint de autenticação de administrador não foi encontrado (404). Verifique se seu proxy reverso está configurado para encaminhar todas as rotas /api/* para o PocketBase, não apenas /api/collections.`;
       } else if (error.status === 401 || error.status === 403) {
-        description = "Credenciais inválidas.";
+        description = "Credenciais de administrador inválidas.";
       } else if (error.data?.message) {
           description = `Erro do servidor: ${error.data.message}`;
       }
@@ -81,7 +69,7 @@ export default function AdminAuthForm() {
           <Logo className="h-10 w-10 text-primary" />
         </div>
         <DialogTitle className="font-headline text-2xl">Acesso Administrativo</DialogTitle>
-        <DialogDescription>Faça login para gerenciar a plataforma.</DialogDescription>
+        <DialogDescription>Faça login com sua conta de superusuário do PocketBase.</DialogDescription>
       </DialogHeader>
       <div className="px-6 pb-6">
         <form onSubmit={handleLogin} className="space-y-4">
