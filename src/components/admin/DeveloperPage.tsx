@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,20 +35,21 @@ export default function DeveloperPage() {
     const [logs, setLogs] = useState<LogModel[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    const [hasAttemptedAuth, setHasAttemptedAuth] = useState(false);
 
     const checkApiEndpoints = async () => {
         setIsRefreshing(true);
+        setHasAttemptedAuth(true);
         
         let adminAuthFailed = false;
 
-        // Attempt to authenticate as admin if not already
-        if (!pb.authStore.isValid || pb.authStore.model?.role !== 'Admin') {
+        // Only PocketBase Admins (from the 'admins' collection) can access logs.
+        // We attempt to authenticate with known test credentials.
+        if (!pb.authStore.isValid || !pb.authStore.model?.hasOwnProperty('avatar')) { // A simple check for an admin model
             try {
-                // Using credentials directly for debug purposes
-                await pb.collection('users').authWithPassword("admin@teste.com", "12345678");
-                if (pb.authStore.model?.role !== 'Admin') {
-                    throw new Error("O usuário autenticado não é um administrador.");
-                }
+                // Using credentials directly for debug purposes.
+                // This must be a real admin from the PocketBase Admin UI, not from the 'users' collection.
+                await pb.admins.authWithPassword("admin@teste.com", "12345678");
                 setIsAdminAuthenticated(true);
             } catch (err) {
                 console.error("Admin authentication failed for developer page:", err);
@@ -59,25 +61,8 @@ export default function DeveloperPage() {
         }
 
         if (adminAuthFailed) {
-            setEndpointStates(collectionsToTest.map(name => ({ name, status: 'error', error: 'Falha na autenticação do admin.' })));
             setLogs([]);
-            setIsRefreshing(false);
-            return;
-        }
-
-
-        // Test each collection endpoint
-        const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
-            try {
-                await pb.collections.getOne(name, { requestKey: null }); // requestKey: null to prevent caching
-                return { name, status: 'success', error: null };
-            } catch (error: any) {
-                return { name, status: 'error', error: error.message || 'Falha ao buscar' };
-            }
-        });
-
-        // Fetch recent logs
-        const fetchLogs = async () => {
+        } else {
             try {
                 const result = await pb.logs.getList(1, 10, {
                     sort: '-created',
@@ -87,11 +72,30 @@ export default function DeveloperPage() {
             } catch (error) {
                 console.error("Failed to fetch logs:", error);
                 setLogs([]); // Clear logs on error
+                setIsAdminAuthenticated(false); // Likely a permission error, update status
             }
         }
+
+        // Test each collection endpoint using standard user auth
+        const testUserPb = new PocketBase(POCKETBASE_URL);
+        try {
+            await testUserPb.collection('users').authWithPassword('passageiro@teste.com', '12345678');
+        } catch (e) {
+            console.warn("Could not authenticate as test passenger to check collections.");
+        }
+
+
+        const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
+            try {
+                await testUserPb.collections.getOne(name, { requestKey: null }); // requestKey: null to prevent caching
+                return { name, status: 'success', error: null };
+            } catch (error: any) {
+                return { name, status: 'error', error: error.message || 'Falha ao buscar' };
+            }
+        });
+
         
         const results = await Promise.all(promises);
-        await fetchLogs();
 
         setEndpointStates(results);
         setIsRefreshing(false);
@@ -269,11 +273,9 @@ export default function DeveloperPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Status das Coleções da API</CardTitle>
-                            {!isAdminAuthenticated && (
-                                 <CardDescription className="text-destructive">
-                                     Aviso: A autenticação de administrador falhou. Os resultados podem estar incorretos.
-                                 </CardDescription>
-                            )}
+                             <CardDescription>
+                                 Testado com credenciais de um usuário 'Passageiro' comum.
+                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -302,16 +304,19 @@ export default function DeveloperPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Logs de Erro Recentes</CardTitle>
-                            {!isAdminAuthenticated && (
-                                <CardDescription className="text-destructive">
-                                    Aviso: A autenticação de administrador falhou. Não é possível buscar os logs.
-                                </CardDescription>
-                            )}
+                             <CardDescription>
+                                 Apenas administradores do PocketBase podem ver os logs.
+                             </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
                              {isRefreshing && <p>Carregando logs...</p>}
-                             {!isRefreshing && !isAdminAuthenticated && <p className="text-yellow-400">Não foi possível autenticar como admin para ver os logs.</p>}
-                             {!isRefreshing && isAdminAuthenticated && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
+                             {!isRefreshing && !isAdminAuthenticated && hasAttemptedAuth && (
+                                <p className="text-yellow-400">
+                                    Não foi possível autenticar como administrador do PocketBase para ver os logs.
+                                    Verifique as credenciais no código ou se o admin de teste existe.
+                                </p>
+                             )}
+                             {!isRefreshing && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
                              {isAdminAuthenticated && logs.map(log => (
                                 <p key={log.id}>
                                     <span className={getLogLevelColor(log.level)}>[{getLogLevelName(log.level)}]</span>
