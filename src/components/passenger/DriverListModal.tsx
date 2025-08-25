@@ -32,10 +32,12 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             setIsLoading(true);
             setError(null);
             try {
-                // Fetch users who are 'Motorista' and 'online'
-                const onlineDrivers = await pb.collection('users').getFullList<Driver>({
-                    filter: `role = "Motorista" && driver_status = "online"`,
+                // Fetch all users with the 'Motorista' role
+                const allDrivers = await pb.collection('users').getFullList<Driver>({
+                    filter: `role = "Motorista"`,
                 });
+                // Filter for 'online' status on the client-side for resilience
+                const onlineDrivers = allDrivers.filter(d => d.driver_status === 'online');
                 setDrivers(onlineDrivers);
             } catch (err) {
                 console.error("Failed to fetch drivers:", err);
