@@ -26,9 +26,20 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      // Authenticate against the 'admins' collection for superusers
-      await pb.admins.authWithPassword(email, password);
+      // Authenticate against the 'users' collection and check for the 'Admin' role.
+      // This is more compatible across PocketBase versions.
+      const authData = await pb.collection('users').authWithPassword(email, password);
       
+      if (authData.record.role !== 'Admin') {
+        pb.authStore.clear(); // Important: clear the auth store if the role is wrong
+        toast({
+            title: "Acesso Negado",
+            description: "As credenciais são válidas, mas o usuário não tem permissão de Administrador.",
+            variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Login bem-sucedido!",
         description: "Bem-vindo ao painel de administração.",
@@ -44,7 +55,7 @@ export default function AdminAuthForm() {
       if (error.status === 0) {
         description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique a conexão do servidor e as configurações de CORS.`;
       } else if (error.status === 404) {
-         description = `O endpoint de autenticação de administrador não foi encontrado (404). Verifique se seu proxy reverso está configurado para encaminhar todas as rotas /api/* para o PocketBase, não apenas /api/collections.`;
+         description = `O endpoint de autenticação não foi encontrado (404). Verifique se seu proxy reverso (Nginx, Caddy) está configurado para encaminhar todas as rotas /api/* para o PocketBase.`;
       } else if (error.status === 401 || error.status === 403) {
         description = "Credenciais de administrador inválidas.";
       } else if (error.data?.message) {
@@ -69,7 +80,7 @@ export default function AdminAuthForm() {
           <Logo className="h-10 w-10 text-primary" />
         </div>
         <DialogTitle className="font-headline text-2xl">Acesso Administrativo</DialogTitle>
-        <DialogDescription>Faça login com sua conta de superusuário do PocketBase.</DialogDescription>
+        <DialogDescription>Faça login com sua conta de administrador.</DialogDescription>
       </DialogHeader>
       <div className="px-6 pb-6">
         <form onSubmit={handleLogin} className="space-y-4">
@@ -114,3 +125,4 @@ export default function AdminAuthForm() {
     </>
   );
 }
+

@@ -40,31 +40,29 @@ export default function DeveloperPage() {
     const checkApiEndpoints = async () => {
         setIsRefreshing(true);
         setHasAttemptedAuth(true);
+
+        const localPb = new PocketBase(POCKETBASE_URL);
         
         let adminAuthFailed = false;
 
         // Only PocketBase Admins (from the 'admins' collection) can access logs.
         // We attempt to authenticate with known test credentials.
-        if (!pb.authStore.isValid || !pb.authStore.model?.hasOwnProperty('avatar')) { // A simple check for an admin model
-            try {
-                // Using credentials directly for debug purposes.
-                // This must be a real admin from the PocketBase Admin UI, not from the 'users' collection.
-                await pb.admins.authWithPassword("admin@teste.com", "12345678");
-                setIsAdminAuthenticated(true);
-            } catch (err) {
-                console.error("Admin authentication failed for developer page:", err);
-                adminAuthFailed = true;
-                setIsAdminAuthenticated(false);
-            }
-        } else {
-             setIsAdminAuthenticated(true);
+        try {
+            // Using credentials directly for debug purposes.
+            // This must be a real admin from the PocketBase Admin UI.
+            await localPb.admins.authWithPassword("admin@teste.com", "12345678");
+            setIsAdminAuthenticated(true);
+        } catch (err) {
+            console.error("Admin authentication failed for developer page:", err);
+            adminAuthFailed = true;
+            setIsAdminAuthenticated(false);
         }
 
         if (adminAuthFailed) {
             setLogs([]);
         } else {
             try {
-                const result = await pb.logs.getList(1, 10, {
+                const result = await localPb.logs.getList(1, 10, {
                     sort: '-created',
                     filter: 'level >= 4', // 4 for warning, 5 for error
                 });
@@ -305,15 +303,15 @@ export default function DeveloperPage() {
                         <CardHeader>
                             <CardTitle>Logs de Erro Recentes</CardTitle>
                              <CardDescription>
-                                 Apenas administradores do PocketBase podem ver os logs.
+                                 Apenas administradores do painel PocketBase podem ver os logs.
                              </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
                              {isRefreshing && <p>Carregando logs...</p>}
                              {!isRefreshing && !isAdminAuthenticated && hasAttemptedAuth && (
                                 <p className="text-yellow-400">
-                                    Não foi possível autenticar como administrador do PocketBase para ver os logs.
-                                    Verifique as credenciais no código ou se o admin de teste existe.
+                                    Não foi possível autenticar como administrador do painel PocketBase para ver os logs.
+                                    Verifique se as credenciais "admin@teste.com" estão corretas ou se o endpoint /api/admins está acessível.
                                 </p>
                              )}
                              {!isRefreshing && logs.length === 0 && <p className="text-slate-400">Nenhum log de aviso ou erro encontrado.</p>}
