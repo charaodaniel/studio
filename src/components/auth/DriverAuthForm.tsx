@@ -13,7 +13,7 @@ import Logo from '../shared/Logo';
 import { Checkbox } from '../ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import pb from '@/lib/pocketbase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function DriverAuthForm() {
@@ -25,11 +25,14 @@ export default function DriverAuthForm() {
   // States for login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // States for registration form
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +134,26 @@ export default function DriverAuthForm() {
                         Esqueceu sua senha?
                      </Link>
                    </div>
-                  <Input id="password-login-driver" type="password" required disabled={isLoading} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+                   <div className="relative">
+                        <Input 
+                            id="password-login-driver" 
+                            type={showLoginPassword ? 'text' : 'password'} 
+                            required 
+                            disabled={isLoading} 
+                            value={loginPassword} 
+                            onChange={(e) => setLoginPassword(e.target.value)}
+                            className="pr-10"
+                        />
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                            onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        >
+                            {showLoginPassword ? <EyeOff /> : <Eye />}
+                        </Button>
+                   </div>
                 </div>
                  <div className="flex items-center space-x-2">
                     <Checkbox id="remember-me-driver" disabled={isLoading} />
@@ -155,7 +177,26 @@ export default function DriverAuthForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-register-driver">Senha</Label>
-                  <Input id="password-register-driver" type="password" required disabled={isLoading} value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)} />
+                  <div className="relative">
+                    <Input 
+                        id="password-register-driver" 
+                        type={showRegisterPassword ? 'text' : 'password'} 
+                        required 
+                        disabled={isLoading} 
+                        value={registerPassword} 
+                        onChange={(e) => setRegisterPassword(e.target.value)} 
+                        className="pr-10"
+                    />
+                    <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                    >
+                        {showRegisterPassword ? <EyeOff /> : <Eye />}
+                    </Button>
+                   </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
