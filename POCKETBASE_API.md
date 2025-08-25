@@ -142,7 +142,7 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 
 | Nome do Campo | Tipo       | Opções (se necessário)         |
 | ------------- | ---------- | ------------------------------ |
-| `driver`      | `relation` | collectionId: `users`, maxSelect: 1 |
+| `driver`      | `relation` | collectionId:`users`,maxSelect: 1 |
 | `status`      | `text`     | -                              |
 
 #### Regras de API:
