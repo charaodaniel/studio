@@ -37,7 +37,7 @@ export default function AdminAuthForm() {
       });
 
       // Redirect to the admin page
-      window.location.href = '/admin';
+      router.push('/admin');
 
     } catch (error: any) {
       let description = "Email ou senha inválidos. Por favor, tente novamente.";

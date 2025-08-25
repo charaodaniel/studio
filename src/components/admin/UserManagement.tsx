@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Avatar,
   AvatarFallback,
@@ -9,20 +9,16 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Send, MoreVertical, ArrowLeft, FileText, User, MessageSquare } from "lucide-react"
+import { Search, UserPlus, Send, MoreVertical, ArrowLeft, FileText, User, MessageSquare, WifiOff, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
-import type { User as UserData } from './UserList'; // Import the updated User type
+import type { User as UserData } from './UserList';
+import pb from '@/lib/pocketbase';
   
-const usersPlaceholder = [
-    { id: '1', name: "Ana Clara", email: "ana.clara@email.com", lastMessage: "Olá, tudo bem?", unread: 2, type: 'Passageiro', avatar: 'AC', phone: '11987654321' },
-    { id: '2', name: "Roberto Andrade", email: "roberto.a@email.com", lastMessage: "Ok, estarei lá.", unread: 0, type: 'Motorista', avatar: 'RA', phone: '11912345678' },
-];
-
 export type User = UserData; // Use the same type
 
 type Message = {
@@ -49,6 +45,10 @@ interface UserManagementProps {
 }
   
 export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -56,10 +56,26 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [newMessage, setNewMessage] = useState('');
     const [isClient, setIsClient] = useState(false);
 
-    // This effect ensures the component only renders on the client, avoiding hydration errors.
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const records = await pb.collection('users').getFullList<User>({ sort: '-created' });
+            setUsers(records);
+        } catch (err: any) {
+            console.error("Failed to fetch users for chat:", err);
+            setError("Não foi possível carregar os usuários.");
+            setUsers([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // Initial fetch
     useEffect(() => {
         setIsClient(true);
-    }, []);
+        fetchUsers();
+    }, [fetchUsers]);
 
     // This effect handles user selection changes from other components (like UserList)
     useEffect(() => {
@@ -105,18 +121,54 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     };
 
     if (!isClient) {
-        return <div className="flex-1 flex items-center justify-center bg-muted/40 h-full"><p>Carregando conversas...</p></div>; 
+        return <div className="flex-1 flex items-center justify-center bg-muted/40 h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>; 
     }
 
     if (isProfileOpen && selectedUser) {
         return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} isModal={false} />;
     }
     
-    const usersForList = usersPlaceholder; // Replace with a real user list fetch later
-    const filteredUsers = usersForList.filter(user => 
+    const filteredUsers = users.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const renderUserList = () => {
+        if (isLoading) {
+            return <div className="p-4 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
+        }
+        if (error) {
+            return <div className="p-4 text-center text-destructive">{error}</div>
+        }
+        if (filteredUsers.length === 0) {
+            return <div className="p-4 text-center text-muted-foreground">Nenhum usuário encontrado.</div>
+        }
+        return filteredUsers.map((user) => (
+              <div 
+                key={user.id} 
+                className={`flex items-center gap-3 p-3 cursor-pointer border-b hover:bg-muted/50 ${selectedUser?.id === user.id ? 'bg-muted/50' : ''}`}
+                onClick={() => {
+                    setSelectedUser(user);
+                    setIsProfileOpen(false);
+                }}
+              >
+                <Avatar>
+                  <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar) : ''} data-ai-hint="user portrait"/>
+                  <AvatarFallback>{user.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 overflow-hidden">
+                    <p className="font-semibold truncate">{user.name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{messages[user.id]?.[messages[user.id].length - 1]?.text || 'Nenhuma mensagem ainda'}</p>
+                </div>
+                 {/* {(messages[user.id] || []).filter(m => m.sender === 'user').length > 0 && (
+                  <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {(messages[user.id] || []).filter(m => m.sender === 'user').length}
+                  </div>
+                )} */}
+              </div>
+        ));
+    }
+
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
@@ -134,7 +186,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                       <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-[80vh]">
-                      <AddUserForm />
+                      <AddUserForm onUserAdded={fetchUsers} />
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>
@@ -150,30 +202,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             </div>
           </div>
           <ScrollArea className="flex-1">
-            {filteredUsers.map((user) => (
-              <div 
-                key={user.id} 
-                className={`flex items-center gap-3 p-3 cursor-pointer border-b hover:bg-muted/50 ${selectedUser?.id === user.id ? 'bg-muted/50' : ''}`}
-                onClick={() => {
-                    setSelectedUser(user);
-                    setIsProfileOpen(false);
-                }}
-              >
-                <Avatar>
-                  <AvatarImage src={user.avatar} data-ai-hint="user portrait"/>
-                  <AvatarFallback>{user.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 overflow-hidden">
-                    <p className="font-semibold truncate">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{messages[user.id]?.[messages[user.id].length - 1]?.text || 'Nenhuma mensagem ainda'}</p>
-                </div>
-                 {user.unread > 0 && (
-                  <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                    {user.unread}
-                  </div>
-                )}
-              </div>
-            ))}
+            {renderUserList()}
           </ScrollArea>
         </div>
         
@@ -185,12 +214,12 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   <ArrowLeft className="w-5 h-5"/>
                 </Button>
                 <Avatar>
-                  <AvatarImage src={selectedUser.avatar} data-ai-hint="user portrait"/>
+                  <AvatarImage src={selectedUser.avatar ? pb.getFileUrl(selectedUser, selectedUser.avatar) : ''} data-ai-hint="user portrait"/>
                   <AvatarFallback>{selectedUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
                   <p className="font-semibold">{selectedUser.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedUser.type}</p>
+                  <p className="text-sm text-muted-foreground">{selectedUser.role}</p>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -201,7 +230,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                     <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
                       <User className="mr-2 h-4 w-4"/> Ver Perfil
                     </DropdownMenuItem>
-                    {selectedUser.type === 'Motorista' && (
+                    {selectedUser.role === 'Motorista' && (
                         <DropdownMenuItem>
                             <FileText className="mr-2 h-4 w-4"/> Gerar Relatório
                         </DropdownMenuItem>
