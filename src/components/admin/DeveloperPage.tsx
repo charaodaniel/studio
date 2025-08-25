@@ -73,13 +73,15 @@ export default function DeveloperPage() {
         // Fetch driver status logs
         try {
             if (pb.authStore.model?.role !== 'Admin') {
-                 throw new Error("Apenas administradores do aplicativo podem ver os logs de status.");
+                setLogErrorMessage("Apenas administradores do aplicativo podem ver os logs de status.");
+                setLogs([]);
+            } else {
+                const logResults = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
+                    sort: '-created',
+                    expand: 'driver',
+                });
+                setLogs(logResults);
             }
-            const logResults = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
-                sort: '-created',
-                expand: 'driver',
-            });
-            setLogs(logResults);
         } catch(err: any) {
             console.error("Failed to fetch driver status logs:", err);
             setLogErrorMessage(err.message || "Não foi possível carregar os logs de status.");

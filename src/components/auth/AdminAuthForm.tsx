@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -30,6 +31,7 @@ export default function AdminAuthForm() {
       // This is more compatible across PocketBase versions.
       const authData = await pb.collection('users').authWithPassword(email, password);
       
+      // After successful authentication, check if the user has the 'Admin' role.
       if (authData.record.role !== 'Admin') {
         pb.authStore.clear(); // Important: clear the auth store if the role is wrong
         toast({
