@@ -1,12 +1,9 @@
-import { AppLayout } from "@/components/shared/AppLayout";
 import { DriverProfilePage } from "@/components/driver/DriverProfilePage";
 
 export default function Page() {
     return (
-        <AppLayout title="Painel do Motorista">
-            <div className="bg-muted/40 min-h-screen">
-               <DriverProfilePage />
-            </div>
-        </AppLayout>
+        <div className="bg-muted/40 min-h-screen">
+            <DriverProfilePage />
+        </div>
     )
 }
