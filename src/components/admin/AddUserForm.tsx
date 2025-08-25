@@ -41,8 +41,8 @@ export default function AddUserForm() {
                     <SelectContent>
                         <SelectItem value="passageiro">Passageiro</SelectItem>
                         <SelectItem value="motorista">Motorista</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="atendente">Atendente</SelectItem>
+                        <SelectItem value="admin">Administrador</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
