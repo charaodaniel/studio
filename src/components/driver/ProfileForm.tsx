@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon } from 'lucide-react';
@@ -13,6 +14,7 @@ import { Switch } from '../ui/switch';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
+import pb from '@/lib/pocketbase';
 
 
 const DocumentUploader = ({ label, docId, value, onFileChange, isEditing }: { label: string, docId: string, value: string | null, onFileChange: (file: string | null) => void, isEditing: boolean }) => {
@@ -112,6 +114,7 @@ export function ProfileForm() {
   };
   
   const handleLogout = () => {
+    pb.authStore.clear();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',

@@ -123,7 +123,7 @@ export default function PassengerAuthForm() {
   const handleLogout = () => {
     pb.authStore.clear();
     toast({ title: 'Logout Realizado', description: 'Você foi desconectado com sucesso.' });
-    // The useEffect will handle updating the state
+    router.push('/');
   };
   
   const handleRedirectToProfile = () => {
