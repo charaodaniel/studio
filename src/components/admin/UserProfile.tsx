@@ -1,4 +1,5 @@
-import { ArrowLeft, Car, Mail, Phone, User as UserIcon, Wallet, FileText, MessageSquare } from 'lucide-react';
+
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -11,7 +12,7 @@ import pb from '@/lib/pocketbase';
 interface UserProfileProps {
   user: User;
   onBack: () => void;
-  onContact: () => void; // New prop to handle contacting the user
+  onContact: () => void;
   isModal?: boolean;
 }
 
@@ -19,7 +20,8 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
   const ProfileWrapper: React.ElementType = isModal ? ScrollArea : 'div';
   const wrapperProps = isModal ? {className: "max-h-[80vh] p-4 sm:p-6"} : {className: "overflow-y-auto p-4 sm:p-6 space-y-6 flex-1"};
   
-  const avatarUrl = user.avatar ? user.avatar : `https://placehold.co/80x80.png?text=${user.name.substring(0, 2).toUpperCase()}`;
+  const avatarUrl = user.avatar ? pb.getFileUrl(user, user.avatar) : `https://placehold.co/80x80.png?text=${user.name.substring(0, 2).toUpperCase()}`;
+  const vehiclePhotoUrl = user.driver_vehicle_photo ? pb.getFileUrl(user, user.driver_vehicle_photo) : "https://placehold.co/600x400.png"
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -40,7 +42,7 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
               </Avatar>
               <div>
                 <CardTitle className="font-headline text-2xl">{user.name}</CardTitle>
-                <p className="text-muted-foreground">{user.type}</p>
+                <p className="text-muted-foreground">{user.role}</p>
               </div>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
@@ -62,7 +64,7 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
             )}
           </Card>
 
-          {user.type === 'Motorista' && (
+          {user.role === 'Motorista' && (
             <>
               <Card>
                 <CardHeader>
@@ -70,14 +72,13 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-1">
-                      <p><strong>Modelo:</strong> Chevrolet Onix</p>
-                      <p><strong>Placa:</strong> BRA2E19</p>
-                      <p><strong>Cor:</strong> Branco</p>
+                      <p><strong>Modelo:</strong> {user.driver_vehicle_model || 'Não informado'}</p>
+                      <p><strong>Placa:</strong> {user.driver_vehicle_plate || 'Não informada'}</p>
                     </div>
                      <Dialog>
                         <DialogTrigger asChild>
                             <div className="relative aspect-video rounded-lg overflow-hidden cursor-pointer">
-                                <Image src="https://placehold.co/600x400.png" alt="Foto do veículo" fill className="object-cover" data-ai-hint="car photo" />
+                                <Image src={vehiclePhotoUrl} alt="Foto do veículo" fill className="object-cover" data-ai-hint="car photo" />
                             </div>
                         </DialogTrigger>
                         <DialogContent className="p-0 max-w-xl">
@@ -85,7 +86,7 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
                                 <DialogTitle>Foto do Veículo</DialogTitle>
                                 <DialogDescription>Foto ampliada do veículo do motorista.</DialogDescription>
                             </DialogHeader>
-                            <Image src="https://placehold.co/800x600.png" alt="Foto do veículo em tamanho maior" width={800} height={600} className="rounded-lg"/>
+                            <Image src={vehiclePhotoUrl} alt="Foto do veículo em tamanho maior" width={800} height={600} className="rounded-lg"/>
                         </DialogContent>
                     </Dialog>
                 </CardContent>
@@ -96,30 +97,7 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
                       <CardTitle className="font-headline text-lg flex items-center gap-2"><FileText />Documentos</CardTitle>
                   </CardHeader>
                   <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline"><FileText className="mr-2"/> Ver CNH</Button>
-                          </DialogTrigger>
-                          <DialogContent className="p-0 max-w-xl">
-                            <DialogHeader className='p-4'>
-                                <DialogTitle>Documento - CNH</DialogTitle>
-                                <DialogDescription>Visualização do documento CNH do motorista.</DialogDescription>
-                            </DialogHeader>
-                            <Image src="https://placehold.co/800x1200.png" alt="Documento CNH" width={800} height={1200} className="rounded-b-lg"/>
-                          </DialogContent>
-                      </Dialog>
-                       <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline"><FileText className="mr-2"/> Ver CRLV</Button>
-                          </DialogTrigger>
-                          <DialogContent className="p-0 max-w-xl">
-                            <DialogHeader className='p-4'>
-                                <DialogTitle>Documento - CRLV</DialogTitle>
-                                <DialogDescription>Visualização do documento CRLV do veículo.</DialogDescription>
-                            </DialogHeader>
-                            <Image src="https://placehold.co/800x1200.png" alt="Documento CRLV" width={800} height={1200} className="rounded-b-lg"/>
-                          </DialogContent>
-                      </Dialog>
+                      <p className="text-sm text-muted-foreground col-span-full">A visualização de documentos será implementada.</p>
                   </CardContent>
               </Card>
 
@@ -128,13 +106,14 @@ export default function UserProfile({ user, onBack, onContact, isModal = false }
                   <CardTitle className="font-headline text-lg flex items-center gap-2"><Wallet />Informações Financeiras</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p><strong>Chave PIX:</strong> {user.email}</p>
+                  <p><strong>CNPJ:</strong> {user.driver_cnpj || 'Não informado'}</p>
+                  <p><strong>Chave PIX:</strong> {user.driver_pix_key || 'Não informada'}</p>
                 </CardContent>
               </Card>
             </>
           )}
 
-          {user.type === 'Passageiro' && (
+          {user.role === 'Passageiro' && (
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">Histórico de Corridas</CardTitle>

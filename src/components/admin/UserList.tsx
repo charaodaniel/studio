@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Avatar,
   AvatarFallback,
@@ -17,17 +16,25 @@ import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { Skeleton } from '../ui/skeleton';
   
-// This type is now more aligned with your actual PocketBase schema.
-// We add some UI-specific fields that are not in the database.
 export interface User extends RecordModel {
     name: string;
     email: string;
-    lastMessage: string;
-    unread: number;
-    type: string; // This can be derived or defaulted
-    avatar: string; // This will be the URL from PocketBase
-    phone: string; // Not in schema, will be empty for now
+    avatar: string;
+    phone: string;
+    role: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
+
+    driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
+    driver_vehicle_model?: string;
+    driver_vehicle_plate?: string;
+    driver_vehicle_photo?: string;
+    driver_cnpj?: string;
+    driver_pix_key?: string;
+    driver_fare_type?: 'fixed' | 'km';
+    driver_fixed_rate?: number;
+    driver_km_rate?: number;
+    driver_accepts_rural?: boolean;
 }
 
 interface UserListProps {
@@ -42,43 +49,31 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const filter = roleFilter ? `role = "${roleFilter}"` : '';
+            const records = await pb.collection('users').getFullList<User>({
+                sort: '-created',
+                filter: filter,
+            });
+            setUsers(records);
+        } catch (err: any) {
+            console.error("Failed to fetch users:", err);
+            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor.");
+            setUsers([]); 
+        } finally {
+            setIsLoading(false);
+        }
+    }, [roleFilter]);
+
     useEffect(() => {
-        const fetchUsers = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                // Fetching directly from PocketBase users collection, sorting by creation date
-                const records = await pb.collection('users').getList<User>(1, 50, {
-                    sort: '-created', // Sort by most recently created
-                });
-
-                // Mapping PocketBase records to our User type for the UI
-                const fetchedUsers = records.items.map(item => ({
-                    ...item,
-                    lastMessage: '', // Default value
-                    unread: 0, // Default value
-                    type: item.role || 'Passageiro', // Use 'role' field or default
-                    // The avatar field from PocketBase needs to be constructed into a URL
-                    avatar: item.avatar ? pb.getFileUrl(item, item.avatar) : `https://placehold.co/40x40.png?text=${item.name.substring(0, 2).toUpperCase()}`,
-                    phone: item.phone || '' // Use phone field or default
-                }));
-                setUsers(fetchedUsers);
-            } catch (err: any) {
-                console.error("Failed to fetch users:", err);
-                setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor.");
-                setUsers([]); 
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchUsers();
-    }, []);
+    }, [fetchUsers]);
 
 
-    const baseFilteredUsers = roleFilter ? users.filter(user => user.type === roleFilter) : users;
-
-    const filteredUsers = baseFilteredUsers.filter(user => 
+    const filteredUsers = users.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -90,7 +85,19 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
 
     const renderContent = () => {
         if (isLoading) {
-            return <div className="text-center p-8 text-muted-foreground">Carregando usuários...</div>;
+            return (
+                <div className="space-y-3 p-3">
+                     {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                            <Skeleton className="h-12 w-12 rounded-full" />
+                            <div className="space-y-2 flex-1">
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-4 w-1/2" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )
         }
         if (error) {
             return (
@@ -109,7 +116,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar>
-                    <AvatarImage src={user.avatar} data-ai-hint="user portrait"/>
+                    <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar) : ''} data-ai-hint="user portrait"/>
                     <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">
@@ -121,7 +128,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         }
         return (
             <div className="text-center p-8 text-muted-foreground">
-                Nenhum usuário encontrado. Verifique sua conexão ou adicione novos usuários.
+                Nenhum usuário encontrado para "{roleFilter}".
             </div>
         );
     };
@@ -142,7 +149,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                       <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-[80vh]">
-                      <AddUserForm />
+                      <AddUserForm onUserAdded={fetchUsers} />
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>

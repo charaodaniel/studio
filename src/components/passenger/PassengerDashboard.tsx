@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -18,10 +19,13 @@ export interface RideDetails {
 export default function PassengerDashboard() {
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
 
-  const handleRequestRide = () => {
+  const handleRequestRide = (rideId: string) => {
     setRideStatus('searching');
-    // Simulate finding a driver
+    setActiveRideId(rideId);
+    // In a real app, you would subscribe to the ride record here.
+    // For now, we simulate a driver accepting.
     setTimeout(() => {
       setRideDetails({
         driverName: 'Roberto Andrade',
@@ -37,6 +41,8 @@ export default function PassengerDashboard() {
   const handleCancelRide = () => {
     setRideStatus('idle');
     setRideDetails(null);
+    setActiveRideId(null);
+    // Here you would update the ride record status to 'canceled'.
   };
   
   const handleCompleteRide = () => {
@@ -45,7 +51,9 @@ export default function PassengerDashboard() {
     setTimeout(() => {
         setRideStatus('idle');
         setRideDetails(null);
+        setActiveRideId(null);
     }, 5000);
+    // Here you would update the ride record status to 'completed'.
   }
 
   return (
