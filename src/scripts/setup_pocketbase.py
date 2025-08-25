@@ -18,10 +18,13 @@ collections_schema = {
     "users": {
         "is_auth": True,
         "fields": [
+            # Campos do usuário geral
             {"name": "name", "type": "text", "required": False, "options": {"max": 255}},
             {"name": "avatar", "type": "file", "required": False, "options": {"maxSelect": 1, "mimeTypes": ["image/jpeg", "image/png", "image/webp"]}},
             {"name": "phone", "type": "text", "required": False, "options": {}},
             {"name": "role", "type": "select", "required": True, "options": {"maxSelect": 1, "values": ["Passageiro", "Motorista", "Atendente", "Admin"]}},
+            
+            # Campos específicos do motorista
             {"name": "driver_status", "type": "select", "required": False, "options": {"maxSelect": 1, "values": ["online", "offline", "urban-trip", "rural-trip"]}},
             {"name": "driver_vehicle_model", "type": "text", "required": False, "options": {}},
             {"name": "driver_vehicle_plate", "type": "text", "required": False, "options": {}},
@@ -132,21 +135,23 @@ def main():
         if collection:
             print(f"- Coleção '{name}' já existe. Verificando campos...")
             existing_fields = {field.name for field in collection.schema}
+            schema_changed = False
             
             for field_def in schema_def["fields"]:
                 if field_def["name"] not in existing_fields:
                     print(f"  - Adicionando campo '{field_def['name']}' à coleção '{name}'.")
-                    try:
-                        collection.schema.append(field_def)
-                    except Exception as e:
-                         print(f"  - AVISO: Não foi possível adicionar o campo '{field_def['name']}' via script. Talvez precise adicioná-lo manualmente. Erro: {e}", file=sys.stderr)
-                
-            try:
-                # Envia apenas o schema atualizado
-                client.collections.update(collection.id, {"schema": collection.schema})
-                print(f"✅ Schema da coleção '{name}' sincronizado com sucesso.")
-            except ClientResponseError as e:
-                print(f"❌ Erro ao sincronizar schema da coleção '{name}': {e.data}", file=sys.stderr)
+                    collection.schema.append(field_def)
+                    schema_changed = True
+            
+            if schema_changed:
+                try:
+                    # Envia apenas o schema atualizado
+                    client.collections.update(collection.id, {"schema": collection.schema})
+                    print(f"✅ Schema da coleção '{name}' sincronizado com sucesso.")
+                except ClientResponseError as e:
+                    print(f"❌ Erro ao sincronizar schema da coleção '{name}': {e.data}", file=sys.stderr)
+            else:
+                print("- Schema da coleção já está atualizado.")
             
         else:
             print(f"- Criando nova coleção '{name}'...")
@@ -163,7 +168,6 @@ def main():
 
     print("\n--- Aplicando Regras de API ---")
     
-    # É necessário buscar as coleções novamente para garantir que os IDs estão atualizados
     all_collections_refreshed = client.collections.get_full_list()
     collection_map_refreshed = {c.name: c for c in all_collections_refreshed}
 
@@ -181,3 +185,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    
