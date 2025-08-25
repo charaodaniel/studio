@@ -25,25 +25,22 @@ Para cada coleção listada abaixo (`users`, `rides`, `messages`, etc.), siga es
 
 ### 1. Coleção: `users` (Coleção de Autenticação)
 
-Esta é a coleção de usuários padrão do PocketBase, geralmente chamada de `users` (ou `_pb_users_auth_`). 
+Esta é a coleção de usuários padrão do PocketBase. No painel de controle, ela é chamada de **`users`**.
 
 #### Campos Padrão (Verificar se existem)
-O PocketBase já cria campos básicos para autenticação. Os campos abaixo (como `name`, `email`, `avatar`) são os que o nosso app utiliza e podem precisar ser adicionados caso não existam.
+O PocketBase já cria campos básicos para autenticação. Verifique se os seguintes campos existem, pois são usados pelo app:
+- `name` (text)
+- `email` (email)
+- `avatar` (file)
 
-| Nome do Campo | Tipo   | Opções (se necessário)                              |
-| ------------- | ------ | --------------------------------------------------- |
-| `name`        | `text` | -                                                   |
-| `avatar`      | `file` | Mime Types: `image/jpeg`, `image/png`, `image/webp` |
-| `phone`       | `text` | -                                                   |
-| `role`        | `select` | Values: `Passageiro`, `Motorista`, `Atendente`, `Admin` |
-
-<br>
 
 #### **Campos a Adicionar (Obrigatório)**
-Os campos abaixo são **específicos para motoristas** e precisam ser adicionados manualmente à sua coleção `users`.
+Adicione os seguintes campos à sua coleção `users`.
 
 | Nome do Campo            | Tipo       | Opções (se necessário)                                      |
 | ------------------------ | ---------- | ----------------------------------------------------------- |
+| `phone`                  | `text`     | -                                                           |
+| `role`                   | `select`   | Values: `Passageiro`, `Motorista`, `Atendente`, `Admin`     |
 | `driver_status`          | `select`   | Values: `online`, `offline`, `urban-trip`, `rural-trip`     |
 | `driver_vehicle_model`   | `text`     | -                                                           |
 | `driver_vehicle_plate`   | `text`     | -                                                           |
@@ -76,14 +73,16 @@ Os campos abaixo são **específicos para motoristas** e precisam ser adicionado
 
 | Nome do Campo           | Tipo       | Opções (se necessário)                                     |
 | ----------------------- | ---------- | ---------------------------------------------------------- |
-| `passenger`             | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1, required: true |
-| `driver`                | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1                        |
-| `origin_address`        | `text`     | required: true                                             |
-| `destination_address`   | `text`     | required: true                                             |
-| `status`                | `select`   | Values: `requested`, `accepted`, `in_progress`, `completed`, `canceled`, required: true |
-| `fare`                  | `number`   | required: true                                             |
-| `is_negotiated`         | `bool`     | required: true                                             |
-| `started_by`            | `select`   | Values: `passenger`, `driver`, required: true             |
+| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, Required: true |
+| `driver`                | `relation` | Coleção: `users`. Max Select: 1                        |
+| `origin_address`        | `text`     | Required: true                                             |
+| `destination_address`   | `text`     | Required: true                                             |
+| `status`                | `select`   | Values: `requested`, `accepted`, `in_progress`, `completed`, `canceled`, Required: true |
+| `fare`                  | `number`   | Required: true                                             |
+| `is_negotiated`         | `bool`     | Required: true                                             |
+| `started_by`            | `select`   | Values: `passenger`, `driver`, Required: true             |
+
+**Nota sobre Relações**: Ao configurar os campos `passenger` e `driver`, no painel do PocketBase, selecione a coleção **`users`** na lista suspensa "Collection".
 
 #### Regras de API:
 
@@ -104,9 +103,9 @@ Os campos abaixo são **específicos para motoristas** e precisam ser adicionado
 
 | Nome do Campo | Tipo       | Opções (se necessário)         |
 | ------------- | ---------- | ------------------------------ |
-| `ride`        | `relation` | collectionId: `rides`, maxSelect: 1, required: true |
-| `sender`      | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1, required: true |
-| `text`        | `text`     | required: true                 |
+| `ride`        | `relation` | Coleção: `rides`. Max Select: 1, Required: true |
+| `sender`      | `relation` | Coleção: `users`. Max Select: 1, Required: true |
+| `text`        | `text`     | Required: true                 |
 
 #### Regras de API:
 
@@ -127,9 +126,9 @@ Os campos abaixo são **específicos para motoristas** e precisam ser adicionado
 
 | Nome do Campo     | Tipo       | Opções (se necessário)         |
 | ----------------- | ---------- | ------------------------------ |
-| `driver`          | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1, required: true |
-| `document_type`   | `select`   | Values: `CNH`, `CRLV`, required: true |
-| `file`            | `file`     | maxSelect: 1, required: true   |
+| `driver`          | `relation` | Coleção: `users`. Max Select: 1, Required: true |
+| `document_type`   | `select`   | Values: `CNH`, `CRLV`, Required: true |
+| `file`            | `file`     | Max Select: 1, Required: true   |
 | `is_verified`     | `bool`     | -                              |
 
 #### Regras de API:
@@ -151,8 +150,8 @@ Os campos abaixo são **específicos para motoristas** e precisam ser adicionado
 
 | Nome do Campo | Tipo       | Opções (se necessário)         |
 | ------------- | ---------- | ------------------------------ |
-| `driver`      | `relation` | collectionId:`_pb_users_auth_`,maxSelect: 1, required: true |
-| `status`      | `text`     | required: true                 |
+| `driver`      | `relation` | Coleção: `users`. Max Select: 1, Required: true |
+| `status`      | `text`     | Required: true                 |
 
 #### Regras de API:
 
