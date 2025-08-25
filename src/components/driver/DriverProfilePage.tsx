@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, Star } from 'lucide-react';
+import { Camera, Star, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RideRequests } from './RideRequests';
@@ -16,17 +17,21 @@ import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { Skeleton } from '../ui/skeleton';
 
 export function DriverProfilePage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<RecordModel | null>(pb.authStore.model);
+  const [user, setUser] = useState<RecordModel | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState('online');
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   
   useEffect(() => {
     // This listener will update the component when the auth state changes
+    // It's client-side only, which prevents hydration errors.
     const unsubscribe = pb.authStore.onChange(() => {
       setUser(pb.authStore.model);
+      setIsLoading(false);
     }, true);
 
     return () => {
@@ -66,6 +71,24 @@ export function DriverProfilePage() {
         console.error("Failed to update avatar:", error);
         toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
     }
+  }
+
+  if (isLoading) {
+    return (
+        <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
+            <div className="flex flex-col items-center gap-4 py-8 bg-card">
+                 <Skeleton className="h-24 w-24 rounded-full" />
+                 <div className="text-center space-y-2">
+                    <Skeleton className="h-8 w-40" />
+                    <Skeleton className="h-4 w-32" />
+                 </div>
+                 <Skeleton className="h-10 w-48" />
+            </div>
+            <div className="p-4 md:p-6 lg:p-8">
+                 <Skeleton className="h-48 w-full" />
+            </div>
+        </div>
+    )
   }
 
   return (
