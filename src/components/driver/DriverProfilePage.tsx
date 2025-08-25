@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,12 +14,27 @@ import { ProfileForm } from './ProfileForm';
 import { Dialog, DialogTrigger } from '../ui/dialog';
 import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
 export function DriverProfilePage() {
   const { toast } = useToast();
+  const [user, setUser] = useState<RecordModel | null>(pb.authStore.model);
   const [status, setStatus] = useState('online');
-  const [avatarImage, setAvatarImage] = useState('https://placehold.co/128x128.png');
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+  
+  useEffect(() => {
+    // This listener will update the component when the auth state changes
+    const unsubscribe = pb.authStore.onChange(() => {
+      setUser(pb.authStore.model);
+    }, true);
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const avatarUrl = user?.avatar ? pb.getFileUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
   const handleStatusChange = (newStatus: string) => {
     setStatus(newStatus);
@@ -33,6 +49,25 @@ export function DriverProfilePage() {
     });
   };
 
+  const handleAvatarSave = async (newImage: string) => {
+    if (!user) return;
+    try {
+        const formData = new FormData();
+        const blob = await (await fetch(newImage)).blob();
+        formData.append('avatar', blob);
+        
+        const updatedRecord = await pb.collection('users').update(user.id, formData);
+        
+        // This will trigger the authStore change and update the UI
+        pb.authStore.save(pb.authStore.token, updatedRecord);
+        
+        toast({ title: 'Avatar atualizado com sucesso!' });
+    } catch (error) {
+        console.error("Failed to update avatar:", error);
+        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
+    }
+  }
+
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
       <div className="flex flex-col items-center gap-4 py-8 bg-card">
@@ -40,8 +75,8 @@ export function DriverProfilePage() {
             <DialogTrigger asChild>
                  <div className="relative group">
                     <Avatar className="h-24 w-24 cursor-pointer ring-4 ring-background">
-                        <AvatarImage src={avatarImage} data-ai-hint="person portrait" />
-                        <AvatarFallback>CM</AvatarFallback>
+                        <AvatarImage src={avatarUrl} data-ai-hint="person portrait" />
+                        <AvatarFallback>{user?.name?.substring(0, 2).toUpperCase() || 'CM'}</AvatarFallback>
                     </Avatar>
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                         <Camera className="h-8 w-8 text-white" />
@@ -50,13 +85,13 @@ export function DriverProfilePage() {
             </DialogTrigger>
             <ImageEditorDialog 
                 isOpen={isCameraDialogOpen}
-                currentImage={avatarImage}
-                onImageSave={setAvatarImage} 
+                currentImage={avatarUrl}
+                onImageSave={handleAvatarSave} 
                 onDialogClose={() => setIsCameraDialogOpen(false)}
             />
         </Dialog>
         <div className="text-center">
-          <h2 className="font-headline text-2xl font-semibold">Carlos Motorista</h2>
+          <h2 className="font-headline text-2xl font-semibold">{user?.name || 'Motorista'}</h2>
           <div className="flex items-center justify-center gap-1 text-muted-foreground">
             <Star className="w-4 h-4 fill-primary text-primary" />
             <span>4.9 (238 corridas)</span>
