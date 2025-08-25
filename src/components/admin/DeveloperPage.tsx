@@ -50,7 +50,7 @@ export default function DeveloperPage() {
         try {
             // Using credentials directly for debug purposes.
             // This must be a real admin from the PocketBase Admin UI.
-            await localPb.admins.authWithPassword("admin@teste.com", "12345678");
+            await localPb.admins.authWithPassword("daniel.kokynhw@gmail.com", "Dcm02061994@@");
             setIsAdminAuthenticated(true);
         } catch (err) {
             console.error("Admin authentication failed for developer page:", err);
