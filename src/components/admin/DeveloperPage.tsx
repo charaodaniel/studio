@@ -34,14 +34,48 @@ export default function DeveloperPage() {
     );
     const [logs, setLogs] = useState<LogModel[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    
-    const [logErrorMessage, setLogErrorMessage] = useState<string | null>(
-        "Não foi possível autenticar como administrador do painel PocketBase para buscar os logs. Verifique se o endpoint /api/admins/auth-with-password está acessível ou se as credenciais estão corretas no código-fonte."
-    );
+    const [logErrorMessage, setLogErrorMessage] = useState<string | null>(null);
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
 
     const checkApiEndpoints = async () => {
         setIsRefreshing(true);
+        setLogErrorMessage(null);
+        setLogs([]);
+
+        // Attempt to authenticate as superuser to fetch logs
+        const localPb = new PocketBase(POCKETBASE_URL);
+        try {
+            // Manual API call to the `superusers` endpoint for auth
+            // This is for older PocketBase versions. The SDK defaults to `/api/admins/...`
+            await localPb.send("/api/superusers/auth-with-password", {
+                method: "POST",
+                body: {
+                    identity: "daniel.kokynhw@gmail.com",
+                    password: "Dcm02061994@@",
+                }
+            });
+            setIsAdminAuthenticated(true);
+        } catch (err) {
+            console.error("Superuser authentication failed for developer page:", err);
+            setIsAdminAuthenticated(false);
+            setLogErrorMessage("Credenciais de superusuário inválidas ou endpoint de superusuário não encontrado. Não é possível buscar os logs.");
+        }
         
+        // If superuser auth is successful, fetch logs
+        if (localPb.authStore.isValid) {
+            try {
+                const result = await localPb.logs.getList(1, 10, {
+                    sort: '-created',
+                    filter: 'level >= 4', // 4 for warning, 5 for error
+                });
+                setLogs(result.items);
+            } catch (logErr) {
+                 console.error("Failed to fetch logs even after auth:", logErr);
+                 setLogErrorMessage("Autenticado como superusuário, mas falha ao buscar logs. Verifique as regras de API para logs.");
+            }
+        }
+
         // Test each collection endpoint using standard user auth
         const testUserPb = new PocketBase(POCKETBASE_URL);
         try {
@@ -269,7 +303,7 @@ export default function DeveloperPage() {
                         <CardHeader>
                             <CardTitle>Logs de Erro Recentes</CardTitle>
                              <CardDescription>
-                                 Apenas administradores do painel PocketBase podem ver os logs.
+                                 Apenas superusuários do painel PocketBase podem ver os logs.
                              </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
@@ -286,6 +320,9 @@ export default function DeveloperPage() {
                                     {log.message}
                                 </p>
                              ))}
+                             {!isRefreshing && logs.length === 0 && isAdminAuthenticated && (
+                                 <p className="text-green-400">Nenhum log de erro ou aviso encontrado.</p>
+                             )}
                         </CardContent>
                     </Card>
                 </div>
