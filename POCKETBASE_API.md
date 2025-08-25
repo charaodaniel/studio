@@ -47,6 +47,8 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 | `driver_fixed_rate`      | `number`   | -                                                           |
 | `driver_km_rate`         | `number`   | -                                                           |
 | `driver_accepts_rural`   | `bool`     | -                                                           |
+| `disabled`               | `bool`     | (Pode ser adicionado para desativar usuários)                |
+
 
 #### Regras de API:
 
@@ -67,20 +69,20 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 
 | Nome do Campo           | Tipo       | Opções (se necessário)                                     |
 | ----------------------- | ---------- | ---------------------------------------------------------- |
-| `passenger`             | `relation` | collectionId: `users`, maxSelect: 1                        |
-| `driver`                | `relation` | collectionId: `users`, maxSelect: 1                        |
-| `origin_address`        | `text`     | -                                                          |
-| `destination_address`   | `text`     | -                                                          |
-| `status`                | `select`   | Values: `requested`, `accepted`, `in_progress`, `completed`, `canceled` |
-| `fare`                  | `number`   | -                                                          |
-| `is_negotiated`         | `bool`     | -                                                          |
-| `started_by`            | `select`   | Values: `passenger`, `driver`                              |
+| `passenger`             | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1, required: true |
+| `driver`                | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1                        |
+| `origin_address`        | `text`     | required: true                                             |
+| `destination_address`   | `text`     | required: true                                             |
+| `status`                | `select`   | Values: `requested`, `accepted`, `in_progress`, `completed`, `canceled`, required: true |
+| `fare`                  | `number`   | required: true                                             |
+| `is_negotiated`         | `bool`     | required: true                                             |
+| `started_by`            | `select`   | Values: `passenger`, `driver`, required: true             |
 
 #### Regras de API:
 
 -   **List rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
 -   **View rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Create rule**: `@request.auth.id != "" && (@request.auth.role = "Passageiro" || @request.auth.role = "Admin")`
+-   **Create rule**: `@request.auth.id != ""`
 -   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
 -   **Delete rule**: `@request.auth.role = "Admin"`
 
@@ -95,9 +97,9 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 
 | Nome do Campo | Tipo       | Opções (se necessário)         |
 | ------------- | ---------- | ------------------------------ |
-| `ride`        | `relation` | collectionId: `rides`, maxSelect: 1 |
-| `sender`      | `relation` | collectionId: `users`, maxSelect: 1 |
-| `text`        | `text`     | -                              |
+| `ride`        | `relation` | collectionId: `rides`, maxSelect: 1, required: true |
+| `sender`      | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1, required: true |
+| `text`        | `text`     | required: true                 |
 
 #### Regras de API:
 
@@ -118,9 +120,9 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 
 | Nome do Campo     | Tipo       | Opções (se necessário)         |
 | ----------------- | ---------- | ------------------------------ |
-| `driver`          | `relation` | collectionId: `users`, maxSelect: 1 |
-| `document_type`   | `select`   | Values: `CNH`, `CRLV`          |
-| `file`            | `file`     | maxSelect: 1                   |
+| `driver`          | `relation` | collectionId: `_pb_users_auth_`, maxSelect: 1, required: true |
+| `document_type`   | `select`   | Values: `CNH`, `CRLV`, required: true |
+| `file`            | `file`     | maxSelect: 1, required: true   |
 | `is_verified`     | `bool`     | -                              |
 
 #### Regras de API:
@@ -142,8 +144,8 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 
 | Nome do Campo | Tipo       | Opções (se necessário)         |
 | ------------- | ---------- | ------------------------------ |
-| `driver`      | `relation` | collectionId:`users`,maxSelect: 1 |
-| `status`      | `text`     | -                              |
+| `driver`      | `relation` | collectionId:`_pb_users_auth_`,maxSelect: 1, required: true |
+| `status`      | `text`     | required: true                 |
 
 #### Regras de API:
 
