@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -44,7 +45,7 @@ export default function AdminAuthForm() {
       if (error.status === 0) {
         description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique a conexão do servidor e as configurações de CORS.`;
       } else if (error.status === 404) {
-        description = `Endpoint de autenticação não encontrado em ${POCKETBASE_URL}. Verifique a URL da API.`;
+        description = `Endpoint de autenticação de admin não encontrado (404). Verifique se seu proxy reverso está configurado para encaminhar todas as rotas /api/* para o PocketBase, não apenas /api/collections.`;
       } else if (error.status === 401 || error.status === 403) {
         description = "Credenciais de administrador inválidas.";
       } else if (error.data?.message) {

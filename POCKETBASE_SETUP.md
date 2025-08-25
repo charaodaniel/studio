@@ -37,4 +37,28 @@ Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas
 
 4.  **Salve as alterações.**
 
-Isso deve resolver os erros de CORS e permitir que seu app na Vercel se conecte perfeitamente ao seu backend PocketBase.
+---
+
+### Nota Importante sobre Proxy Reverso (Nginx, Caddy, etc.)
+
+Se você usa um proxy reverso na frente do seu PocketBase (o que é comum em produção), certifique-se de que ele está encaminhando **todo** o tráfego que chega em `/api/` para o seu servidor PocketBase.
+
+Alguns erros, como `404 Not Found` em rotas de login de administrador (`/api/admins/...`), podem ocorrer se o proxy estiver configurado para encaminhar apenas `/api/collections/`.
+
+**Exemplo para Nginx:**
+
+```nginx
+# Configuração INCOMPLETA (pode causar erros)
+location /api/collections/ {
+    proxy_pass http://127.0.0.1:8090;
+    # ... outras configurações
+}
+
+# Configuração CORRETA (abrange todas as rotas da API)
+location /api/ {
+    proxy_pass http://127.0.0.1:8090;
+    # ... outras configurações
+}
+```
+
+Isso deve resolver os erros de CORS e de rotas não encontradas, permitindo que seu app na Vercel se conecte perfeitamente ao seu backend PocketBase.
