@@ -46,17 +46,10 @@ export function DriverProfilePage() {
     if (!user) return;
     
     try {
+        // First, update the user's status.
         await pb.collection('users').update(user.id, { 'driver_status': newStatus });
-        
-        // Log the status change
-        await pb.collection('driver_status_logs').create({
-            driver: user.id,
-            status: newStatus,
-        });
 
-        // The user object in authStore will be updated automatically by the SDK
-        // which triggers the `onChange` listener and re-renders the component with the new status.
-
+        // The user object in authStore will be updated automatically, triggering a re-render.
         toast({
           title: 'Status Atualizado',
           description: `Seu status foi alterado para ${
@@ -66,9 +59,21 @@ export function DriverProfilePage() {
             : 'Em Viagem (Interior/Intermunicipal)'
           }.`,
         });
+
+        // After successful status update, try to log the event.
+        // This is a secondary action, if it fails, it shouldn't block the main feature.
+        try {
+            await pb.collection('driver_status_logs').create({
+                driver: user.id,
+                status: newStatus,
+            });
+        } catch (logError) {
+             console.error("Failed to create status log (non-critical):", logError);
+        }
+
     } catch (error) {
         console.error("Failed to update status:", error);
-        toast({ variant: "destructive", title: "Erro ao atualizar status" });
+        toast({ variant: "destructive", title: "Erro ao atualizar status", description: "Não foi possível alterar seu status. Tente novamente." });
     }
   };
 
@@ -179,4 +184,3 @@ export function DriverProfilePage() {
     </div>
   );
 }
-

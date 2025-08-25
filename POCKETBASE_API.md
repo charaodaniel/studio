@@ -149,6 +149,6 @@ Esta é a coleção de usuários padrão do PocketBase (`_pb_users_auth_`). Voc�
 
 -   **List rule**: `@request.auth.role = "Admin"`
 -   **View rule**: `@request.auth.role = "Admin"`
--   **Create rule**: `@request.auth.role = "Admin"`
+-   **Create rule**: `@request.auth.id != ""`
 -   **Update rule**: `""` (Ninguém pode atualizar)
 -   **Delete rule**: `""` (Ninguém pode deletar)
