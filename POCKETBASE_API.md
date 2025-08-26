@@ -37,23 +37,33 @@ Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"
 Acesse a coleção `chats` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras:
 
 #### **List rule**
+*Permite listar apenas os chats em que o usuário atual é um participante, ou se for Admin/Atendente.*
 ```js
 participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
 ```
 
 #### **View rule**
+*Permite ver os detalhes de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
 ```js
 participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
 ```
 
 #### **Create rule**
+*Permite que um usuário crie um chat apenas se ele mesmo for um dos participantes.*
 ```js
 participants.id ?= @request.auth.id
 ```
 
 #### **Update rule**
+*Permite que um participante ou um admin atualize um chat (ex: última mensagem).*
 ```js
 participants.id ?= @request.auth.id || @request.auth.role = "Admin"
+```
+
+#### **Delete rule**
+*Permite que apenas admins deletem chats.*
+```js
+@request.auth.role = "Admin"
 ```
 
 ---
@@ -63,18 +73,33 @@ participants.id ?= @request.auth.id || @request.auth.role = "Admin"
 Acesse a coleção `messages` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras:
 
 #### **List rule**
+*Permite listar mensagens de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
 ```js
 chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
 ```
 
 #### **View rule**
+*Permite ver uma mensagem individual se o usuário for um participante do chat ou um Admin.*
 ```js
 chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin"
 ```
 
 #### **Create rule**
+*Permite que um usuário crie uma mensagem apenas se for um participante do chat.*
 ```js
 chat.participants.id ?= @request.auth.id
+```
+
+#### **Update rule**
+*Permite que apenas admins editem mensagens (para moderação).*
+```js
+@request.auth.role = "Admin"
+```
+
+#### **Delete rule**
+*Permite que apenas admins deletem mensagens.*
+```js
+@request.auth.role = "Admin"
 ```
 
 ---
