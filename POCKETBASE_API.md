@@ -85,9 +85,9 @@ Adicione os seguintes campos à sua coleção `users`.
 
 #### Regras de API:
 
--   **List rule**: `@request.auth.id != ""`
+-   **List rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
 -   **View rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Create rule**: `@request.auth.id != ""`
+-   **Create rule**: `@request.auth.id != "" && (@request.auth.role = "Passageiro" || @request.auth.role = "Admin")`
 -   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
 -   **Delete rule**: `@request.auth.role = "Admin"`
 
