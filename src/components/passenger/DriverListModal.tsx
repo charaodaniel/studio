@@ -61,7 +61,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             try {
                 // Fetch all drivers with the 'Motorista' role
                 const allDrivers = await pb.collection('users').getFullList<Driver>({
-                    filter: `role = "Motorista"`,
+                    filter: 'role = "Motorista"',
                 });
                 setDrivers(allDrivers);
             } catch (err) {
@@ -117,7 +117,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             );
         }
         if (drivers.length === 0) {
-            return <p className="text-center text-muted-foreground p-4">Nenhum motorista cadastrado no momento.</p>
+            return <p className="text-center text-muted-foreground p-4">carregar lista de motoristas</p>
         }
         return (
              <div className="space-y-2">
