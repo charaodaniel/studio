@@ -23,7 +23,7 @@ import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from "../ui/skeleton";
 
 interface RideRecord extends RecordModel {
-    passenger: string;
+    passenger?: string; // Optional now
     driver: string;
     origin_address: string;
     destination_address: string;
@@ -184,8 +184,8 @@ export function DriverRideHistory() {
                 status: 'completed' as 'completed',
                 started_by: 'driver' as 'driver',
                 is_negotiated: false,
-                passenger: pb.authStore.model.id, // Fill passenger with driver's ID
                 passenger_anonymous_name: newRide.passenger,
+                // Do not set passenger for manual rides.
             };
             await pb.collection('rides').create(data);
 
