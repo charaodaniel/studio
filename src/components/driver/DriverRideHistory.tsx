@@ -60,11 +60,10 @@ export function DriverRideHistory() {
         
         try {
             const driverId = pb.authStore.model.id;
-            // Fetch and expand passenger, but handle cases where it might not be a real user
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
-                expand: 'passenger', // Expand passenger to get their name
+                expand: 'passenger',
             });
             setRides(result);
         } catch (err: any) {
@@ -179,9 +178,6 @@ export function DriverRideHistory() {
         try {
             const data = {
                 driver: pb.authStore.model.id,
-                // For manual rides, set the passenger to be the driver themselves.
-                // This satisfies the "required" constraint.
-                passenger: pb.authStore.model.id, 
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -391,4 +387,3 @@ export function DriverRideHistory() {
     </div>
   );
 }
-
