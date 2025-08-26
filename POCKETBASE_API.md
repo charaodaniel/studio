@@ -55,7 +55,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 #### Regras de API:
 
--   **List rule**: `@request.auth.id != "" || role = "Motorista"`
+-   **List rule**: `@request.auth.id != "" || @collection.users.role = "Motorista"`
 -   **View rule**: `id = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"`
 -   **Create rule**: `(deixe em branco)`
 -   **Update rule**: `id = @request.auth.id || @request.auth.role = "Admin"`
@@ -72,7 +72,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 | Nome do Campo           | Tipo       | Opções (se necessário)                                     |
 | ----------------------- | ---------- | ---------------------------------------------------------- |
-| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, **Required: true**       |
+| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, **Required: false**       |
 | `driver`                | `relation` | Coleção: `users`. Max Select: 1                        |
 | `origin_address`        | `text`     | Required: true                                             |
 | `destination_address`   | `text`     | Required: true                                             |
@@ -85,7 +85,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 #### Regras de API:
 
--   **List rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
+-   **List rule**: `@request.auth.id != ""`
 -   **View rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
 -   **Create rule**: `@request.auth.id != ""`
 -   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
@@ -156,7 +156,8 @@ Adicione os seguintes campos à sua coleção `users`.
 
 -   **List rule**: `@request.auth.role = "Admin"`
 -   **View rule**: `@request.auth.role = "Admin"`
--   **Create rule**: `@request.auth.id != ""`
+-   **Create rule**: `@request.auth.id != \"\"`
 -   **Update rule**: `""` (Ninguém pode atualizar)
 -   **Delete rule**: `""` (Ninguém pode deletar)
+
 
