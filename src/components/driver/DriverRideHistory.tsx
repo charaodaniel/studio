@@ -61,7 +61,7 @@ export function DriverRideHistory() {
         try {
             const driverId = pb.authStore.model.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}"`,
+                filter: `driver = '${driverId}'`,
                 sort: '-created',
                 expand: 'passenger',
             });
@@ -178,7 +178,7 @@ export function DriverRideHistory() {
         try {
             const data = {
                 driver: pb.authStore.model.id,
-                passenger: null,
+                passenger: null, // Set passenger to null for manual rides
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -388,3 +388,4 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
