@@ -1,6 +1,6 @@
 # Guia de Schema e Regras de API - PocketBase
 
-Este documento é a referência técnica completa para configurar manualmente o banco de dados no PocketBase. Siga estes passos para garantir que o aplicativo funcione corretamente.
+Este documento é a referência técnica completa para configurar manually o banco de dados no PocketBase. Siga estes passos para garantir que o aplicativo funcione corretamente.
 
 **URL da API (Exemplo):** `https://seu-dominio.com`
 
@@ -55,7 +55,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 #### Regras de API:
 
--   **List rule**: `@request.auth.id != ""`
+-   **List rule**: `@request.auth.id != "" || role = "Motorista"`
 -   **View rule**: `id = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"`
 -   **Create rule**: `(deixe em branco)`
 -   **Update rule**: `id = @request.auth.id || @request.auth.role = "Admin"`
