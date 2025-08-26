@@ -85,7 +85,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 #### Regras de API:
 
--   **List rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
+-   **List rule**: `@request.auth.id != ""`
 -   **View rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
 -   **Create rule**: `@request.auth.id != ""`
 -   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
@@ -123,12 +123,12 @@ Adicione os seguintes campos à sua coleção `users`.
 
 #### Campos a Adicionar:
 
-| Nome do Campo     | Tipo       | Opções (se necessário)         |
-| ----------------- | ---------- | ------------------------------ |
+| Nome do Campo     | Tipo       | Opções (se necessário)                                      |
+| ----------------- | ---------- | ----------------------------------------------------------- |
 | `driver`          | `relation` | Coleção: `users`. Max Select: 1, Required: true |
 | `document_type`   | `select`   | Values: `CNH`, `CRLV`, `VEHICLE_PHOTO`, Required: true |
 | `file`            | `file`     | Mime Types: `image/jpeg`, `image/png`, `image/webp`. Max Select: 1, Required: true   |
-| `is_verified`     | `bool`     | -                              |
+| `is_verified`     | `bool`     | -                                                           |
 
 #### Regras de API:
 
