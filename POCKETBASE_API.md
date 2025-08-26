@@ -1,107 +1,151 @@
-# Guia de Alterações nas Regras de API (PocketBase)
+# Guia de Configuração da API (PocketBase)
 
-Este documento lista apenas as **alterações necessárias** nas Regras de API para garantir que o aplicativo funcione corretamente. Aplique estas regras diretamente no seu painel de administrador do PocketBase.
+Este documento detalha as **coleções** e **regras de API** necessárias para o funcionamento correto do aplicativo. Use este guia para configurar seu backend no painel de administrador do PocketBase.
 
-**URL do Admin:** `https://mobmv.shop/_/` (exemplo)
+**URL do Admin (Exemplo):** `https://mobmv.shop/_/`
 
 ---
 
-## 1. Coleção: `users`
+## 1. Coleção: `users` (Auth)
 
-Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique a seguinte regra:
+Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras. Os campos desta coleção já são criados por padrão pelo PocketBase, mas adicione os campos personalizados do arquivo `pocketbase_schema.json`.
 
-#### **View rule**
-*Cole esta regra no campo "View rule". Ela permite que o nome e avatar de um usuário seja visto por outros, o que é necessário para o histórico de corridas.*
+#### **Regras de API**
 
-```js
-id = @request.auth.id || name != ""
-```
+*   **View rule:**
+    ```js
+    id = @request.auth.id || name != ""
+    ```
+    *Permite que o nome e avatar de um usuário sejam vistos por outros, o que é necessário para o histórico de corridas e chats.*
+
+*   **Update rule:**
+    ```js
+    id = @request.auth.id || @request.auth.role = "Admin"
+    ```
+    *Permite que um usuário edite seu próprio perfil, ou que um admin edite qualquer perfil.*
 
 ---
 
 ## 2. Coleção: `rides`
 
-Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique a seguinte regra:
+Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras.
 
+#### **Regras de API**
 
-#### **List rule**
-*Cole esta regra no campo "List rule". Ela corrige o erro ao carregar o histórico do motorista.*
+*   **List rule:**
+    ```js
+    @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
+    ```
+    *Garante que um usuário só possa listar as corridas em que ele é passageiro ou motorista, ou se for um membro da equipe (Admin/Atendente).*
 
-```js
-@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
-```
+*   **View rule:**
+    ```js
+    @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
+    ```
+    *Permite a visualização dos detalhes de uma corrida sob as mesmas condições da `List rule`.*
+
 ---
 
 ## 3. Coleção: `chats` (Nova)
 
-Acesse a coleção `chats` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras:
+Crie uma **nova coleção** chamada `chats` (tipo "Base"). Adicione os campos abaixo e depois aplique as regras de API.
 
-#### **List rule**
-*Permite listar apenas os chats em que o usuário atual é um participante, ou se for Admin/Atendente.*
-```js
-participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
-```
+#### **Campos (Schema)**
+1.  **`participants`**:
+    *   Tipo: `Relation`
+    *   Coleção Relacionada: `users`
+    *   Max Select: `2`
+    *   Required: `Sim`
+2.  **`ride`**:
+    *   Tipo: `Relation`
+    *   Coleção Relacionada: `rides`
+    *   Required: `Não`
+3.  **`last_message`**:
+    *   Tipo: `Text`
+    *   Required: `Não`
 
-#### **View rule**
-*Permite ver os detalhes de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
-```js
-participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
-```
+#### **Regras de API**
+*   **List rule:**
+    ```js
+    participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
+    ```
+    *Permite listar apenas os chats dos quais o usuário atual é participante, ou se for Admin/Atendente.*
 
-#### **Create rule**
-*Permite que um usuário crie um chat apenas se ele mesmo for um dos participantes.*
-```js
-participants.id ?= @request.auth.id
-```
+*   **View rule:**
+    ```js
+    participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
+    ```
+    *Permite ver os detalhes de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
 
-#### **Update rule**
-*Permite que um participante ou um admin atualize um chat (ex: última mensagem).*
-```js
-participants.id ?= @request.auth.id || @request.auth.role = "Admin"
-```
+*   **Create rule:**
+    ```js
+    participants.id ?= @request.auth.id
+    ```
+    *Permite que um usuário crie um chat apenas se ele mesmo for um dos participantes.*
 
-#### **Delete rule**
-*Permite que apenas admins deletem chats.*
-```js
-@request.auth.role = "Admin"
-```
+*   **Update rule:**
+    ```js
+    participants.id ?= @request.auth.id || @request.auth.role = "Admin"
+    ```
+    *Permite que um participante ou um admin atualize um chat (ex: última mensagem).*
+
+*   **Delete rule:**
+    ```js
+    @request.auth.role = "Admin"
+    ```
+    *Permite que apenas admins deletem chats.*
 
 ---
 
 ## 4. Coleção: `messages`
 
-Acesse a coleção `messages` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras:
+Crie uma **nova coleção** chamada `messages` (tipo "Base"). Adicione os campos abaixo e depois aplique as regras de API.
 
-#### **List rule**
-*Permite listar mensagens de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
-```js
-chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
-```
+#### **Campos (Schema)**
+1.  **`chat`**:
+    *   Tipo: `Relation`
+    *   Coleção Relacionada: `chats`
+    *   Cascade Delete: `Sim` (para apagar as mensagens se o chat for deletado)
+    *   Required: `Sim`
+2.  **`sender`**:
+    *   Tipo: `Relation`
+    *   Coleção Relacionada: `users`
+    *   Required: `Sim`
+3.  **`text`**:
+    *   Tipo: `Text`
+    *   Required: `Sim`
 
-#### **View rule**
-*Permite ver uma mensagem individual se o usuário for um participante do chat ou um Admin.*
-```js
-chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin"
-```
+#### **Regras de API**
+*   **List rule:**
+    ```js
+    chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
+    ```
+    *Permite listar mensagens de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
 
-#### **Create rule**
-*Permite que um usuário crie uma mensagem apenas se for um participante do chat.*
-```js
-chat.participants.id ?= @request.auth.id
-```
+*   **View rule:**
+    ```js
+    chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin"
+    ```
+    *Permite ver uma mensagem individual se o usuário for um participante do chat ou um Admin.*
 
-#### **Update rule**
-*Permite que apenas admins editem mensagens (para moderação).*
-```js
-@request.auth.role = "Admin"
-```
+*   **Create rule:**
+    ```js
+    chat.participants.id ?= @request.auth.id
+    ```
+    *Permite que um usuário crie uma mensagem apenas se for um participante do chat.*
 
-#### **Delete rule**
-*Permite que apenas admins deletem mensagens.*
-```js
-@request.auth.role = "Admin"
-```
+*   **Update rule:**
+    ```js
+    @request.auth.role = "Admin"
+    ```
+    *Permite que apenas admins editem mensagens (para moderação).*
+
+*   **Delete rule:**
+    ```js
+    @request.auth.role = "Admin"
+    ```
+    *Permite que apenas admins deletem mensagens.*
 
 ---
 
-Após salvar essas regras, os problemas de permissão e carregamento do histórico e do chat serão resolvidos.
+Após salvar essas coleções e regras, os problemas de permissão e carregamento do histórico e do chat serão resolvidos.
