@@ -72,7 +72,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 | Nome do Campo           | Tipo       | Opções (se necessário)                                     |
 | ----------------------- | ---------- | ---------------------------------------------------------- |
-| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, Required: true |
+| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, **Required: false**       |
 | `driver`                | `relation` | Coleção: `users`. Max Select: 1                        |
 | `origin_address`        | `text`     | Required: true                                             |
 | `destination_address`   | `text`     | Required: true                                             |
@@ -80,14 +80,14 @@ Adicione os seguintes campos à sua coleção `users`.
 | `fare`                  | `number`   | Required: true                                             |
 | `is_negotiated`         | `bool`     | Required: true                                             |
 | `started_by`            | `select`   | Values: `passenger`, `driver`, Required: true             |
+| `passenger_anonymous_name` | `text`  | (Para corridas manuais)                                    |
 
-**Nota sobre Relações**: Ao configurar os campos `passenger` e `driver`, no painel do PocketBase, selecione a coleção **`users`** na lista suspensa "Collection".
 
 #### Regras de API:
 
 -   **List rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
 -   **View rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Create rule**: `@request.auth.id != "" && (@request.auth.role = "Passageiro" || @request.auth.role = "Admin")`
+-   **Create rule**: `@request.auth.id != ""`
 -   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
 -   **Delete rule**: `@request.auth.role = "Admin"`
 

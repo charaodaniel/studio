@@ -241,7 +241,7 @@
         "id": "p2n5jpgo",
         "name": "passenger",
         "type": "relation",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -354,12 +354,26 @@
             "driver"
           ]
         }
+      },
+      {
+        "system": false,
+        "id": "afk13fkasd",
+        "name": "passenger_anonymous_name",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
       }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
     "viewRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\")",
-    "createRule": "@request.auth.id != \"\" && (@request.auth.role = \"Passageiro\" || @request.auth.role = \"Admin\")",
+    "createRule": "@request.auth.id != \"\"",
     "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
     "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}

@@ -23,7 +23,7 @@ import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from "../ui/skeleton";
 
 interface RideRecord extends RecordModel {
-    passenger: string;
+    passenger?: string; // Made optional
     driver: string;
     origin_address: string;
     destination_address: string;
@@ -33,7 +33,6 @@ interface RideRecord extends RecordModel {
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
     expand?: {
-        // Passenger might not be expandable if it's a manual ride
         passenger?: RecordModel;
     }
 }
@@ -61,6 +60,7 @@ export function DriverRideHistory() {
         
         try {
             const driverId = pb.authStore.model.id;
+            // Fetch without expanding passenger to avoid permission issues on manual rides
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
@@ -176,16 +176,16 @@ export function DriverRideHistory() {
         }
 
         try {
-            const data: Partial<RideRecord> = {
+            const data = {
                 driver: pb.authStore.model.id,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
-                status: 'completed',
-                started_by: 'driver',
+                status: 'completed' as 'completed',
+                started_by: 'driver' as 'driver',
                 is_negotiated: false,
                 passenger_anonymous_name: newRide.passenger,
-                passenger: pb.authStore.model.id, 
+                // Do NOT set the passenger relation for manual rides
             };
             await pb.collection('rides').create(data);
 
@@ -246,8 +246,8 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.passenger_anonymous_name || 'Passageiro da Plataforma'}
-                           {ride.started_by !== 'passenger' && (
+                           {ride.passenger_anonymous_name || (ride.expand?.passenger?.name) || 'Passageiro da Plataforma'}
+                           {ride.started_by === 'driver' && (
                                <TooltipProvider>
                                    <Tooltip>
                                        <TooltipTrigger>
@@ -388,5 +388,6 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
 
 
