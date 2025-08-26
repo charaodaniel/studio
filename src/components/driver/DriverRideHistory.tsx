@@ -23,7 +23,7 @@ import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from "../ui/skeleton";
 
 interface RideRecord extends RecordModel {
-    passenger?: string; // Made optional
+    passenger: string;
     driver: string;
     origin_address: string;
     destination_address: string;
@@ -60,10 +60,10 @@ export function DriverRideHistory() {
         
         try {
             const driverId = pb.authStore.model.id;
-            // Fetch without expanding passenger to avoid permission issues on manual rides
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
+                expand: 'passenger'
             });
             setRides(result);
         } catch (err: any) {
@@ -92,7 +92,7 @@ export function DriverRideHistory() {
             [
                 ride.id, 
                 new Date(ride.created).toLocaleDateString('pt-BR'), 
-                ride.passenger_anonymous_name || 'Passageiro da Plataforma', 
+                ride.passenger_anonymous_name || ride.expand?.passenger?.name || 'Passageiro da Plataforma', 
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -132,7 +132,7 @@ export function DriverRideHistory() {
         rides.forEach(ride => {
             const rideData = [
                 new Date(ride.created).toLocaleDateString('pt-BR'),
-                ride.passenger_anonymous_name || 'Passageiro da Plataforma',
+                ride.passenger_anonymous_name || ride.expand?.passenger?.name || 'Passageiro da Plataforma',
                 `${ride.origin_address} -> ${ride.destination_address}`,
                 `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                 ride.status,
@@ -178,6 +178,9 @@ export function DriverRideHistory() {
         try {
             const data = {
                 driver: pb.authStore.model.id,
+                // For manual rides, we assign the driver ID to passenger to satisfy the required constraint.
+                // The UI will know to display the anonymous name instead.
+                passenger: pb.authStore.model.id, 
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -185,7 +188,6 @@ export function DriverRideHistory() {
                 started_by: 'driver' as 'driver',
                 is_negotiated: false,
                 passenger_anonymous_name: newRide.passenger,
-                // Do NOT set the passenger relation for manual rides
             };
             await pb.collection('rides').create(data);
 
@@ -246,7 +248,7 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.passenger_anonymous_name || (ride.expand?.passenger?.name) || 'Passageiro da Plataforma'}
+                           {ride.started_by === 'driver' ? ride.passenger_anonymous_name : (ride.expand?.passenger?.name || 'Passageiro da Plataforma')}
                            {ride.started_by === 'driver' && (
                                <TooltipProvider>
                                    <Tooltip>
@@ -388,6 +390,3 @@ export function DriverRideHistory() {
     </div>
   );
 }
-
-
-
