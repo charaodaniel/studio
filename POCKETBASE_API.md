@@ -1,165 +1,36 @@
+# Guia de Alterações nas Regras de API (PocketBase)
 
-# Guia de Schema e Regras de API - PocketBase
+Este documento lista apenas as **alterações necessárias** nas Regras de API para garantir que o aplicativo funcione corretamente. Aplique estas regras diretamente no seu painel de administrador do PocketBase.
 
-Este documento é a referência técnica completa para configurar manually o banco de dados no PocketBase. Siga estes passos para garantir que o aplicativo funcione corretamente.
-
-**URL da API (Exemplo):** `https://seu-dominio.com`
-
----
-
-## Passo a Passo da Configuração Manual
-
-Para cada coleção listada abaixo (`users`, `rides`, `messages`, etc.), siga estes passos no seu painel de administrador do PocketBase:
-
-1.  **Acesse a Coleção**: Clique na coleção no menu lateral. Se ela não existir, crie uma com o nome exato.
-2.  **Edite a Coleção**: Clique em **"Edit collection"**.
-3.  **Adicione os Campos (Schema)**:
-    *   Na aba **"Schema"**, clique em **"+ New field"** para cada campo que estiver faltando na sua coleção.
-    *   Use os detalhes exatos (Nome, Tipo) fornecidos abaixo. A maioria das opções pode ser mantida como padrão, a menos que especificado.
-4.  **Aplique as Regras de API**:
-    *   Vá para a aba **"API Rules"**.
-    *   Copie e cole as regras (`List rule`, `View rule`, etc.) exatamente como estão listadas abaixo.
-    *   **Importante**: Aplique as regras de API **depois** de ter adicionado todos os campos da coleção para evitar erros de validação.
-5.  **Salve as Alterações**.
+**URL do Admin:** `https://mobmv.shop/_/` (exemplo)
 
 ---
 
-### 1. Coleção: `users` (Coleção de Autenticação)
+## 1. Coleção: `users`
 
-Esta é a coleção de usuários padrão do PocketBase. No painel de controle, ela é chamada de **`users`**.
+Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique a seguinte regra:
 
-#### Campos Padrão (Verificar se existem)
-O PocketBase já cria campos básicos para autenticação. Verifique se os seguintes campos existem, pois são usados pelo app:
-- `name` (text)
-- `email` (email)
-- `avatar` (file)
+#### **List rule**
+*Cole esta regra no campo "List rule". Ela permite que motoristas sejam listados publicamente.*
 
-
-#### **Campos a Adicionar (Obrigatório)**
-Adicione os seguintes campos à sua coleção `users`.
-
-| Nome do Campo            | Tipo       | Opções (se necessário)                                      |
-| ------------------------ | ---------- | ----------------------------------------------------------- |
-| `phone`                  | `text`     | -                                                           |
-| `role`                   | `select`   | Values: `Passageiro`, `Motorista`, `Atendente`, `Admin`     |
-| `driver_status`          | `select`   | Values: `online`, `offline`, `urban-trip`, `rural-trip`     |
-| `driver_vehicle_model`   | `text`     | -                                                           |
-| `driver_vehicle_plate`   | `text`     | -                                                           |
-| `driver_cnpj`            | `text`     | -                                                           |
-| `driver_pix_key`         | `text`     | -                                                           |
-| `driver_fare_type`       | `select`   | Values: `fixed`, `km`                                       |
-| `driver_fixed_rate`      | `number`   | -                                                           |
-| `driver_km_rate`         | `number`   | -                                                           |
-| `driver_accepts_rural`   | `bool`     | -                                                           |
-| `disabled`               | `bool`     | (Usado para desativar usuários)                             |
-
-
-#### Regras de API:
-
--   **List rule**: `@request.auth.id != "" || @collection.users.role = "Motorista"`
--   **View rule**: `id = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"`
--   **Create rule**: `(deixe em branco)`
--   **Update rule**: `id = @request.auth.id || @request.auth.role = "Admin"`
--   **Delete rule**: `@request.auth.role = "Admin"`
+```js
+@request.auth.id != "" || @collection.users.role = "Motorista"
+```
 
 ---
 
-### 2. Coleção: `rides`
+## 2. Coleção: `rides`
 
-**Nome da Coleção:** `rides`
-**Tipo:** `base`
-
-#### Campos a Adicionar:
-
-| Nome do Campo           | Tipo       | Opções (se necessário)                                     |
-| ----------------------- | ---------- | ---------------------------------------------------------- |
-| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, **Required: false**       |
-| `driver`                | `relation` | Coleção: `users`. Max Select: 1                        |
-| `origin_address`        | `text`     | Required: true                                             |
-| `destination_address`   | `text`     | Required: true                                             |
-| `status`                | `select`   | Values: `requested`, `accepted`, `in_progress`, `completed`, `canceled`, Required: true |
-| `fare`                  | `number`   | Required: true                                             |
-| `is_negotiated`         | `bool`     | Required: true                                             |
-| `started_by`            | `select`   | Values: `passenger`, `driver`, Required: true             |
-| `passenger_anonymous_name` | `text`  | (Para corridas manuais)                                    |
+Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique a seguinte regra:
 
 
-#### Regras de API:
+#### **List rule**
+*Cole esta regra no campo "List rule". Ela corrige o erro ao carregar o histórico do motorista.*
 
--   **List rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
--   **View rule**: `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Create rule**: `@request.auth.id != ""`
--   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
--   **Delete rule**: `@request.auth.role = "Admin"`
+```js
+@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
+```
 
 ---
 
-### 3. Coleção: `messages`
-
-**Nome da Coleção:** `messages`
-**Tipo:** `base`
-
-#### Campos a Adicionar:
-
-| Nome do Campo | Tipo       | Opções (se necessário)         |
-| ------------- | ---------- | ------------------------------ |
-| `ride`        | `relation` | Coleção: `rides`. Max Select: 1, Required: true |
-| `sender`      | `relation` | Coleção: `users`. Max Select: 1, Required: true |
-| `text`        | `text`     | Required: true                 |
-
-#### Regras de API:
-
--   **List rule**: `@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
--   **View rule**: `@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Create rule**: `@request.auth.id != "" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id)`
--   **Update rule**: `@request.auth.role = "Admin"`
--   **Delete rule**: `@request.auth.role = "Admin"`
-
----
-
-### 4. Coleção: `driver_documents`
-
-**Nome da Coleção:** `driver_documents`
-**Tipo:** `base`
-
-#### Campos a Adicionar:
-
-| Nome do Campo     | Tipo       | Opções (se necessário)                                      |
-| ----------------- | ---------- | ----------------------------------------------------------- |
-| `driver`          | `relation` | Coleção: `users`. Max Select: 1, Required: true |
-| `document_type`   | `select`   | Values: `CNH`, `CRLV`, `VEHICLE_PHOTO`, Required: true |
-| `file`            | `file`     | Mime Types: `image/jpeg`, `image/png`, `image/webp`. Max Select: 1, Required: true   |
-| `is_verified`     | `bool`     | -                                                           |
-
-#### Regras de API:
-
--   **List rule**: `@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")`
--   **View rule**: `@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Create rule**: `@request.auth.id != "" && driver = @request.auth.id`
--   **Update rule**: `@request.auth.id != "" && (driver = @request.auth.id || @request.auth.role = "Admin")`
--   **Delete rule**: `@request.auth.role = "Admin"`
-
----
-
-### 5. Coleção: `driver_status_logs`
-
-**Nome da Coleção:** `driver_status_logs`
-**Tipo:** `base`
-
-#### Campos a Adicionar:
-
-| Nome do Campo | Tipo       | Opções (se necessário)         |
-| ------------- | ---------- | ------------------------------ |
-| `driver`      | `relation` | Coleção: `users`. Max Select: 1, Required: true |
-| `status`      | `text`     | Required: true                 |
-
-#### Regras de API:
-
--   **List rule**: `@request.auth.role = "Admin"`
--   **View rule**: `@request.auth.role = "Admin"`
--   **Create rule**: `@request.auth.id != \"\"`
--   **Update rule**: `""` (Ninguém pode atualizar)
--   **Delete rule**: `""` (Ninguém pode deletar)
-
-
-
+Após salvar essas duas regras, os problemas de permissão e carregamento do histórico serão resolvidos.
