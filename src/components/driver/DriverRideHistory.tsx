@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
+import type { User as UserData } from '../admin/UserList';
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -29,8 +30,9 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
-    expand: {
-        passenger: RecordModel;
+    passenger_anonymous_name?: string;
+    expand?: {
+        passenger?: RecordModel;
     }
 }
 
@@ -51,7 +53,8 @@ export function DriverRideHistory() {
     const [error, setError] = useState<string|null>(null);
     const [newRide, setNewRide] = useState({ passenger: 'Passageiro Anônimo', origin: '', destination: '', value: '' });
     const { toast } = useToast();
-    const [isOffline, setIsOffline] = useState(false); // Simula o estado da rede
+    
+    const currentUser = pb.authStore.model as UserData | null;
 
     const fetchRides = useCallback(async () => {
         if (!pb.authStore.model) return;
@@ -82,7 +85,15 @@ export function DriverRideHistory() {
     const handleExportCSV = () => {
         const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status", "Iniciada Por"];
         const rows = rides.map(ride => 
-            [ride.id, new Date(ride.created).toLocaleDateString('pt-BR'), ride.expand?.passenger?.name || 'Desconhecido', `"${ride.origin_address}"`, `"${ride.destination_address}"`, ride.fare.toFixed(2).replace('.', ','), ride.status, ride.started_by].join(',')
+            [
+                ride.id, 
+                new Date(ride.created).toLocaleDateString('pt-BR'), 
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Desconhecido', 
+                `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
+                ride.fare.toFixed(2).replace('.', ','), 
+                ride.status, 
+                ride.started_by
+            ].join(',')
         );
 
         const csvContent = "data:text/csv;charset=utf-8," 
@@ -117,7 +128,7 @@ export function DriverRideHistory() {
         rides.forEach(ride => {
             const rideData = [
                 new Date(ride.created).toLocaleDateString('pt-BR'),
-                ride.expand?.passenger?.name || 'Desconhecido',
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Desconhecido',
                 `${ride.origin_address} -> ${ride.destination_address}`,
                 `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                 ride.status,
@@ -125,9 +136,27 @@ export function DriverRideHistory() {
             tableRows.push(rideData);
         });
 
-        // Header, etc... (code omitted for brevity)
+        // Header
+        doc.setFontSize(18);
+        doc.text("Relatório de Corridas", 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Motorista: ${currentUser?.name || 'N/A'}`, 14, 32);
+        doc.text(`CNPJ Motorista: ${currentUser?.driver_cnpj || 'N/A'}`, 14, 38);
+        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 44);
+
+        doc.setFontSize(11);
+        doc.text(`Plataforma: ${appData.name}`, 140, 32);
+        doc.text(`CNPJ Plataforma: ${appData.cnpj}`, 140, 38);
+
+        // Summary
+        doc.setFontSize(12);
+        doc.text("Resumo do Período", 14, 56);
+        doc.setFontSize(11);
+        doc.text(`Total de Corridas: ${summary.totalRides}`, 14, 62);
+        doc.text(`Valor Total: R$ ${summary.totalValue}`, 14, 68);
+
         (doc as any).autoTable({
-            startY: 70, head: [tableColumn], body: tableRows, theme: 'striped', headStyles: { fillColor: [37, 99, 235] },
+            startY: 75, head: [tableColumn], body: tableRows, theme: 'striped', headStyles: { fillColor: [37, 99, 235] },
         });
 
         doc.save("relatorio_corridas_ceolin.pdf");
@@ -143,18 +172,18 @@ export function DriverRideHistory() {
         }
 
         try {
-            const data = {
+            const data: Partial<RideRecord> = {
                 driver: pb.authStore.model.id,
-                // A passenger must be linked, even for an anonymous ride.
-                // In a real scenario, you might have a generic "anonymous" user record.
-                // For this prototype, we'll assign it to the driver themselves as a placeholder.
-                passenger: pb.authStore.model.id, 
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
                 status: 'completed',
                 started_by: 'driver',
-                is_negotiated: false, // Manual rides aren't negotiated through the app
+                is_negotiated: false,
+                passenger_anonymous_name: newRide.passenger,
+                // A passenger ID is required by the schema.
+                // We'll assign it to the driver themselves as a placeholder for manual rides.
+                passenger: pb.authStore.model.id, 
             };
             await pb.collection('rides').create(data);
 
@@ -209,7 +238,7 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.expand?.passenger?.name || 'Desconhecido'}
+                           {ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Desconhecido'}
                            {ride.started_by !== 'passenger' && (
                                <TooltipProvider>
                                    <Tooltip>
@@ -217,7 +246,7 @@ export function DriverRideHistory() {
                                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                        </TooltipTrigger>
                                        <TooltipContent>
-                                           <p>Corrida iniciada pelo motorista.</p>
+                                           <p>Corrida registrada manualmente pelo motorista.</p>
                                        </TooltipContent>
                                    </Tooltip>
                                </TooltipProvider>
@@ -249,7 +278,7 @@ export function DriverRideHistory() {
                     <DialogTrigger asChild>
                         <Button variant="outline" className="w-full sm:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            Iniciar Nova Corrida
+                            Registrar Corrida Manual
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -343,4 +372,3 @@ export function DriverRideHistory() {
     </div>
   );
 }
-

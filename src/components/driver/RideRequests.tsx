@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck } from 'lucide-react';
@@ -85,13 +86,6 @@ const RideRequestCard = ({ ride, onAccept, onReject }: { ride: RideRecord, onAcc
     );
 }
 
-interface AcceptedRideInfo {
-    id: string;
-    passenger: string;
-    isNegotiated: boolean;
-    progress: 'accepted' | 'in_progress';
-}
-
 export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: string) => void }) {
     const { toast } = useToast();
     const [requests, setRequests] = useState<RideRecord[]>([]);
@@ -132,7 +126,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         });
 
         return () => {
-            pb.collection('rides').unsubscribe();
+            pb.collection('rides').unsubscribe('*');
         };
 
     }, [fetchRequests]);
