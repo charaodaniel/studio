@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -60,11 +61,10 @@ export function DriverRideHistory() {
         
         try {
             const driverId = pb.authStore.model.id;
-            // Fetch and expand passenger, but handle cases where it might not be a real user
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = '${driverId}'`,
                 sort: '-created',
-                expand: 'passenger', // Expand passenger to get their name
+                expand: 'passenger',
             });
             setRides(result);
         } catch (err: any) {
@@ -179,14 +179,14 @@ export function DriverRideHistory() {
         try {
             const data = {
                 driver: pb.authStore.model.id,
-                passenger: pb.authStore.model.id,
+                passenger: null,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
                 status: 'completed',
                 started_by: 'driver',
                 is_negotiated: false,
-                passenger_anonymous_name: newRide.passenger,
+                passenger_anonymous_name: newRide.passenger || 'Passageiro Anônimo',
             };
             await pb.collection('rides').create(data);
 
