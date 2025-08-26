@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -154,50 +155,7 @@ export default function PassengerAuthForm() {
               <PenSquare className="mr-2 h-4 w-4" /> Ver Perfil Completo
             </Button>
           </div>
-          <Tabs defaultValue="chats" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="history"><History className="mr-1 h-4 w-4" /> Histórico</TabsTrigger>
-              <TabsTrigger value="chats"><MessageSquare className="mr-1 h-4 w-4" /> Conversas</TabsTrigger>
-              <TabsTrigger value="security"><ShieldCheck className="mr-1 h-4 w-4" /> Segurança</TabsTrigger>
-            </TabsList>
-            <TabsContent value="history" className="p-4 text-sm text-center text-muted-foreground">
-              <p>Seu histórico de corridas aparecerá aqui.</p>
-            </TabsContent>
-            <TabsContent value="chats" className="p-0">
-               <div className="flex flex-col">
-                  {conversations.map((convo) => (
-                  <div key={convo.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 border-b">
-                      <Avatar className="h-10 w-10">
-                          <AvatarImage src={`https://placehold.co/40x40.png?text=${convo.name.charAt(0)}`} data-ai-hint="user portrait"/>
-                          <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 overflow-hidden">
-                      <div className="flex justify-between items-center">
-                          <p className="font-semibold truncate">{convo.name}</p>
-                          <p className={`text-xs ${convo.unread > 0 ? 'text-primary' : 'text-muted-foreground'}`}>{convo.time}</p>
-                      </div>
-                       <div className="flex justify-between items-center">
-                          <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
-                          {convo.unread > 0 && (
-                              <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                  {convo.unread}
-                              </div>
-                          )}
-                        </div>
-                      </div>
-                  </div>
-                  ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="security" className="p-4 space-y-4">
-              <div>
-                <Label htmlFor="password">Nova Senha</Label>
-                <Input id="password" type="password" />
-              </div>
-              <Button className="w-full">Alterar Senha</Button>
-            </TabsContent>
-          </Tabs>
-          <div className="p-4 border-t">
+           <div className="p-4 border-t">
             <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>

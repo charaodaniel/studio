@@ -30,7 +30,53 @@ Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"
 ```js
 @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
 ```
+---
+
+## 3. Coleção: `chats` (Nova)
+
+Acesse a coleção `chats` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras:
+
+#### **List rule**
+```js
+participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
+```
+
+#### **View rule**
+```js
+participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
+```
+
+#### **Create rule**
+```js
+participants.id ?= @request.auth.id
+```
+
+#### **Update rule**
+```js
+participants.id ?= @request.auth.id || @request.auth.role = "Admin"
+```
 
 ---
 
-Após salvar essas duas regras, os problemas de permissão e carregamento do histórico serão resolvidos.
+## 4. Coleção: `messages`
+
+Acesse a coleção `messages` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras:
+
+#### **List rule**
+```js
+chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
+```
+
+#### **View rule**
+```js
+chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin"
+```
+
+#### **Create rule**
+```js
+chat.participants.id ?= @request.auth.id
+```
+
+---
+
+Após salvar essas regras, os problemas de permissão e carregamento do histórico e do chat serão resolvidos.
