@@ -22,7 +22,7 @@ import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from "../ui/skeleton";
 
 interface RideRecord extends RecordModel {
-    passenger: string;
+    passenger: string | null;
     driver: string;
     origin_address: string;
     destination_address: string;
@@ -178,12 +178,12 @@ export function DriverRideHistory() {
         try {
             const data = {
                 driver: pb.authStore.model.id,
-                passenger: null, // Set passenger to null for manual rides
+                passenger: null,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
-                status: 'completed' as 'completed',
-                started_by: 'driver' as 'driver',
+                status: 'completed',
+                started_by: 'driver',
                 is_negotiated: false,
                 passenger_anonymous_name: newRide.passenger || 'Passageiro Anônimo',
             };
@@ -363,7 +363,7 @@ export function DriverRideHistory() {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Valor Total Arrecadado:</span>
-                                <span className="font-bold text-lg text-primary">R$ {summary.totalValue}</span>
+                                <span className="font-bold text-lg text-primary">R$ ${summary.totalValue}</span>
                             </div>
                         </div>
                         <AlertDialogFooter>
@@ -388,4 +388,3 @@ export function DriverRideHistory() {
     </div>
   );
 }
-
