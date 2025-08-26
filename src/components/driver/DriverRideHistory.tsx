@@ -178,13 +178,14 @@ export function DriverRideHistory() {
         try {
             const data = {
                 driver: pb.authStore.model.id,
+                passenger: null,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
                 status: 'completed' as 'completed',
                 started_by: 'driver' as 'driver',
                 is_negotiated: false,
-                passenger_anonymous_name: newRide.passenger,
+                passenger_anonymous_name: newRide.passenger || 'Passageiro Anônimo',
             };
             await pb.collection('rides').create(data);
 
