@@ -32,14 +32,10 @@ interface RideRecord extends RecordModel {
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
     expand?: {
+        // Passenger might not be expandable if it's a manual ride
         passenger?: RecordModel;
     }
 }
-
-const driverData = {
-    name: "Carlos Motorista",
-    cnpj: "12.345.678/0001-90"
-};
 
 const appData = {
     name: "CEOLIN Mobilidade Urbana",
@@ -64,15 +60,23 @@ export function DriverRideHistory() {
         
         try {
             const driverId = pb.authStore.model.id;
+            // Fetch without expanding passenger to avoid permission issues on manual rides
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
-                expand: 'passenger'
             });
             setRides(result);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to fetch rides:", err);
-            setError("Não foi possível carregar seu histórico de corridas.");
+             let errorMessage = "Não foi possível carregar seu histórico de corridas.";
+            if (err.isAbort) {
+                errorMessage += " A requisição demorou muito.";
+            } else if (err.status === 0) {
+                errorMessage += " Verifique sua conexão com a internet ou as configurações do servidor.";
+            } else if (err.data?.message) {
+                errorMessage += ` Detalhe: ${err.data.message}`;
+            }
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -88,7 +92,7 @@ export function DriverRideHistory() {
             [
                 ride.id, 
                 new Date(ride.created).toLocaleDateString('pt-BR'), 
-                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Desconhecido', 
+                ride.passenger_anonymous_name || 'Passageiro da Plataforma', 
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -128,7 +132,7 @@ export function DriverRideHistory() {
         rides.forEach(ride => {
             const rideData = [
                 new Date(ride.created).toLocaleDateString('pt-BR'),
-                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Desconhecido',
+                ride.passenger_anonymous_name || 'Passageiro da Plataforma',
                 `${ride.origin_address} -> ${ride.destination_address}`,
                 `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                 ride.status,
@@ -181,8 +185,6 @@ export function DriverRideHistory() {
                 started_by: 'driver',
                 is_negotiated: false,
                 passenger_anonymous_name: newRide.passenger,
-                // A passenger ID is required by the schema.
-                // We'll assign it to the driver themselves as a placeholder for manual rides.
                 passenger: pb.authStore.model.id, 
             };
             await pb.collection('rides').create(data);
@@ -238,7 +240,7 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Desconhecido'}
+                           {ride.passenger_anonymous_name || 'Passageiro da Plataforma'}
                            {ride.started_by !== 'passenger' && (
                                <TooltipProvider>
                                    <Tooltip>
@@ -372,3 +374,4 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
