@@ -10,11 +10,11 @@ Este documento lista apenas as **alterações necessárias** nas Regras de API p
 
 Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique a seguinte regra:
 
-#### **List rule**
-*Cole esta regra no campo "List rule". Ela permite que motoristas sejam listados publicamente.*
+#### **View rule**
+*Cole esta regra no campo "View rule". Ela permite que o nome e avatar de um usuário seja visto por outros, o que é necessário para o histórico de corridas.*
 
 ```js
-@request.auth.id != "" || @collection.users.role = "Motorista"
+id = @request.auth.id || name != ""
 ```
 
 ---
