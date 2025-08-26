@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
+import { PassengerRideHistory } from './PassengerRideHistory';
 
 const conversations = [
     { id: 1, name: "Roberto Andrade", lastMessage: "Olá! Chego em 5 minutos.", unread: 1, time: "14:32" },
@@ -129,11 +130,7 @@ export function PassengerProfilePage() {
         </TabsList>
         <div className="p-4 md:p-6 lg:p-8">
             <TabsContent value="history">
-                <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card">
-                    <History className="h-10 w-10 mb-4 mx-auto" />
-                    <p className="font-semibold">Nenhuma corrida encontrada</p>
-                    <p className="text-sm">Seu histórico de corridas aparecerá aqui.</p>
-                </div>
+                <PassengerRideHistory />
             </TabsContent>
             <TabsContent value="chats">
                 <div className="bg-card rounded-lg p-4">
