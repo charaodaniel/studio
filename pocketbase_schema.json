@@ -241,7 +241,7 @@
         "id": "p2n5jpgo",
         "name": "passenger",
         "type": "relation",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {

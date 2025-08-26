@@ -72,7 +72,7 @@ Adicione os seguintes campos à sua coleção `users`.
 
 | Nome do Campo           | Tipo       | Opções (se necessário)                                     |
 | ----------------------- | ---------- | ---------------------------------------------------------- |
-| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, **Required: false**       |
+| `passenger`             | `relation` | Coleção: `users`. Max Select: 1, **Required: true**       |
 | `driver`                | `relation` | Coleção: `users`. Max Select: 1                        |
 | `origin_address`        | `text`     | Required: true                                             |
 | `destination_address`   | `text`     | Required: true                                             |
@@ -159,3 +159,4 @@ Adicione os seguintes campos à sua coleção `users`.
 -   **Create rule**: `@request.auth.id != ""`
 -   **Update rule**: `""` (Ninguém pode atualizar)
 -   **Delete rule**: `""` (Ninguém pode deletar)
+

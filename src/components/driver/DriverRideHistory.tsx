@@ -184,6 +184,7 @@ export function DriverRideHistory() {
                 status: 'completed' as 'completed',
                 started_by: 'driver' as 'driver',
                 is_negotiated: false,
+                passenger: pb.authStore.model.id, // Fill passenger with driver's ID
                 passenger_anonymous_name: newRide.passenger,
             };
             await pb.collection('rides').create(data);
@@ -245,7 +246,7 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.passenger_anonymous_name || 'Passageiro da Plataforma'}
+                           {ride.started_by === 'driver' ? ride.passenger_anonymous_name : "Passageiro da Plataforma"}
                            {ride.started_by === 'driver' && (
                                <TooltipProvider>
                                    <Tooltip>
