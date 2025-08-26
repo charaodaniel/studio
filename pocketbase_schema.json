@@ -243,7 +243,7 @@
         "id": "p2n5jpgo",
         "name": "passenger",
         "type": "relation",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -381,6 +381,67 @@
     "options": {}
   },
   {
+    "id": "p8gnsp8g97no99u",
+    "name": "chats",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "0otzua7m",
+        "name": "participants",
+        "type": "relation",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "cascadeDelete": false,
+          "minSelect": 2,
+          "maxSelect": 2,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "k8hxhfsl",
+        "name": "ride",
+        "type": "relation",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "b1wtu7ah1l75gen",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "system": false,
+        "id": "r7i5l0u7",
+        "name": "last_message",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "participants.id ?= @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\"",
+    "viewRule": "participants.id ?= @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\"",
+    "createRule": "participants.id ?= @request.auth.id",
+    "updateRule": "participants.id ?= @request.auth.id || @request.auth.role = \"Admin\"",
+    "deleteRule": "@request.auth.role = \"Admin\"",
+    "options": {}
+  },
+  {
     "id": "a9qal6i3j2f9n5h",
     "name": "messages",
     "type": "base",
@@ -389,14 +450,14 @@
       {
         "system": false,
         "id": "xsv6a4m9",
-        "name": "ride",
+        "name": "chat",
         "type": "relation",
         "required": true,
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "b1wtu7ah1l75gen",
-          "cascadeDelete": false,
+          "collectionId": "p8gnsp8g97no99u",
+          "cascadeDelete": true,
           "minSelect": null,
           "maxSelect": 1,
           "displayFields": null
@@ -434,9 +495,9 @@
       }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
-    "viewRule": "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id || @request.auth.role = \"Admin\")",
-    "createRule": "@request.auth.id != \"\" && (ride.passenger = @request.auth.id || ride.driver = @request.auth.id)",
+    "listRule": "chat.participants.id ?= @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\"",
+    "viewRule": "chat.participants.id ?= @request.auth.id || @request.auth.role = \"Admin\"",
+    "createRule": "chat.participants.id ?= @request.auth.id",
     "updateRule": "@request.auth.role = \"Admin\"",
     "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}
