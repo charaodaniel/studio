@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import type { User as UserData } from '../admin/UserList';
+import { Skeleton } from "../ui/skeleton";
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -60,7 +61,6 @@ export function DriverRideHistory() {
         
         try {
             const driverId = pb.authStore.model.id;
-            // Fetch without expanding passenger to avoid permission issues on manual rides
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
@@ -202,39 +202,45 @@ export function DriverRideHistory() {
     const renderContent = () => {
         if (isLoading) {
             return (
-                <div className="flex items-center justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
+                <TableBody>
+                    {[...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
             );
         }
         if (error) {
              return (
-                <div className="flex flex-col items-center justify-center p-8 text-destructive">
-                    <WifiOff className="h-10 w-10 mb-2" />
-                    <p className="font-semibold">Erro de Conexão</p>
-                    <p className="text-sm">{error}</p>
-                </div>
+                <TableBody>
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center p-8 text-destructive">
+                            <WifiOff className="mx-auto h-10 w-10 mb-2" />
+                            <p className="font-semibold">Erro de Conexão</p>
+                            <p className="text-sm">{error}</p>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
             );
         }
         if (rides.length === 0) {
               return (
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-8">
-                        <History className="h-10 w-10 mb-4" />
-                        <p className="font-semibold">Nenhuma corrida encontrada</p>
-                        <p className="text-sm">Seu histórico de corridas aparecerá aqui.</p>
-                </div>
+                <TableBody>
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center p-8 text-muted-foreground">
+                            <History className="h-10 w-10 mb-4 mx-auto" />
+                            <p className="font-semibold">Nenhuma corrida encontrada</p>
+                            <p className="text-sm">Seu histórico de corridas aparecerá aqui.</p>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
             )
         }
         return (
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Passageiro/Data</TableHead>
-                    <TableHead>Trajeto</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
+            <TableBody>
                 {rides.map((ride) => (
                     <TableRow key={ride.id}>
                     <TableCell>
@@ -263,8 +269,7 @@ export function DriverRideHistory() {
                     <TableCell className="text-right font-semibold">R$ {ride.fare.toFixed(2).replace('.', ',')}</TableCell>
                     </TableRow>
                 ))}
-                </TableBody>
-            </Table>
+            </TableBody>
         );
     }
     
@@ -369,9 +374,19 @@ export function DriverRideHistory() {
             </div>
         </div>
         <ScrollArea className="h-[60vh] sm:h-96 w-full">
-            {renderContent()}
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Passageiro/Data</TableHead>
+                    <TableHead>Trajeto</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+                </TableHeader>
+                {renderContent()}
+            </Table>
         </ScrollArea>
     </div>
   );
 }
+
 

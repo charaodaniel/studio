@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, WifiOff } from "lucide-react"
+import { Search, UserPlus, WifiOff, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';

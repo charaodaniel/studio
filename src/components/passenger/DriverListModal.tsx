@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +22,30 @@ interface DriverListModalProps {
     onSelectDriver: (driverId: string) => void;
 }
 
+const getStatusVariant = (status?: string) => {
+    switch (status) {
+        case 'online':
+            return 'bg-green-100 text-green-800 border-green-200';
+        case 'urban-trip':
+        case 'rural-trip':
+            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'offline':
+        default:
+            return 'bg-red-100 text-red-800 border-red-200';
+    }
+};
+
+const getStatusLabel = (status?: string) => {
+    const labels: { [key: string]: string } = {
+        'online': 'Online',
+        'offline': 'Offline',
+        'urban-trip': 'Em Viagem',
+        'rural-trip': 'Em Viagem',
+    };
+    return labels[status || 'offline'] || status;
+};
+
+
 export default function DriverListModal({ onSelectDriver }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<string | null>(null);
     const { toast } = useToast();
@@ -34,9 +58,9 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             setIsLoading(true);
             setError(null);
             try {
-                // Fetch only online drivers with the 'Motorista' role
+                // Fetch all drivers with the 'Motorista' role
                 const allDrivers = await pb.collection('users').getFullList<Driver>({
-                    filter: 'role = "Motorista" && driver_status = "online"',
+                    filter: 'role = "Motorista"',
                 });
                 setDrivers(allDrivers);
             } catch (err) {
@@ -92,67 +116,73 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             );
         }
         if (drivers.length === 0) {
-            return <p className="text-center text-muted-foreground p-4">Nenhum motorista online encontrado.</p>
+            return <p className="text-center text-muted-foreground p-4">Nenhum motorista cadastrado no momento.</p>
         }
         return (
              <div className="space-y-2">
-                {drivers.map((driver) => (
-                    <Collapsible
-                        key={driver.id}
-                        open={openDriverId === driver.id}
-                        onOpenChange={() => handleToggle(driver.id)}
-                        className="w-full"
-                    >
-                        <Card className="hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center p-4 gap-4">
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                            <Avatar className="h-12 w-12 cursor-pointer">
-                                            <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
-                                            <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                    </DialogTrigger>
-                                    <DialogContent className="p-0 max-w-xs">
-                                        <Image src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
-                                    </DialogContent>
-                                </Dialog>
-                                
-                                <div className="flex-grow">
-                                    <div className="flex items-center gap-2">
-                                      <p className="font-bold">{driver.name}</p>
-                                    </div>
-                                    <div className="flex items-center text-sm">
-                                        <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 mr-1" />
-                                        <span>4.8</span>
-                                    </div>
-                                </div>
-                                <CollapsibleTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                        <Info className="mr-2 h-4 w-4" /> Ver
-                                    </Button>
-                                </CollapsibleTrigger>
-                            </div>
-                            <CollapsibleContent>
-                                <div className="px-4 pb-4 space-y-4">
-                                    <div className="space-y-2">
-                                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                            <Car className="h-4 w-4" /> {driver.driver_vehicle_model || 'Veículo não informado'} - {driver.driver_vehicle_plate || 'Placa não informada'}
-                                        </p>
-                                        <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                                            {driver.driver_vehicle_photo && (
-                                                 <Image src={pb.getFileUrl(driver, driver.driver_vehicle_photo)} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
-                                            )}
+                {drivers.map((driver) => {
+                    const isAvailable = driver.driver_status === 'online';
+                    return (
+                        <Collapsible
+                            key={driver.id}
+                            open={openDriverId === driver.id}
+                            onOpenChange={() => handleToggle(driver.id)}
+                            className="w-full"
+                        >
+                            <Card className="hover:bg-muted/50 transition-colors">
+                                <div className="flex items-center p-4 gap-4">
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                                <Avatar className="h-12 w-12 cursor-pointer">
+                                                <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                                                <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                        </DialogTrigger>
+                                        <DialogContent className="p-0 max-w-xs">
+                                            <Image src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
+                                        </DialogContent>
+                                    </Dialog>
+                                    
+                                    <div className="flex-grow">
+                                        <div className="flex items-center gap-2">
+                                        <p className="font-bold">{driver.name}</p>
+                                        <Badge variant="outline" className={cn("text-xs", getStatusVariant(driver.driver_status))}>
+                                            {getStatusLabel(driver.driver_status)}
+                                        </Badge>
+                                        </div>
+                                        <div className="flex items-center text-sm">
+                                            <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 mr-1" />
+                                            <span>4.8</span>
                                         </div>
                                     </div>
-                                    <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleSelectDriver(driver)}>
-                                        <Send className="mr-2 h-4 w-4" />
-                                        Chamar {driver.name.split(' ')[0]}
-                                    </Button>
+                                    <CollapsibleTrigger asChild>
+                                        <Button variant="ghost" size="sm">
+                                            <Info className="mr-2 h-4 w-4" /> Ver
+                                        </Button>
+                                    </CollapsibleTrigger>
                                 </div>
-                            </CollapsibleContent>
-                        </Card>
-                    </Collapsible>
-                ))}
+                                <CollapsibleContent>
+                                    <div className="px-4 pb-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                                <Car className="h-4 w-4" /> {driver.driver_vehicle_model || 'Veículo não informado'} - {driver.driver_vehicle_plate || 'Placa não informada'}
+                                            </p>
+                                            <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
+                                                {driver.driver_vehicle_photo && (
+                                                    <Image src={pb.getFileUrl(driver, driver.driver_vehicle_photo)} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
+                                                )}
+                                            </div>
+                                        </div>
+                                        <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleSelectDriver(driver)} disabled={!isAvailable}>
+                                            {isAvailable ? <Send className="mr-2 h-4 w-4" /> : null}
+                                            {isAvailable ? `Chamar ${driver.name.split(' ')[0]}` : 'Indisponível'}
+                                        </Button>
+                                    </div>
+                                </CollapsibleContent>
+                            </Card>
+                        </Collapsible>
+                    )
+                })}
             </div>
         )
     }

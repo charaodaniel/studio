@@ -17,6 +17,7 @@ import {
   import pb from "@/lib/pocketbase";
   import { type User } from "../admin/UserList";
   import { Loader2, WifiOff } from "lucide-react";
+import { Skeleton } from "../ui/skeleton";
   
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -100,11 +101,18 @@ import {
     const renderContent = () => {
         if (isLoading) {
             return (
-                <TableRow>
-                    <TableCell colSpan={3} className="text-center p-8">
-                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
-                    </TableCell>
-                </TableRow>
+                [...Array(5)].map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell>
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-8 w-8 rounded-full" />
+                                <Skeleton className="h-4 w-32" />
+                            </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    </TableRow>
+                ))
             );
         }
 
