@@ -22,31 +22,6 @@ interface DriverListModalProps {
     onSelectDriver: (driverId: string) => void;
 }
 
-const getStatusClass = (status?: string) => {
-    switch (status) {
-        case 'online':
-            return 'bg-green-100 text-green-800 border-green-200';
-        case 'urban-trip':
-        case 'rural-trip':
-            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        case 'offline':
-            return 'bg-red-100 text-red-800 border-red-200';
-        default:
-            return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-}
-
-const getStatusLabel = (status?: string) => {
-    const labels: { [key: string]: string } = {
-        'online': 'Online',
-        'offline': 'Offline',
-        'urban-trip': 'Em Viagem',
-        'rural-trip': 'Em Viagem',
-    };
-    return labels[status || 'offline'] || 'Indisponível';
-}
-
-
 export default function DriverListModal({ onSelectDriver }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<string | null>(null);
     const { toast } = useToast();
@@ -59,9 +34,9 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             setIsLoading(true);
             setError(null);
             try {
-                // Fetch all drivers with the 'Motorista' role
+                // Fetch only online drivers with the 'Motorista' role
                 const allDrivers = await pb.collection('users').getFullList<Driver>({
-                    filter: 'role = "Motorista"',
+                    filter: 'role = "Motorista" && driver_status = "online"',
                 });
                 setDrivers(allDrivers);
             } catch (err) {
@@ -117,7 +92,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
             );
         }
         if (drivers.length === 0) {
-            return <p className="text-center text-muted-foreground p-4">carregar lista de motoristas</p>
+            return <p className="text-center text-muted-foreground p-4">Nenhum motorista online encontrado.</p>
         }
         return (
              <div className="space-y-2">
@@ -145,9 +120,6 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
                                 <div className="flex-grow">
                                     <div className="flex items-center gap-2">
                                       <p className="font-bold">{driver.name}</p>
-                                      <Badge variant="outline" className={cn("text-xs", getStatusClass(driver.driver_status))}>
-                                        {getStatusLabel(driver.driver_status)}
-                                      </Badge>
                                     </div>
                                     <div className="flex items-center text-sm">
                                         <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 mr-1" />
@@ -172,7 +144,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
                                             )}
                                         </div>
                                     </div>
-                                    <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleSelectDriver(driver)} disabled={driver.driver_status !== 'online'}>
+                                    <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleSelectDriver(driver)}>
                                         <Send className="mr-2 h-4 w-4" />
                                         Chamar {driver.name.split(' ')[0]}
                                     </Button>
