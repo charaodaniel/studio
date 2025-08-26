@@ -85,7 +85,6 @@ export function ImageEditorDialog({ isOpen, currentImage, onImageSave, onDialogC
     
     const handleSave = () => {
         onImageSave(image);
-        toast({ title: 'Imagem Salva', description: 'Sua nova foto de perfil foi salva com sucesso.' });
         onDialogClose();
     };
 

@@ -44,7 +44,6 @@ Adicione os seguintes campos à sua coleção `users`.
 | `driver_status`          | `select`   | Values: `online`, `offline`, `urban-trip`, `rural-trip`     |
 | `driver_vehicle_model`   | `text`     | -                                                           |
 | `driver_vehicle_plate`   | `text`     | -                                                           |
-| `driver_vehicle_photo`   | `file`     | Mime Types: `image/jpeg`, `image/png`, `image/webp`         |
 | `driver_cnpj`            | `text`     | -                                                           |
 | `driver_pix_key`         | `text`     | -                                                           |
 | `driver_fare_type`       | `select`   | Values: `fixed`, `km`                                       |
@@ -127,8 +126,8 @@ Adicione os seguintes campos à sua coleção `users`.
 | Nome do Campo     | Tipo       | Opções (se necessário)         |
 | ----------------- | ---------- | ------------------------------ |
 | `driver`          | `relation` | Coleção: `users`. Max Select: 1, Required: true |
-| `document_type`   | `select`   | Values: `CNH`, `CRLV`, Required: true |
-| `file`            | `file`     | Max Select: 1, Required: true   |
+| `document_type`   | `select`   | Values: `CNH`, `CRLV`, `VEHICLE_PHOTO`, Required: true |
+| `file`            | `file`     | Mime Types: `image/jpeg`, `image/png`, `image/webp`. Max Select: 1, Required: true   |
 | `is_verified`     | `bool`     | -                              |
 
 #### Regras de API:

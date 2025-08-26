@@ -21,12 +21,12 @@ import type { RecordModel } from 'pocketbase';
 
 interface DocumentRecord extends RecordModel {
     driver: string;
-    document_type: 'CNH' | 'CRLV';
+    document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
     file: string;
     is_verified: boolean;
 }
 
-const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: string, docType: 'CNH' | 'CRLV', driverId: string, onUpdate: () => void }) => {
+const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: string, docType: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO', driverId: string, onUpdate: () => void }) => {
     const { toast } = useToast();
     const [document, setDocument] = useState<DocumentRecord | null>(null);
     const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
@@ -230,7 +230,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_cnpj">CNPJ</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="driver_cnpj" value={formData.driver_cnpj} onChange={handleInputChange} placeholder="00.000.000/0000-00"/>
+                            <Input id="driver_cnpj" value={formData.driver_cnpj || ''} onChange={handleInputChange} placeholder="00.000.000/0000-00"/>
                         ) : (
                             <p className="text-sm font-medium p-2">{formData.driver_cnpj || 'Não informado'}</p>
                         )}
@@ -242,7 +242,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_pix_key">Chave PIX</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="driver_pix_key" value={formData.driver_pix_key} onChange={handleInputChange} placeholder="Insira sua chave PIX" />
+                            <Input id="driver_pix_key" value={formData.driver_pix_key || ''} onChange={handleInputChange} placeholder="Insira sua chave PIX" />
                         ) : (
                             <p className="text-sm font-medium p-2">{formData.driver_pix_key || 'Não informada'}</p>
                         )}
@@ -309,7 +309,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_vehicle_model">Modelo do Veículo</Label>
                         {isEditingVehicleInfo ? (
-                           <Input id="driver_vehicle_model" value={formData.driver_vehicle_model} onChange={handleInputChange} />
+                           <Input id="driver_vehicle_model" value={formData.driver_vehicle_model || ''} onChange={handleInputChange} />
                         ) : (
                            <p className="text-sm font-medium p-2">{formData.driver_vehicle_model}</p>
                         )}
@@ -317,16 +317,16 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_vehicle_plate">Placa</Label>
                         {isEditingVehicleInfo ? (
-                           <Input id="driver_vehicle_plate" value={formData.driver_vehicle_plate} onChange={handleInputChange} />
+                           <Input id="driver_vehicle_plate" value={formData.driver_vehicle_plate || ''} onChange={handleInputChange} />
                         ) : (
                            <p className="text-sm font-medium p-2">{formData.driver_vehicle_plate}</p>
                         )}
                     </div>
                      <DocumentUploader
                         label="Foto do Veículo"
-                        docType="CRLV" // Placeholder, maybe create a dedicated type for vehicle photo
+                        docType="VEHICLE_PHOTO"
                         driverId={user.id}
-                        onUpdate={() => onUpdate({...user})} // A bit of a hack to trigger re-render
+                        onUpdate={() => onUpdate({...user})} 
                     />
                     <Separator />
                     <DocumentUploader
@@ -399,7 +399,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                         <div className="space-y-1">
                             <Label htmlFor="driver_fixed_rate">Tarifa Fixa (R$)</Label>
                             {isEditingSettings ? (
-                               <Input id="driver_fixed_rate" type="number" value={formData.driver_fixed_rate} onChange={handleInputChange} placeholder="25.50" />
+                               <Input id="driver_fixed_rate" type="number" value={formData.driver_fixed_rate || ''} onChange={handleInputChange} placeholder="25.50" />
                             ) : (
                                 <p className="text-sm font-medium p-2">R$ {formData.driver_fixed_rate}</p>
                             )}
@@ -408,7 +408,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                         <div className="space-y-1">
                             <Label htmlFor="driver_km_rate">Tarifa por KM (R$)</Label>
                             {isEditingSettings ? (
-                                <Input id="driver_km_rate" type="number" value={formData.driver_km_rate} onChange={handleInputChange} placeholder="3.50" />
+                                <Input id="driver_km_rate" type="number" value={formData.driver_km_rate || ''} onChange={handleInputChange} placeholder="3.50" />
                             ) : (
                                 <p className="text-sm font-medium p-2">R$ {formData.driver_km_rate} / km</p>
                             )}
@@ -472,4 +472,3 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
     </div>
   );
 }
-
