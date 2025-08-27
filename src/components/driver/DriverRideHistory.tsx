@@ -1,5 +1,3 @@
-
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +29,6 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
-    passenger_anonymous_name?: string;
     expand?: {
         driver?: RecordModel;
         passenger?: RecordModel; // Passenger can be expanded now
@@ -48,7 +45,7 @@ export function DriverRideHistory() {
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
-    const [newRide, setNewRide] = useState({ passenger: 'Passageiro Anônimo', origin: '', destination: '', value: '' });
+    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '' });
     const { toast } = useToast();
     
     const currentUser = pb.authStore.model as UserData | null;
@@ -62,7 +59,7 @@ export function DriverRideHistory() {
         try {
             const driverId = pb.authStore.model.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = '${driverId}'`,
+                filter: `driver = "${driverId}"`,
                 sort: '-created',
                 expand: 'passenger',
             });
@@ -93,7 +90,7 @@ export function DriverRideHistory() {
             [
                 ride.id, 
                 new Date(ride.created).toLocaleDateString('pt-BR'), 
-                ride.started_by === 'driver' ? ride.passenger_anonymous_name : ride.expand?.passenger?.name || 'Passageiro da Plataforma', 
+                ride.expand?.passenger?.name || 'Passageiro Manual', 
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -133,7 +130,7 @@ export function DriverRideHistory() {
         rides.forEach(ride => {
             const rideData = [
                 new Date(ride.created).toLocaleDateString('pt-BR'),
-                ride.started_by === 'driver' ? ride.passenger_anonymous_name : ride.expand?.passenger?.name || 'Passageiro da Plataforma',
+                ride.expand?.passenger?.name || 'Passageiro Manual',
                 `${ride.origin_address} -> ${ride.destination_address}`,
                 `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                 ride.status,
@@ -186,13 +183,12 @@ export function DriverRideHistory() {
                 status: 'completed',
                 started_by: 'driver',
                 is_negotiated: false,
-                passenger_anonymous_name: newRide.passenger || 'Passageiro Anônimo',
             };
             await pb.collection('rides').create(data);
 
             toast({ title: 'Corrida Registrada!', description: 'A nova corrida foi adicionada ao seu histórico.' });
             fetchRides(); // Re-fetch the list
-            setNewRide({ passenger: 'Passageiro Anônimo', origin: '', destination: '', value: '' });
+            setNewRide({ origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
         } catch (error) {
             console.error("Failed to create manual ride:", error);
@@ -247,7 +243,7 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.started_by === 'driver' ? ride.passenger_anonymous_name : ride.expand?.passenger?.name || 'Passageiro'}
+                           {ride.expand?.passenger?.name || 'Passageiro Manual'}
                            {ride.started_by === 'driver' && (
                                <TooltipProvider>
                                    <Tooltip>
@@ -255,7 +251,7 @@ export function DriverRideHistory() {
                                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                        </TooltipTrigger>
                                        <TooltipContent>
-                                           <p>Corrida registrada manualmente pelo motorista.</p>
+                                           <p>Corrida registrada manualmente por você.</p>
                                        </TooltipContent>
                                    </Tooltip>
                                </TooltipProvider>
@@ -298,10 +294,6 @@ export function DriverRideHistory() {
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
-                                <div className="space-y-1">
-                                    <Label htmlFor="passenger-name">Nome do Passageiro (Opcional)</Label>
-                                    <Input id="passenger-name" value={newRide.passenger} onChange={(e) => setNewRide(prev => ({ ...prev, passenger: e.target.value }))} placeholder="Passageiro Anônimo" />
-                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <Label htmlFor="origin-location">Local de Partida</Label>
