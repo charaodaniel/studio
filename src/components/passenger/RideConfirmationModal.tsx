@@ -56,11 +56,12 @@ export default function RideConfirmationModal({
         }
 
         const data: { [key: string]: any } = {
+            // Ensure required fields have default values
             status: "requested",
             started_by: "passenger",
             is_negotiated: isNegotiated,
-            origin_address: origin,
-            destination_address: destination,
+            origin_address: origin || 'Não informado',
+            destination_address: destination || 'Não informado',
             passenger: pb.authStore.model.id,
             target_driver: driver.id,
             fare: isNegotiated ? 0 : calculatedFare,
