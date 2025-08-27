@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import type { jsPDF as jsPDFType } from 'jspdf';
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +32,7 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
+    passenger_anonymous_name?: string;
     expand?: {
         driver?: RecordModel;
         passenger?: RecordModel; // Passenger can be expanded now
@@ -125,45 +128,112 @@ export function DriverRideHistory() {
 
     const handleExportPDF = () => {
         const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+        
+        const drawLogo = () => {
+            doc.setFillColor(37, 99, 235); // Primary blue
+            doc.rect(14, 15, 10, 10, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(37, 99, 235);
+            doc.text("RideLink", 28, 22);
+        };
+
+        const drawHeader = () => {
+            drawLogo();
+            doc.setFontSize(18);
+            doc.setTextColor(40);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Relatório de Corridas", pageWidth - 14, 22, { align: 'right' });
+            doc.setDrawColor(200);
+            doc.line(14, 30, pageWidth - 14, 30);
+        };
+
+        const drawFooter = () => {
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Página ${i} de ${pageCount}`,
+                    pageWidth / 2,
+                    pageHeight - 10,
+                    { align: 'center' }
+                );
+                doc.text(
+                    `Emitido em: ${new Date().toLocaleString('pt-BR')}`,
+                    pageWidth - 14,
+                    pageHeight - 10,
+                    { align: 'right' }
+                );
+            }
+        };
+
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
-        const tableRows: (string | null)[][] = [];
-
-        rides.forEach(ride => {
-            const rideData = [
-                new Date(ride.created).toLocaleDateString('pt-BR'),
-                ride.expand?.passenger?.name || 'Passageiro Manual',
-                `${ride.origin_address} -> ${ride.destination_address}`,
-                `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
-                ride.status,
-            ];
-            tableRows.push(rideData);
-        });
-
-        // Header
-        doc.setFontSize(18);
-        doc.text("Relatório de Corridas", 14, 22);
-        doc.setFontSize(11);
-        doc.text(`Motorista: ${currentUser?.name || 'N/A'}`, 14, 32);
-        doc.text(`CNPJ Motorista: ${currentUser?.driver_cnpj || 'N/A'}`, 14, 38);
-        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 44);
-
-        doc.setFontSize(11);
-        doc.text(`Plataforma: ${appData.name}`, 140, 32);
-        doc.text(`CNPJ Plataforma: ${appData.cnpj}`, 140, 38);
-
-        // Summary
-        doc.setFontSize(12);
-        doc.text("Resumo do Período", 14, 56);
-        doc.setFontSize(11);
-        doc.text(`Total de Corridas: ${summary.totalRides}`, 14, 62);
-        doc.text(`Valor Total: R$ ${summary.totalValue}`, 14, 68);
-
+        const tableRows: (string | null)[][] = rides.map(ride => [
+            new Date(ride.created).toLocaleDateString('pt-BR'),
+            ride.expand?.passenger?.name || 'Passageiro Manual',
+            `${ride.origin_address} -> ${ride.destination_address}`,
+            `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+            ride.status,
+        ]);
+        
         (doc as any).autoTable({
-            startY: 75, head: [tableColumn], body: tableRows, theme: 'striped', headStyles: { fillColor: [37, 99, 235] },
+            head: [tableColumn],
+            body: tableRows,
+            startY: 75,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [41, 121, 255], // Primary color
+                textColor: 255,
+                fontStyle: 'bold',
+            },
+            styles: {
+                cellPadding: 3,
+                fontSize: 9,
+            },
+            columnStyles: {
+                3: { halign: 'right' }
+            },
+            didDrawPage: (data: any) => {
+                drawHeader();
+            }
         });
 
+        const finalY = (doc as any).lastAutoTable.finalY;
+
+        // Driver and Company Info
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text("INFORMAÇÕES DO MOTORISTA", 14, 40);
+        doc.setFontSize(9);
+        doc.text(`Nome: ${currentUser?.name || 'N/A'}`, 14, 45);
+        doc.text(`CNPJ: ${currentUser?.driver_cnpj || 'N/A'}`, 14, 50);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text("INFORMAÇÕES DA PLATAFORMA", pageWidth - 14, 40, { align: 'right' });
+        doc.setFontSize(9);
+        doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
+        doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
+
+        // Summary Section
+        doc.setFontSize(12);
+        doc.setTextColor(40);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Resumo do Período", 14, 65);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(`Total de Corridas Concluídas: ${summary.totalRides}`, 14, 70);
+        doc.text(`Valor Total Arrecadado: R$ ${summary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
+
+
+        drawFooter();
         doc.save("relatorio_corridas_ridelink.pdf");
-    }
+    };
+
 
     const handleAddNewRide = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -382,3 +452,4 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
