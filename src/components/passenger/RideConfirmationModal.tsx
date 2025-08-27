@@ -48,34 +48,34 @@ export default function RideConfirmationModal({
         if (!pb.authStore.model) {
             toast({
                 variant: 'destructive',
-                title: 'Erro',
-                description: 'Você precisa estar logado para confirmar.',
+                title: 'Erro de Autenticação',
+                description: 'Você precisa estar logado para confirmar uma corrida.',
             });
             setIsLoading(false);
             return;
         }
 
-        const data: { [key: string]: any } = {
-            status: "requested",
-            is_negotiated: !!isNegotiated,
-            started_by: "passenger",
+        if (!origin || !destination) {
+            toast({
+                variant: 'destructive',
+                title: 'Dados Incompletos',
+                description: 'Os campos de origem e destino são obrigatórios.',
+            });
+            setIsLoading(false);
+            return;
+        }
+
+        const data = {
+            passenger: pb.authStore.model.id,
+            driver: driver.id,
             origin_address: origin,
             destination_address: destination,
+            status: "requested",
+            is_negotiated: isNegotiated,
+            fare: isNegotiated ? 0 : (calculatedFare || 0),
+            started_by: "passenger",
+            distance_km: isNegotiated ? 0 : distance,
         };
-
-        if (pb.authStore.model.id) {
-            data.passenger = pb.authStore.model.id;
-        }
-
-        if (driver?.id) {
-             data.driver = driver.id; // Corrected field name from target_driver
-        }
-        
-        data.fare = isNegotiated ? 0 : (calculatedFare || 0);
-
-        if(!isNegotiated) {
-            data.distance_km = distance;
-        }
 
         try {
             const record = await pb.collection('rides').create(data);
@@ -86,7 +86,7 @@ export default function RideConfirmationModal({
             });
             onConfirm(record.id);
         } catch (error: any) {
-            console.error("Failed to create ride:", error);
+            console.error("Failed to create ride:", error.data || error);
             const errorMessage = error.data?.message || "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.";
             toast({
                 variant: "destructive",
@@ -150,3 +150,4 @@ export default function RideConfirmationModal({
         </Dialog>
     );
 }
+
