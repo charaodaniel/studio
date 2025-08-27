@@ -40,7 +40,7 @@ interface RideRecord extends RecordModel {
 }
 
 const appData = {
-    name: "RideLink",
+    name: "CEOLIN Mobilidade Urbana",
     cnpj: "99.999.999/0001-99"
 }
 
@@ -109,7 +109,7 @@ export function DriverRideHistory() {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "historico_corridas_ridelink.csv");
+        link.setAttribute("download", "historico_corridas_ceolin.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -137,7 +137,7 @@ export function DriverRideHistory() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(16);
             doc.setTextColor(37, 99, 235);
-            doc.text("RideLink", 28, 22);
+            doc.text("CEOLIN", 28, 22);
         };
 
         const drawHeader = () => {
@@ -231,7 +231,7 @@ export function DriverRideHistory() {
 
 
         drawFooter();
-        doc.save("relatorio_corridas_ridelink.pdf");
+        doc.save("relatorio_corridas_ceolin.pdf");
     };
 
 
@@ -452,4 +452,5 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
 
