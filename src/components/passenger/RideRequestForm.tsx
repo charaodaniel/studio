@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -51,18 +52,15 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousP
                 origin_address: origin,
                 destination_address: destination,
                 status: "requested",
-                fare: isNegotiated ? 0 : 25.50, // Example fare
-                is_negotiated: isNegotiated,
                 started_by: "passenger",
+                is_negotiated: isNegotiated,
+                passenger: pb.authStore.model?.id || null,
+                passenger_anonymous_name: anonymousPassengerName
             };
 
-            // Conditionally add passenger information
-            if (isLoggedIn && pb.authStore.model) {
-                data.passenger = pb.authStore.model.id;
-                data.passenger_anonymous_name = null;
-            } else {
-                data.passenger = null;
-                data.passenger_anonymous_name = anonymousPassengerName || "Passageiro Anônimo";
+            // Only add fare if it's not a negotiated ride
+            if (!isNegotiated) {
+                data.fare = 25.50; // Example fare
             }
             
             console.log("Creating ride with data:", data);
