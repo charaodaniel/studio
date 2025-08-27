@@ -32,10 +32,11 @@ Acesse a coleção `rides` e clique em **"Edit collection"**. Adicione os seguin
 
 1.  **`created`**:
     *   Tipo: `Date`
-    *   No painel do PocketBase, marque a opção para preencher este campo automaticamente na criação do registro.
+    *   **Como configurar:** No painel do PocketBase, marque a opção para preencher este campo automaticamente **apenas na criação** do registro. Não é necessário marcar como "Required" (Não vazio).
+
 2.  **`updated`**:
     *   Tipo: `Date`
-    *   No painel do PocketBase, marque a opção para preencher este campo automaticamente na criação e atualização do registro.
+    *   **Como configurar:** No painel do PocketBase, marque a opção para preencher este campo automaticamente **na criação e na atualização** do registro. Não é necessário marcar como "Required" (Não vazio).
 
 Vá para a aba **"API Rules"** e aplique as seguintes regras.
 
