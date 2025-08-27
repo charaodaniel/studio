@@ -55,20 +55,29 @@ export default function RideConfirmationModal({
             return;
         }
 
-        const data = {
-            passenger: pb.authStore.model.id,
-            target_driver: driver.id,
+        const data: { [key: string]: any } = {
+            status: "requested",
+            is_negotiated: !!isNegotiated,
+            started_by: "passenger",
             origin_address: origin,
             destination_address: destination,
-            status: "requested",
-            is_negotiated: isNegotiated,
-            started_by: "passenger",
-            fare: isNegotiated ? 0 : calculatedFare,
-            distance_km: isNegotiated ? 0 : distance,
         };
 
+        if (pb.authStore.model.id) {
+            data.passenger = pb.authStore.model.id;
+        }
+
+        if (driver?.id) {
+             data.driver = driver.id; // Corrected field name from target_driver
+        }
+        
+        data.fare = isNegotiated ? 0 : (calculatedFare || 0);
+
+        if(!isNegotiated) {
+            data.distance_km = distance;
+        }
+
         try {
-            console.log("Creating ride with data:", data);
             const record = await pb.collection('rides').create(data);
             
             toast({
@@ -76,12 +85,13 @@ export default function RideConfirmationModal({
                 description: `Sua solicitação foi enviada para ${driver.name}.`,
             });
             onConfirm(record.id);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create ride:", error);
+            const errorMessage = error.data?.message || "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.";
             toast({
                 variant: "destructive",
                 title: "Erro ao Solicitar Corrida",
-                description: "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.",
+                description: errorMessage,
             });
         } finally {
             setIsLoading(false);
