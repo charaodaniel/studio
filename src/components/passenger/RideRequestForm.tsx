@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Locate, Users, ArrowRight, Loader2 } from 'lucide-react';
+import { MapPin, Locate, Users, ArrowRight, Loader2, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState } from 'react';
@@ -16,19 +16,23 @@ import { useToast } from '@/hooks/use-toast';
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
   isSearching: boolean;
+  anonymousPassengerName: string | null;
 }
 
-export default function RideRequestForm({ onRideRequest, isSearching }: RideRequestFormProps) {
+export default function RideRequestForm({ onRideRequest, isSearching, anonymousPassengerName }: RideRequestFormProps) {
     const [origin, setOrigin] = useState('Rua Principal, 123');
     const [destination, setDestination] = useState('Shopping da Cidade');
     const { toast } = useToast();
 
+    const isLoggedIn = pb.authStore.isValid;
+
     const handleCreateRide = async (isNegotiated = false) => {
-        if (!pb.authStore.isValid) {
+        // A user must be logged in OR have provided an anonymous name
+        if (!isLoggedIn && !anonymousPassengerName) {
             toast({
                 variant: "destructive",
-                title: "Login Necessário",
-                description: "Você precisa fazer login para solicitar uma corrida.",
+                title: "Identificação Necessária",
+                description: "Por favor, faça login ou use a opção de corrida rápida para se identificar.",
             });
             return;
         }
@@ -44,7 +48,8 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
 
         try {
             const data = {
-                passenger: pb.authStore.model?.id,
+                passenger: isLoggedIn ? pb.authStore.model?.id : null,
+                passenger_anonymous_name: !isLoggedIn ? anonymousPassengerName : null,
                 origin_address: origin,
                 destination_address: destination,
                 status: "requested",
@@ -76,6 +81,12 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Onde vamos hoje?</CardTitle>
         <CardDescription>Solicite uma corrida com facilidade e segurança.</CardDescription>
+        {anonymousPassengerName && (
+            <div className="!mt-4 p-2 text-sm bg-blue-50 border border-blue-200 text-blue-800 rounded-md flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span>Viajando como: <strong>{anonymousPassengerName}</strong></span>
+            </div>
+        )}
       </CardHeader>
       <CardContent className="flex-grow">
         <Tabs defaultValue="local" className="w-full">
