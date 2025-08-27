@@ -34,9 +34,9 @@ Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"
 
 *   **List rule:**
     ```js
-    @request.auth.id != ""
+    @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
     ```
-    *Permite que usuários logados listem corridas. A lógica de filtrar corridas por passageiro/motorista é feita no frontend.*
+    *Permite que um usuário liste apenas as corridas nas quais ele é passageiro ou motorista, ou se for Admin/Atendente.*
 
 *   **View rule:**
     ```js
