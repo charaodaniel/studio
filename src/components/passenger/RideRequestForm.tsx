@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MapPin, Locate, Users, ArrowRight, Loader2, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,8 +21,13 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
     const [origin, setOrigin] = useState('Rua Principal, 123');
     const [destination, setDestination] = useState('Shopping da Cidade');
     const { toast } = useToast();
+    const [isClient, setIsClient] = useState(false);
 
-    const isLoggedIn = pb.authStore.isValid;
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    const isLoggedIn = isClient && pb.authStore.isValid;
 
     const handleCreateRide = async (isNegotiated = false) => {
         if (!isLoggedIn) {
@@ -51,8 +56,12 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                 status: "requested",
                 started_by: "passenger",
                 is_negotiated: isNegotiated,
-                passenger: pb.authStore.model?.id,
             };
+
+            // Only add passenger if logged in
+            if (isLoggedIn) {
+                data.passenger = pb.authStore.model?.id;
+            }
 
             // Only add fare if it's not a negotiated ride
             if (!isNegotiated) {
