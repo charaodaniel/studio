@@ -93,7 +93,7 @@ export function DriverRideHistory() {
         const rows = rides.map(ride => 
             [
                 ride.id, 
-                new Date(ride.created).toLocaleDateString('pt-BR'), 
+                new Date(ride.updated).toLocaleDateString('pt-BR'), 
                 ride.expand?.passenger?.name || 'Passageiro Manual', 
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -169,35 +169,13 @@ export function DriverRideHistory() {
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
-            new Date(ride.created).toLocaleDateString('pt-BR'),
+            new Date(ride.updated).toLocaleDateString('pt-BR'),
             ride.expand?.passenger?.name || 'Passageiro Manual',
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
             ride.status,
         ]);
         
-        (doc as any).autoTable({
-            head: [tableColumn],
-            body: tableRows,
-            startY: 75,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [41, 121, 255], // Primary color
-                textColor: 255,
-                fontStyle: 'bold',
-            },
-            styles: {
-                cellPadding: 3,
-                fontSize: 9,
-            },
-            columnStyles: {
-                3: { halign: 'right' }
-            },
-            didDrawPage: (data: any) => {
-                drawHeader();
-            }
-        });
-
         // Driver and Company Info
         doc.setFontSize(10);
         doc.setTextColor(100);
@@ -223,6 +201,27 @@ export function DriverRideHistory() {
         doc.text(`Total de Corridas Concluídas: ${summary.totalRides}`, 14, 70);
         doc.text(`Valor Total Arrecadado: R$ ${summary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
 
+        (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 75,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [41, 121, 255], // Primary color
+                textColor: 255,
+                fontStyle: 'bold',
+            },
+            styles: {
+                cellPadding: 3,
+                fontSize: 9,
+            },
+            columnStyles: {
+                3: { halign: 'right' }
+            },
+            didDrawPage: (data: any) => {
+                drawHeader();
+            }
+        });
 
         drawFooter();
         doc.save("relatorio_corridas_ceolin.pdf");
@@ -322,7 +321,7 @@ export function DriverRideHistory() {
                                </TooltipProvider>
                            )}
                         </div>
-                        <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleDateString('pt-BR')}</div>
+                        <div className="text-sm text-muted-foreground">{new Date(ride.updated).toLocaleDateString('pt-BR')}</div>
                     </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
@@ -446,6 +445,7 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
 
 
 
