@@ -24,16 +24,32 @@ export function DriverProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+  const [completedRidesCount, setCompletedRidesCount] = useState<number | null>(null);
   
   useEffect(() => {
-    const fetchUser = () => {
+    const fetchUserAndRides = async () => {
       const currentUser = pb.authStore.model as User | null;
       setUser(currentUser);
+
+      if (currentUser) {
+        try {
+          // Fetch only the count of completed rides for performance
+          const result = await pb.collection('rides').getList(1, 1, {
+            filter: `driver = "${currentUser.id}" && status = "completed"`,
+          });
+          setCompletedRidesCount(result.totalItems);
+        } catch (error) {
+          console.error("Failed to fetch rides count:", error);
+          setCompletedRidesCount(0); // Set to 0 on error
+        }
+      }
+      
       setIsLoading(false);
     };
     
-    fetchUser();
-    const unsubscribe = pb.authStore.onChange(fetchUser, true);
+    fetchUserAndRides();
+    
+    const unsubscribe = pb.authStore.onChange(fetchUserAndRides, true);
 
     return () => {
       unsubscribe();
@@ -140,7 +156,9 @@ export function DriverProfilePage() {
           <h2 className="font-headline text-2xl font-semibold">{user?.name || 'Motorista'}</h2>
           <div className="flex items-center justify-center gap-1 text-muted-foreground">
             <Star className="w-4 h-4 fill-primary text-primary" />
-            <span>4.9 (238 corridas)</span>
+            <span>
+                4.9 ({completedRidesCount === null ? '...' : completedRidesCount} corrida{completedRidesCount !== 1 ? 's' : ''})
+            </span>
           </div>
         </div>
         <div className="w-48">
