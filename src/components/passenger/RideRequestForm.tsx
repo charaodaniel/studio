@@ -27,7 +27,6 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousP
     const isLoggedIn = pb.authStore.isValid;
 
     const handleCreateRide = async (isNegotiated = false) => {
-        // A user must be logged in OR have provided an anonymous name
         if (!isLoggedIn && !anonymousPassengerName) {
             toast({
                 variant: "destructive",
@@ -47,9 +46,8 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousP
         }
 
         try {
-            const data = {
-                passenger: isLoggedIn ? pb.authStore.model?.id : null,
-                passenger_anonymous_name: isLoggedIn ? null : (anonymousPassengerName || "Passageiro Anônimo"),
+            // Base data object
+            const data: any = {
                 origin_address: origin,
                 destination_address: destination,
                 status: "requested",
@@ -58,6 +56,13 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousP
                 started_by: "passenger",
             };
 
+            // Conditionally add passenger information
+            if (isLoggedIn && pb.authStore.model) {
+                data.passenger = pb.authStore.model.id;
+            } else {
+                data.passenger_anonymous_name = anonymousPassengerName || "Passageiro Anônimo";
+            }
+            
             const record = await pb.collection('rides').create(data);
             toast({
                 title: "Corrida Solicitada!",
