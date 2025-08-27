@@ -64,7 +64,7 @@ export function DriverRideHistory() {
             const driverId = pb.authStore.model.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
-                sort: '-id',
+                sort: '-created',
                 expand: 'passenger',
             });
             setRides(result);
@@ -93,7 +93,7 @@ export function DriverRideHistory() {
         const rows = rides.map(ride => 
             [
                 ride.id, 
-                new Date(ride.updated).toLocaleDateString('pt-BR'), 
+                new Date(ride.created).toLocaleDateString('pt-BR'), 
                 ride.expand?.passenger?.name || 'Passageiro Manual', 
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -169,7 +169,7 @@ export function DriverRideHistory() {
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
-            new Date(ride.updated).toLocaleDateString('pt-BR'),
+            new Date(ride.created).toLocaleDateString('pt-BR'),
             ride.expand?.passenger?.name || 'Passageiro Manual',
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
@@ -321,7 +321,7 @@ export function DriverRideHistory() {
                                </TooltipProvider>
                            )}
                         </div>
-                        <div className="text-sm text-muted-foreground">{new Date(ride.updated).toLocaleDateString('pt-BR')}</div>
+                        <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleDateString('pt-BR')}</div>
                     </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
@@ -445,8 +445,4 @@ export function DriverRideHistory() {
     </div>
   );
 }
-
-
-
-
 

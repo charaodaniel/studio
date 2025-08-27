@@ -41,7 +41,7 @@ export function PassengerRideHistory() {
             const passengerId = pb.authStore.model.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `passenger = "${passengerId}"`,
-                sort: '-id',
+                sort: '-created',
                 expand: 'driver',
             });
             setRides(result);
@@ -114,7 +114,7 @@ export function PassengerRideHistory() {
                             <Car className="h-3 w-3" />
                             {ride.expand?.driver?.name || "Motorista não definido"}
                             </div>
-                            <div className="text-sm text-muted-foreground">{new Date(ride.updated).toLocaleDateString('pt-BR')}</div>
+                            <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleDateString('pt-BR')}</div>
                         </TableCell>
                         <TableCell>
                             <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>

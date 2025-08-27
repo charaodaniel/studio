@@ -275,7 +275,7 @@
         "id": "8zkskfgq",
         "name": "origin_address",
         "type": "text",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -289,7 +289,7 @@
         "id": "v3hdlqam",
         "name": "destination_address",
         "type": "text",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -303,7 +303,7 @@
         "id": "i4luhpga",
         "name": "status",
         "type": "select",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -322,7 +322,7 @@
         "id": "y9x5n6od",
         "name": "fare",
         "type": "number",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -336,7 +336,7 @@
         "id": "7v9kpxf4",
         "name": "is_negotiated",
         "type": "bool",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {}
@@ -346,7 +346,7 @@
         "id": "m11ddf4a",
         "name": "started_by",
         "type": "select",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -359,37 +359,21 @@
       },
       {
         "system": false,
-        "id": "asdf1234",
-        "name": "target_driver",
-        "type": "relation",
+        "id": "afk13fkasd",
+        "name": "passenger_anonymous_name",
+        "type": "text",
         "required": false,
         "presentable": false,
         "unique": false,
         "options": {
-          "collectionId": "_pb_users_auth_",
-          "cascadeDelete": false,
-          "minSelect": null,
-          "maxSelect": 1,
-          "displayFields": null
-        }
-      },
-      {
-        "system": false,
-        "id": "qwerty1234",
-        "name": "distance_km",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-            "min": null,
-            "max": null,
-            "noDecimal": false
+          "min": null,
+          "max": null,
+          "pattern": ""
         }
       }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != \"\"",
+    "listRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
     "viewRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
     "createRule": "@request.auth.id != \"\"",
     "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
@@ -407,13 +391,13 @@
         "id": "0otzua7m",
         "name": "participants",
         "type": "relation",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
           "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
-          "minSelect": null,
+          "minSelect": 2,
           "maxSelect": 2,
           "displayFields": null
         }
@@ -468,7 +452,7 @@
         "id": "xsv6a4m9",
         "name": "chat",
         "type": "relation",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -484,7 +468,7 @@
         "id": "z8vrflgn",
         "name": "sender",
         "type": "relation",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -500,7 +484,7 @@
         "id": "xewd5s9m",
         "name": "text",
         "type": "text",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -529,7 +513,7 @@
         "id": "iynm4nct",
         "name": "driver",
         "type": "relation",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -545,7 +529,7 @@
         "id": "7y7qg6sa",
         "name": "document_type",
         "type": "select",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -562,7 +546,7 @@
         "id": "89kifvto",
         "name": "file",
         "type": "file",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -607,7 +591,7 @@
         "id": "tazdwfll",
         "name": "driver",
         "type": "relation",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
@@ -623,7 +607,7 @@
         "id": "c76b9gvv",
         "name": "status",
         "type": "text",
-        "required": false,
+        "required": true,
         "presentable": false,
         "unique": false,
         "options": {
