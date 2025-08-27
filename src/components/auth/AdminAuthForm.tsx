@@ -78,8 +78,8 @@ export default function AdminAuthForm() {
   return (
     <>
       <DialogHeader className="p-6 text-center">
-        <div className="flex justify-center mb-4">
-          <Logo className="h-10 w-10 text-primary" />
+        <div className="flex justify-center mb-4 w-32 mx-auto">
+          <Logo />
         </div>
         <DialogTitle className="font-headline text-2xl">Acesso Administrativo</DialogTitle>
         <DialogDescription>Faça login com sua conta de administrador.</DialogDescription>

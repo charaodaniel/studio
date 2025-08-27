@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -109,8 +110,8 @@ export default function DriverAuthForm() {
   return (
     <>
        <DialogHeader className="p-6">
-        <div className="flex justify-center mb-4">
-            <Logo className="h-10 w-10 text-primary" />
+        <div className="flex justify-center mb-4 w-32 mx-auto">
+            <Logo />
         </div>
         <DialogTitle className="font-headline text-2xl text-center">Acesso do Motorista</DialogTitle>
         <DialogDescription className="text-center">Faça login ou crie uma conta para começar a dirigir.</DialogDescription>

@@ -1,18 +1,24 @@
-import type { SVGProps } from 'react';
+import Image from 'next/image';
+import type { ComponentProps } from 'react';
 
-export default function Logo(props: SVGProps<SVGSVGElement>) {
+// Omit 'src' and 'alt' to enforce them, and allow other Image props to be passed.
+type LogoProps = Omit<ComponentProps<typeof Image>, 'src' | 'alt'> & {
+  alt?: string;
+};
+
+
+export default function Logo({ alt = "CEOLIN Mobilidade Urbana Logo", ...props }: LogoProps) {
+  // Default width and height can be provided, but can be overridden by props
+  const { width = 150, height = 150, ...rest } = props;
+    
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M8 3l-6 11h4.5l-3 7 11-15H10L14 3z" fill="hsl(var(--primary))" />
-    </svg>
+    <Image
+      src="/logo.png"
+      alt={alt}
+      width={width}
+      height={height}
+      priority // The logo is likely LCP, so we prioritize its loading
+      {...rest}
+    />
   );
 }

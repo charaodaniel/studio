@@ -15,6 +15,7 @@ import {
 import AdminAuthForm from '../auth/AdminAuthForm';
 import DriverAuthForm from '../auth/DriverAuthForm';
 import { useState, useEffect } from 'react';
+import Logo from './Logo';
 
 // Define the interface for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -83,18 +84,17 @@ export function AppHeader({
             />
             <AvatarFallback>C</AvatarFallback>
           </Avatar>
-          <span className="font-headline text-lg font-semibold sm:inline">
-            CEOLIN
-          </span>
+          <div className="w-28">
+            <Logo />
+          </div>
         </Link>
       );
     }
     return (
-      <Link href="/" className="flex items-center gap-2">
-        <Rocket className="h-6 w-6 text-primary" />
-        <span className="font-headline text-lg font-semibold sm:inline">
-          CEOLIN Mobilidade Urbana
-        </span>
+       <Link href="/" className="flex items-center">
+        <div className="w-36">
+           <Logo />
+        </div>
       </Link>
     );
   };
