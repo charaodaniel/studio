@@ -1,3 +1,4 @@
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,7 @@ interface RideRecord extends RecordModel {
 }
 
 const appData = {
-    name: "CEOLIN Mobilidade Urbana",
+    name: "RideLink",
     cnpj: "99.999.999/0001-99"
 }
 
@@ -51,7 +52,7 @@ export function DriverRideHistory() {
     const currentUser = pb.authStore.model as UserData | null;
 
     const fetchRides = useCallback(async () => {
-        if (!pb.authStore.model) return;
+        if (!pb.authStore.isValid || !pb.authStore.model?.id) return;
         
         setIsLoading(true);
         setError(null);
@@ -105,7 +106,7 @@ export function DriverRideHistory() {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "historico_corridas_ceolin.csv");
+        link.setAttribute("download", "historico_corridas_ridelink.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -161,7 +162,7 @@ export function DriverRideHistory() {
             startY: 75, head: [tableColumn], body: tableRows, theme: 'striped', headStyles: { fillColor: [37, 99, 235] },
         });
 
-        doc.save("relatorio_corridas_ceolin.pdf");
+        doc.save("relatorio_corridas_ridelink.pdf");
     }
 
     const handleAddNewRide = async (e: React.FormEvent) => {

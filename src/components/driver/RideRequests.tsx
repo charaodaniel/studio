@@ -93,9 +93,11 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     const [passengerOnBoard, setPassengerOnBoard] = useState(false);
 
     const fetchRequests = useCallback(async () => {
-        if (!pb.authStore.model) return;
+        if (!pb.authStore.isValid || !pb.authStore.model?.id) return;
+        
         setIsLoading(true);
         setError(null);
+        
         try {
             // Find rides requested for this specific driver
             const driverId = pb.authStore.model.id;
