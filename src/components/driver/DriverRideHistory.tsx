@@ -61,7 +61,7 @@ export function DriverRideHistory() {
             const driverId = pb.authStore.model.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
-                sort: '-updated',
+                sort: '-id',
                 expand: 'passenger',
             });
             setRides(result);
