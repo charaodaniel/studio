@@ -44,6 +44,19 @@ const appData = {
     cnpj: "99.999.999/0001-99"
 }
 
+// Function to load the logo image and convert it to Base64
+const getLogoBase64 = async (): Promise<string> => {
+    const response = await fetch('/logo.png');
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
+
 export function DriverRideHistory() {
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [rides, setRides] = useState<RideRecord[]>([]);
@@ -126,22 +139,16 @@ export function DriverRideHistory() {
 
     const summary = calculateSummary();
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         
-        const drawLogo = () => {
-            doc.setFillColor(37, 99, 235); // Primary blue
-            doc.rect(14, 15, 10, 10, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.setTextColor(37, 99, 235);
-            doc.text("CEOLIN", 28, 22);
-        };
+        const logoBase64 = await getLogoBase64();
 
         const drawHeader = () => {
-            drawLogo();
+            doc.addImage(logoBase64, 'PNG', 14, 15, 30, 10);
+            
             doc.setFontSize(18);
             doc.setTextColor(40);
             doc.setFont('helvetica', 'bold');
@@ -452,5 +459,6 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
 
 
