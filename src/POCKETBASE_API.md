@@ -28,7 +28,16 @@ Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"
 
 ## 2. Coleção: `rides`
 
-Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras.
+Acesse a coleção `rides` e clique em **"Edit collection"**. Adicione os seguintes campos ao schema para garantir a ordenação correta do histórico:
+
+1.  **`created`**:
+    *   Tipo: `Date`
+    *   No painel do PocketBase, marque a opção para preencher este campo automaticamente na criação do registro.
+2.  **`updated`**:
+    *   Tipo: `Date`
+    *   No painel do PocketBase, marque a opção para preencher este campo automaticamente na criação e atualização do registro.
+
+Vá para a aba **"API Rules"** e aplique as seguintes regras.
 
 #### **Regras de API**
 

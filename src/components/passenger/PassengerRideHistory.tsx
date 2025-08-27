@@ -20,6 +20,8 @@ interface RideRecord extends RecordModel {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
+    created: string;
+    updated: string;
     expand?: {
         driver?: RecordModel;
     }
