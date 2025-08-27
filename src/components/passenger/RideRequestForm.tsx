@@ -49,7 +49,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousP
         try {
             const data = {
                 passenger: isLoggedIn ? pb.authStore.model?.id : null,
-                passenger_anonymous_name: !isLoggedIn ? anonymousPassengerName : null,
+                passenger_anonymous_name: isLoggedIn ? null : (anonymousPassengerName || "Passageiro Anônimo"),
                 origin_address: origin,
                 destination_address: destination,
                 status: "requested",
