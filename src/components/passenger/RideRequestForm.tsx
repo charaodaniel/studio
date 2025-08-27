@@ -39,30 +39,21 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             return;
         }
 
-        if (!origin || !destination) {
-             toast({
-                variant: "destructive",
-                title: "Campos Obrigatórios",
-                description: "Por favor, preencha a origem e o destino.",
-            });
-            return;
+        const data: any = {
+            status: "requested",
+            started_by: "passenger",
+            is_negotiated: isNegotiated,
+            passenger: pb.authStore.model?.id,
+            origin_address: origin,
+            destination_address: destination,
+        };
+
+        // Only add fare if it's not a negotiated ride
+        if (!isNegotiated) {
+            data.fare = 25.50; // Example fare
         }
-
+        
         try {
-            const data: any = {
-                origin_address: origin,
-                destination_address: destination,
-                status: "requested",
-                started_by: "passenger",
-                is_negotiated: isNegotiated,
-                passenger: pb.authStore.model?.id,
-            };
-
-            // Only add fare if it's not a negotiated ride
-            if (!isNegotiated) {
-                data.fare = 25.50; // Example fare
-            }
-            
             console.log("Creating ride with data:", data);
             const record = await pb.collection('rides').create(data);
 
@@ -149,10 +140,10 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             </div>
              <Dialog>
                 <DialogTrigger asChild>
-                    <Button className="w-full" size="lg" disabled={!isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    <Button className="w-full" size="lg" disabled={!isLoggedIn} onClick={() => handleCreateRide(true)}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
-                   <DriverListModal onSelectDriver={() => handleCreateRide(true)}/>
+                   <DriverListModal onSelectDriver={() => { /* This can be adjusted if selecting a driver should do something different */ }}/>
                 </DialogContent>
             </Dialog>
           </TabsContent>
