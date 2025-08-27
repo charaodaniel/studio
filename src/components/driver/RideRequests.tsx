@@ -27,7 +27,7 @@ interface RideRecord extends RecordModel {
     }
 }
 
-const RideRequestCard = ({ ride, onAccept, onReject }: { ride: RideRecord, onAccept: (ride: RideRecord) => void, onReject: (rideId: string) => void }) => {
+const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecord, onAccept: (ride: RideRecord) => void, onReject: (rideId: string) => void, chatId: string | null }) => {
     return (
         <Card className={ride.is_negotiated ? 'border-primary' : ''}>
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
@@ -55,8 +55,10 @@ const RideRequestCard = ({ ride, onAccept, onReject }: { ride: RideRecord, onAcc
                 </div>
             </CardContent>
             <CardFooter className="grid grid-cols-2 gap-2">
-                {ride.is_negotiated ? (
+                {ride.is_negotiated && chatId ? (
                      <RideChat 
+                        rideId={ride.id}
+                        chatId={chatId}
                         passengerName={ride.expand.passenger.name} 
                         isNegotiation={true}
                         onAcceptRide={() => onAccept(ride)}
@@ -66,7 +68,7 @@ const RideRequestCard = ({ ride, onAccept, onReject }: { ride: RideRecord, onAcc
                             Negociar Valor
                         </Button>
                     </RideChat>
-                ) : (
+                ) : !ride.is_negotiated ? (
                     <>
                         <Button variant="outline" className="w-full" onClick={() => onReject(ride.id)}>
                             <X className="mr-2 h-4 w-4" />
@@ -77,16 +79,21 @@ const RideRequestCard = ({ ride, onAccept, onReject }: { ride: RideRecord, onAcc
                             Aceitar
                         </Button>
                     </>
-                )}
+                ) : null}
 
             </CardFooter>
         </Card>
     );
 }
 
+interface FullRideRequest {
+    ride: RideRecord;
+    chatId: string | null;
+}
+
 export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: string) => void }) {
     const { toast } = useToast();
-    const [requests, setRequests] = useState<RideRecord[]>([]);
+    const [requests, setRequests] = useState<FullRideRequest[]>([]);
     const [acceptedRide, setAcceptedRide] = useState<RideRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -99,14 +106,29 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         setError(null);
         
         try {
-            // Find rides requested for this specific driver
             const driverId = pb.authStore.model.id;
-            const filter = `status = "requested" && driver = "${driverId}"`;
-            const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: filter,
+            const rideFilter = `status = "requested" && driver = "${driverId}"`;
+            const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
+                filter: rideFilter,
                 expand: 'passenger',
             });
-            setRequests(result);
+
+            const fullRequests = await Promise.all(rideRecords.map(async (ride) => {
+                let chatId: string | null = null;
+                if (ride.is_negotiated) {
+                    try {
+                        const chatRecord = await pb.collection('chats').getFirstListItem(`ride="${ride.id}"`);
+                        chatId = chatRecord.id;
+                    } catch (e) {
+                       // Chat might not exist, handle gracefully
+                       console.warn(`Could not find chat for negotiated ride ${ride.id}`);
+                    }
+                }
+                return { ride, chatId };
+            }));
+
+            setRequests(fullRequests);
+
         } catch (err) {
             console.error(err);
             setError("Não foi possível buscar as solicitações de corrida.");
@@ -118,21 +140,18 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     useEffect(() => {
         fetchRequests();
 
-        // Subscribe to real-time updates
         const unsubscribe = pb.collection('rides').subscribe<RideRecord>('*', (e) => {
              const driverId = pb.authStore.model?.id;
              if (!driverId) return;
 
-            // A new ride was created for this driver
             if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
-                 pb.collection('rides').getOne<RideRecord>(e.record.id, { expand: 'passenger' })
-                    .then(fullRecord => {
-                        setRequests(prev => [fullRecord, ...prev]);
-                    });
+                 fetchRequests(); // Re-fetch all to get chat info
             }
-            // A ride was taken by another driver or canceled
             if (e.action === 'update' && e.record.status !== 'requested') {
-                setRequests(prev => prev.filter(r => r.id !== e.record.id));
+                setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
+                 if (acceptedRide?.id === e.record.id) {
+                    setAcceptedRide(null);
+                 }
             }
         });
 
@@ -140,7 +159,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
             pb.collection('rides').unsubscribe('*');
         };
 
-    }, [fetchRequests]);
+    }, [fetchRequests, acceptedRide]);
 
 
     const handleAccept = async (ride: RideRecord) => {
@@ -165,12 +184,13 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     };
     
     const handleReject = async (rideId: string) => {
-        // In a real scenario, you might just ignore it. 
-        // For the prototype, we remove it from the local list.
-        const ride = requests.find(r => r.id === rideId);
-        if (!ride) return;
         toast({ variant: "destructive", title: "Corrida Rejeitada" });
-        setRequests(prev => prev.filter(r => r.id !== rideId));
+        setRequests(prev => prev.filter(r => r.ride.id !== rideId));
+        try {
+            await pb.collection('rides').update(rideId, { status: 'canceled' });
+        } catch (error) {
+            console.error("Failed to update ride to canceled:", error);
+        }
     };
 
     const handlePassengerOnBoard = async () => {
@@ -216,7 +236,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
-                    <RideChat passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
+                    <RideChat rideId={acceptedRide.id} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
                         <Button className="w-full">
                             <MessageSquareQuote className="mr-2 h-4 w-4" />
                             Abrir Chat com {acceptedRide.expand.passenger.name}
@@ -292,10 +312,11 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
             <h3 className="font-headline text-lg">Você tem {requests.length} nova(s) solicitação(ões).</h3>
             <ScrollArea className="h-96">
                 <div className="space-y-4 pr-4">
-                    {requests.map((req) => (
+                    {requests.map(({ ride, chatId }) => (
                         <RideRequestCard 
-                            key={req.id}
-                            ride={req}
+                            key={ride.id}
+                            ride={ride}
+                            chatId={chatId}
                             onAccept={handleAccept}
                             onReject={handleReject}
                         />

@@ -115,11 +115,9 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, onCanc
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-2">
         <Button variant="outline"><Phone className="mr-2"/> Ligar</Button>
-        {chatId && (
-            <RideChat chatId={chatId} passengerName={rideDetails.driverName} isNegotiation={false}>
-              <Button className="w-full"><MessageSquare className="mr-2"/> Mensagem</Button>
-            </RideChat>
-        )}
+        <RideChat rideId={rideId} chatId={chatId} passengerName={rideDetails.driverName} isNegotiation={false}>
+          <Button className="w-full"><MessageSquare className="mr-2"/> Mensagem</Button>
+        </RideChat>
         <Button variant="destructive" className="col-span-2" onClick={onCancel}>
             <Shield className="mr-2"/> Cancelar Corrida
         </Button>

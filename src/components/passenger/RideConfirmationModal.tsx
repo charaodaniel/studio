@@ -45,7 +45,8 @@ export default function RideConfirmationModal({
 
     const handleConfirmRide = async () => {
         setIsLoading(true);
-        if (!pb.authStore.model) {
+        const currentUser = pb.authStore.model;
+        if (!currentUser) {
             toast({
                 variant: 'destructive',
                 title: 'Erro de Autenticação',
@@ -65,29 +66,35 @@ export default function RideConfirmationModal({
             return;
         }
 
-        const data: any = {
-            passenger: pb.authStore.model.id,
-            driver: driver.id,
-            origin_address: origin,
-            destination_address: destination,
-            status: "requested",
-            is_negotiated: isNegotiated,
-            started_by: "passenger",
-            fare: isNegotiated ? 0 : (calculatedFare || 0),
-        };
-
-        if (!isNegotiated) {
-            data.distance_km = distance;
-        }
-
         try {
-            const record = await pb.collection('rides').create(data);
+            // 1. Create the ride record
+            const rideData = {
+                passenger: currentUser.id,
+                driver: driver.id,
+                origin_address: origin,
+                destination_address: destination,
+                status: "requested",
+                is_negotiated: isNegotiated,
+                started_by: "passenger",
+                fare: isNegotiated ? 0 : (calculatedFare || 0),
+            };
+            const rideRecord = await pb.collection('rides').create(rideData);
+
+            // 2. If it's a negotiated ride, also create a chat
+            if (isNegotiated) {
+                await pb.collection('chats').create({
+                    participants: [currentUser.id, driver.id],
+                    ride: rideRecord.id,
+                    last_message: `Solicitação de corrida para: ${destination}`
+                });
+            }
             
             toast({
                 title: "Corrida Solicitada!",
                 description: `Sua solicitação foi enviada para ${driver.name}.`,
             });
-            onConfirm(record.id);
+            onConfirm(rideRecord.id);
+
         } catch (error: any) {
             console.error("Failed to create ride:", error.data || error);
             const errorMessage = error.data?.message || "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.";

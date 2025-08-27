@@ -24,27 +24,56 @@ interface MessageRecord extends RecordModel {
 
 interface RideChatProps {
     children: ReactNode;
-    chatId: string;
+    rideId: string;
+    chatId: string | null;
     passengerName: string;
     isNegotiation: boolean;
     isReadOnly?: boolean;
     onAcceptRide?: () => void;
 }
 
-export function RideChat({ children, chatId, passengerName, isNegotiation, isReadOnly = false, onAcceptRide }: RideChatProps) {
+export function RideChat({ children, rideId, chatId, passengerName, isNegotiation, isReadOnly = false, onAcceptRide }: RideChatProps) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<MessageRecord[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState(chatId);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
 
-  const fetchMessages = useCallback(async () => {
+  const findOrCreateChat = useCallback(async () => {
+    if (!rideId || !pb.authStore.model) return;
+    
+    // First, try to find an existing chat for the ride
+    try {
+      const chat = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
+      setCurrentChatId(chat.id);
+      return chat.id;
+    } catch(e) {
+      // If no chat exists, create one
+      try {
+        const ride = await pb.collection('rides').getOne(rideId);
+        const chatData = {
+          participants: [pb.authStore.model.id, ride.passenger],
+          ride: rideId
+        };
+        const newChat = await pb.collection('chats').create(chatData);
+        setCurrentChatId(newChat.id);
+        return newChat.id;
+      } catch(createError) {
+        console.error("Failed to create chat:", createError);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar o chat.' });
+        return null;
+      }
+    }
+  }, [rideId, toast]);
+
+  const fetchMessages = useCallback(async (id: string) => {
     setIsLoading(true);
     try {
         const result = await pb.collection('messages').getFullList<MessageRecord>({
-            filter: `chat = "${chatId}"`,
+            filter: `chat = "${id}"`,
             sort: 'created',
             expand: 'sender'
         });
@@ -55,16 +84,24 @@ export function RideChat({ children, chatId, passengerName, isNegotiation, isRea
     } finally {
         setIsLoading(false);
     }
-  }, [chatId]);
+  }, []);
+
+  const handleOpen = async (open: boolean) => {
+      if (open) {
+          let id = currentChatId;
+          if (!id) {
+              id = await findOrCreateChat();
+          }
+          if (id) {
+              fetchMessages(id);
+          }
+      }
+  }
 
   useEffect(() => {
-    if(chatId) fetchMessages();
-  }, [chatId, fetchMessages]);
-
-  useEffect(() => {
-    if (!chatId) return;
+    if (!currentChatId) return;
     const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', e => {
-        if (e.action === 'create' && e.record.chat === chatId) {
+        if (e.action === 'create' && e.record.chat === currentChatId) {
             pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender' }).then(fullRecord => {
                 setMessages(prev => [...prev, fullRecord]);
             });
@@ -72,7 +109,7 @@ export function RideChat({ children, chatId, passengerName, isNegotiation, isRea
     });
 
     return () => pb.collection('messages').unsubscribe('*');
-  }, [chatId]);
+  }, [currentChatId]);
 
   useEffect(() => {
       if (scrollAreaRef.current) {
@@ -82,7 +119,7 @@ export function RideChat({ children, chatId, passengerName, isNegotiation, isRea
 
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !pb.authStore.model) return;
+    if (!newMessage.trim() || !pb.authStore.model || !currentChatId) return;
     
     setIsSending(true);
     const text = newMessage;
@@ -90,11 +127,11 @@ export function RideChat({ children, chatId, passengerName, isNegotiation, isRea
 
     try {
         await pb.collection('messages').create({
-            chat: chatId,
+            chat: currentChatId,
             sender: pb.authStore.model.id,
             text: text
         });
-         await pb.collection('chats').update(chatId, {
+         await pb.collection('chats').update(currentChatId, {
             last_message: text,
         });
 
@@ -119,7 +156,7 @@ export function RideChat({ children, chatId, passengerName, isNegotiation, isRea
   }
 
   return (
-    <Dialog onOpenChange={(open) => open && fetchMessages()}>
+    <Dialog onOpenChange={handleOpen}>
         <DialogTrigger asChild>
             {children}
         </DialogTrigger>
@@ -139,7 +176,6 @@ export function RideChat({ children, chatId, passengerName, isNegotiation, isRea
                         {!isLoading && messages.map((msg) => {
                             const sender = msg.expand.sender;
                             const isMe = sender.id === pb.authStore.model?.id;
-                            const avatarUrl = sender.avatar ? pb.getFileUrl(sender, sender.avatar) : '';
                             return (
                                 <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                                     <Avatar className="w-8 h-8 border">
