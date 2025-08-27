@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Locate, Users, ArrowRight, Loader2, User } from 'lucide-react';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { MapPin, Locate, ArrowRight, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
 import pb from '@/lib/pocketbase';
@@ -40,18 +40,24 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             return;
         }
 
-        const data: any = {
+        // Build the base data object
+        const data: { [key: string]: any } = {
             status: "requested",
             started_by: "passenger",
             is_negotiated: isNegotiated,
-            passenger: pb.authStore.model?.id,
             origin_address: origin,
             destination_address: destination,
-            target_driver: driverId,
+            passenger: pb.authStore.model?.id,
         };
 
+        // Only add fare if it's not a negotiated ride
         if (!isNegotiated) {
             data.fare = 25.50; // Example fare
+        }
+        
+        // Only add target_driver if one was selected
+        if (driverId) {
+            data.target_driver = driverId;
         }
         
         try {
@@ -141,7 +147,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             </div>
              <Dialog>
                 <DialogTrigger asChild>
-                    <Button className="w-full" size="lg" disabled={!isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    <Button className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                    <DriverListModal onSelectDriver={(driverId) => handleCreateRide(driverId, true)} />
