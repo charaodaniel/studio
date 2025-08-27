@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +10,12 @@ import { Progress } from '../ui/progress';
 import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
 
+type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
+
+
 interface RideStatusCardProps {
   rideDetails: RideDetails;
-  rideStatus: 'in_progress' | 'completed';
+  rideStatus: RideStatus;
   onCancel: () => void;
   onComplete: () => void;
 }
@@ -25,19 +29,18 @@ export default function RideStatusCard({ rideDetails, rideStatus, onCancel, onCo
             return;
         };
 
-        const timer = setTimeout(() => {
-            setProgress(60);
-        }, 2000);
-
-        const arrivalTimer = setTimeout(() => {
-            onComplete();
-        }, 8000)
-
-        return () => {
-            clearTimeout(timer);
-            clearTimeout(arrivalTimer);
+        if (rideStatus === 'accepted') {
+            const timer = setTimeout(() => {
+                setProgress(60);
+            }, 2000);
+            return () => clearTimeout(timer);
         }
-    }, [rideStatus, onComplete]);
+        
+        if (rideStatus === 'in_progress') {
+            setProgress(100);
+        }
+
+    }, [rideStatus]);
 
 
   if (rideStatus === 'completed') {

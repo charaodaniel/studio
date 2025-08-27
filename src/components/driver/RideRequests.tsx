@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck } from 'lucide-react';
+import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RideChat } from './NegotiationChat';
 import { useState, useEffect, useCallback } from 'react';
@@ -13,7 +12,6 @@ import { ScrollArea } from '../ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, WifiOff } from 'lucide-react';
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -118,10 +116,16 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         // Subscribe to real-time updates
         const unsubscribe = pb.collection('rides').subscribe<RideRecord>('*', (e) => {
             if (e.action === 'create' && e.record.status === 'requested') {
-                setRequests(prev => [e.record, ...prev]);
+                // To get the expanded data, we need to fetch the record again
+                pb.collection('rides').getOne<RideRecord>(e.record.id, { expand: 'passenger' })
+                    .then(fullRecord => {
+                        setRequests(prev => [fullRecord, ...prev]);
+                    });
             }
             if (e.action === 'update') {
-                setRequests(prev => prev.filter(r => r.id !== e.record.id)); // Remove if another driver accepts
+                // If another driver accepts a ride, it will get a driver assigned and status changed.
+                // This removes it from the list of available requests for this driver.
+                setRequests(prev => prev.filter(r => r.id !== e.record.id));
             }
         });
 
