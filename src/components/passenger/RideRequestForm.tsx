@@ -49,19 +49,14 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
         }
 
         try {
-            // Base data object
             const data: any = {
                 origin_address: origin,
                 destination_address: destination,
                 status: "requested",
                 started_by: "passenger",
                 is_negotiated: isNegotiated,
+                passenger: pb.authStore.model?.id,
             };
-
-            // Only add passenger if logged in
-            if (isLoggedIn) {
-                data.passenger = pb.authStore.model?.id;
-            }
 
             // Only add fare if it's not a negotiated ride
             if (!isNegotiated) {
@@ -154,7 +149,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             </div>
              <Dialog>
                 <DialogTrigger asChild>
-                    <Button className="w-full" size="lg" onClick={() => handleCreateRide(true)} disabled={!isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    <Button className="w-full" size="lg" disabled={!isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                    <DriverListModal onSelectDriver={() => handleCreateRide(true)}/>
