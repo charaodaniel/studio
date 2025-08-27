@@ -372,6 +372,20 @@
           "maxSelect": 1,
           "displayFields": null
         }
+      },
+      {
+        "system": false,
+        "id": "qwerty1234",
+        "name": "distance_km",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+            "min": null,
+            "max": null,
+            "noDecimal": false
+        }
       }
     ],
     "indexes": [],

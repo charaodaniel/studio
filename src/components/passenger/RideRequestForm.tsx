@@ -30,56 +30,6 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
 
     const isLoggedIn = isClient && pb.authStore.isValid;
 
-    const handleCreateRide = async (driverId: string | null = null, isNegotiated = false) => {
-        if (!isLoggedIn) {
-            toast({
-                variant: "destructive",
-                title: "Login Necessário",
-                description: "Por favor, faça login para solicitar uma corrida.",
-            });
-            return;
-        }
-
-        // Build the base data object
-        const data: { [key: string]: any } = {
-            status: "requested",
-            started_by: "passenger",
-            is_negotiated: isNegotiated,
-            origin_address: origin,
-            destination_address: destination,
-            passenger: pb.authStore.model?.id,
-        };
-
-        // Only add fare if it's not a negotiated ride
-        if (!isNegotiated) {
-            data.fare = 25.50; // Example fare
-        }
-        
-        // Only add target_driver if one was selected
-        if (driverId) {
-            data.target_driver = driverId;
-        }
-        
-        try {
-            console.log("Creating ride with data:", data);
-            const record = await pb.collection('rides').create(data);
-
-            toast({
-                title: "Corrida Solicitada!",
-                description: "Sua solicitação foi enviada aos motoristas próximos.",
-            });
-            onRideRequest(record.id);
-
-        } catch (error) {
-            console.error("Failed to create ride:", error);
-            toast({
-                variant: "destructive",
-                title: "Erro ao Solicitar Corrida",
-                description: "Não foi possível criar sua solicitação. Tente novamente.",
-            });
-        }
-    }
-
 
   return (
     <Card className="h-full flex flex-col">
@@ -112,16 +62,20 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
               </div>
             </div>
              <div className="space-y-2">
-                <Button className="w-full" size="lg" onClick={() => handleCreateRide(null, false)} disabled={isSearching || !isLoggedIn}>
-                  {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isSearching ? 'Procurando Motorista...' : 'Pedir Corrida'}
-                </Button>
                  <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                      <Button className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>
+                         {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                         {isSearching ? 'Procurando Motorista...' : 'Escolher Motorista'}
+                      </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
-                       <DriverListModal onSelectDriver={(driverId) => handleCreateRide(driverId, false)} />
+                       <DriverListModal 
+                        origin={origin} 
+                        destination={destination}
+                        isNegotiated={false}
+                        onRideRequest={onRideRequest}
+                        />
                     </DialogContent>
                 </Dialog>
              </div>
@@ -150,7 +104,12 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                     <Button className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
-                   <DriverListModal onSelectDriver={(driverId) => handleCreateRide(driverId, true)} />
+                   <DriverListModal 
+                    origin={origin} 
+                    destination={destination}
+                    isNegotiated={true}
+                    onRideRequest={onRideRequest}
+                   />
                 </DialogContent>
             </Dialog>
           </TabsContent>

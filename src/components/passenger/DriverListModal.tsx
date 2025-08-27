@@ -10,16 +10,18 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, D
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Image from 'next/image';
-import { useToast } from '@/hooks/use-toast';
 import pb from '@/lib/pocketbase';
 import type { User as Driver } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
-
+import RideConfirmationModal from './RideConfirmationModal';
 
 interface DriverListModalProps {
-    onSelectDriver: (driverId: string) => void;
+    origin: string;
+    destination: string;
+    isNegotiated: boolean;
+    onRideRequest: (rideId: string) => void;
 }
 
 const getStatusVariant = (status?: string) => {
@@ -46,12 +48,13 @@ const getStatusLabel = (status?: string) => {
 };
 
 
-export default function DriverListModal({ onSelectDriver }: DriverListModalProps) {
+export default function DriverListModal({ origin, destination, isNegotiated, onRideRequest }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<string | null>(null);
-    const { toast } = useToast();
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+    const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
 
     useEffect(() => {
         const fetchDrivers = async () => {
@@ -79,12 +82,8 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
     };
 
     const handleSelectDriver = (driver: Driver) => {
-        onSelectDriver(driver.id);
-        toast({
-            title: "Chamada Enviada!",
-            description: `Aguardando ${driver.name} aceitar sua corrida.`,
-        });
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        setSelectedDriver(driver);
+        setIsConfirmationOpen(true);
     }
 
     const renderContent = () => {
@@ -169,7 +168,7 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
                                             </p>
                                             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                                                 {driver.driver_vehicle_photo && (
-                                                    <Image src={pb.getFileUrl(driver, driver.driver_vehicle_photo)} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
+                                                    <Image src={pb.getFileUrl(driver, driver.driver_vehicle_photo, {thumb: "100x100"})} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
                                                 )}
                                             </div>
                                         </div>
@@ -188,14 +187,34 @@ export default function DriverListModal({ onSelectDriver }: DriverListModalProps
     }
 
     return (
-        <DialogHeader>
-            <DialogTitle className="font-headline">Escolha um Motorista</DialogTitle>
-            <DialogDescription>
-                Selecione um motorista para sua corrida ou veja mais detalhes.
-            </DialogDescription>
-            <ScrollArea className="h-96 pr-4 mt-4">
-                {renderContent()}
-            </ScrollArea>
-        </DialogHeader>
+        <>
+            <DialogHeader>
+                <DialogTitle className="font-headline">Escolha um Motorista</DialogTitle>
+                <DialogDescription>
+                    Selecione um motorista para sua corrida ou veja mais detalhes.
+                </DialogDescription>
+                <ScrollArea className="h-96 pr-4 mt-4">
+                    {renderContent()}
+                </ScrollArea>
+            </DialogHeader>
+
+            {selectedDriver && (
+                <RideConfirmationModal
+                    isOpen={isConfirmationOpen}
+                    onOpenChange={setIsConfirmationOpen}
+                    driver={selectedDriver}
+                    origin={origin}
+                    destination={destination}
+                    isNegotiated={isNegotiated}
+                    onConfirm={(rideId) => {
+                        setIsConfirmationOpen(false);
+                        onRideRequest(rideId);
+                        // Close the parent dialog as well
+                        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                    }}
+                />
+            )}
+        </>
     );
 }
+
