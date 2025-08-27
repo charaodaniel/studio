@@ -55,7 +55,7 @@ Crie uma **nova coleção** chamada `chats` (tipo "Base"). Adicione os campos ab
     *   Tipo: `Relation`
     *   Coleção Relacionada: `users`
     *   Max Select: `2`
-    *   Required: `Sim`
+    *   Required: `Não`
 2.  **`ride`**:
     *   Tipo: `Relation`
     *   Coleção Relacionada: `rides`
@@ -106,14 +106,14 @@ Crie uma **nova coleção** chamada `messages` (tipo "Base"). Adicione os campos
     *   Tipo: `Relation`
     *   Coleção Relacionada: `chats`
     *   Cascade Delete: `Sim` (para apagar as mensagens se o chat for deletado)
-    *   Required: `Sim`
+    *   Required: `Não`
 2.  **`sender`**:
     *   Tipo: `Relation`
     *   Coleção Relacionada: `users`
-    *   Required: `Sim`
+    *   Required: `Não`
 3.  **`text`**:
     *   Tipo: `Text`
-    *   Required: `Sim`
+    *   Required: `Não`
 
 #### **Regras de API**
 *   **List rule:**

@@ -356,6 +356,22 @@
             "driver"
           ]
         }
+      },
+      {
+        "system": false,
+        "id": "asdf1234",
+        "name": "target_driver",
+        "type": "relation",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
       }
     ],
     "indexes": [],

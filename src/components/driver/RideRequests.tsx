@@ -22,6 +22,7 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
+    target_driver?: string;
     expand: {
         passenger: RecordModel;
     }
@@ -93,12 +94,15 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     const [passengerOnBoard, setPassengerOnBoard] = useState(false);
 
     const fetchRequests = useCallback(async () => {
+        if (!pb.authStore.model) return;
         setIsLoading(true);
         setError(null);
         try {
-            // Find rides requested but not yet accepted by any driver
+            // Find rides requested for this specific driver OR rides requested to anyone
+            const driverId = pb.authStore.model.id;
+            const filter = `(status = "requested" && target_driver = "${driverId}") || (status = "requested" && target_driver = null)`;
             const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: 'status = "requested"',
+                filter: filter,
                 expand: 'passenger',
             });
             setRequests(result);
@@ -115,16 +119,18 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
 
         // Subscribe to real-time updates
         const unsubscribe = pb.collection('rides').subscribe<RideRecord>('*', (e) => {
-            if (e.action === 'create' && e.record.status === 'requested') {
-                // To get the expanded data, we need to fetch the record again
-                pb.collection('rides').getOne<RideRecord>(e.record.id, { expand: 'passenger' })
+             const driverId = pb.authStore.model?.id;
+             if (!driverId) return;
+
+            // A new ride was created for this driver or for anyone
+            if (e.action === 'create' && e.record.status === 'requested' && (e.record.target_driver === driverId || e.record.target_driver === null)) {
+                 pb.collection('rides').getOne<RideRecord>(e.record.id, { expand: 'passenger' })
                     .then(fullRecord => {
                         setRequests(prev => [fullRecord, ...prev]);
                     });
             }
-            if (e.action === 'update') {
-                // If another driver accepts a ride, it will get a driver assigned and status changed.
-                // This removes it from the list of available requests for this driver.
+            // A ride was taken by another driver or canceled
+            if (e.action === 'update' && e.record.status !== 'requested') {
                 setRequests(prev => prev.filter(r => r.id !== e.record.id));
             }
         });
@@ -299,4 +305,3 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         </div>
     );
 }
-

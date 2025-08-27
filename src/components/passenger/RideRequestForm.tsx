@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
 
     const isLoggedIn = isClient && pb.authStore.isValid;
 
-    const handleCreateRide = async (isNegotiated = false) => {
+    const handleCreateRide = async (driverId: string | null = null, isNegotiated = false) => {
         if (!isLoggedIn) {
             toast({
                 variant: "destructive",
@@ -46,9 +47,9 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             passenger: pb.authStore.model?.id,
             origin_address: origin,
             destination_address: destination,
+            target_driver: driverId,
         };
 
-        // Only add fare if it's not a negotiated ride
         if (!isNegotiated) {
             data.fare = 25.50; // Example fare
         }
@@ -105,7 +106,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
               </div>
             </div>
              <div className="space-y-2">
-                <Button className="w-full" size="lg" onClick={() => handleCreateRide(false)} disabled={isSearching || !isLoggedIn}>
+                <Button className="w-full" size="lg" onClick={() => handleCreateRide(null, false)} disabled={isSearching || !isLoggedIn}>
                   {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSearching ? 'Procurando Motorista...' : 'Pedir Corrida'}
                 </Button>
@@ -114,7 +115,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                       <Button variant="outline" className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
-                       <DriverListModal onSelectDriver={() => handleCreateRide(false)} />
+                       <DriverListModal onSelectDriver={(driverId) => handleCreateRide(driverId, false)} />
                     </DialogContent>
                 </Dialog>
              </div>
@@ -140,10 +141,10 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             </div>
              <Dialog>
                 <DialogTrigger asChild>
-                    <Button className="w-full" size="lg" disabled={!isLoggedIn} onClick={() => handleCreateRide(true)}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    <Button className="w-full" size="lg" disabled={!isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
-                   <DriverListModal onSelectDriver={() => { /* This can be adjusted if selecting a driver should do something different */ }}/>
+                   <DriverListModal onSelectDriver={(driverId) => handleCreateRide(driverId, true)} />
                 </DialogContent>
             </Dialog>
           </TabsContent>
