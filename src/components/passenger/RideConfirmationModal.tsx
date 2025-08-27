@@ -65,17 +65,20 @@ export default function RideConfirmationModal({
             return;
         }
 
-        const data = {
+        const data: any = {
             passenger: pb.authStore.model.id,
             driver: driver.id,
             origin_address: origin,
             destination_address: destination,
             status: "requested",
             is_negotiated: isNegotiated,
-            fare: isNegotiated ? 0 : (calculatedFare || 0),
             started_by: "passenger",
-            distance_km: isNegotiated ? 0 : distance,
+            fare: isNegotiated ? 0 : (calculatedFare || 0),
         };
+
+        if (!isNegotiated) {
+            data.distance_km = distance;
+        }
 
         try {
             const record = await pb.collection('rides').create(data);
@@ -150,4 +153,3 @@ export default function RideConfirmationModal({
         </Dialog>
     );
 }
-

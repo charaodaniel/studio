@@ -22,7 +22,6 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
-    target_driver?: string;
     expand: {
         passenger: RecordModel;
     }
@@ -98,9 +97,9 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         setIsLoading(true);
         setError(null);
         try {
-            // Find rides requested for this specific driver OR rides requested to anyone
+            // Find rides requested for this specific driver
             const driverId = pb.authStore.model.id;
-            const filter = `(status = "requested" && target_driver = "${driverId}") || (status = "requested" && target_driver = null)`;
+            const filter = `status = "requested" && driver = "${driverId}"`;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: filter,
                 expand: 'passenger',
@@ -122,8 +121,8 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
              const driverId = pb.authStore.model?.id;
              if (!driverId) return;
 
-            // A new ride was created for this driver or for anyone
-            if (e.action === 'create' && e.record.status === 'requested' && (e.record.target_driver === driverId || e.record.target_driver === null)) {
+            // A new ride was created for this driver
+            if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
                  pb.collection('rides').getOne<RideRecord>(e.record.id, { expand: 'passenger' })
                     .then(fullRecord => {
                         setRequests(prev => [fullRecord, ...prev]);
@@ -147,7 +146,6 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
 
         try {
             const updatedRide = await pb.collection('rides').update<RideRecord>(ride.id, {
-                driver: pb.authStore.model.id,
                 status: 'accepted'
             }, { expand: 'passenger' });
 
