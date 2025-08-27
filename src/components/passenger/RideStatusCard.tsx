@@ -9,6 +9,7 @@ import type { RideDetails } from './PassengerDashboard';
 import { Progress } from '../ui/progress';
 import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
+import pb from '@/lib/pocketbase';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -16,12 +17,14 @@ type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled
 interface RideStatusCardProps {
   rideDetails: RideDetails;
   rideStatus: RideStatus;
+  rideId: string;
   onCancel: () => void;
   onComplete: () => void;
 }
 
-export default function RideStatusCard({ rideDetails, rideStatus, onCancel, onComplete }: RideStatusCardProps) {
+export default function RideStatusCard({ rideDetails, rideStatus, rideId, onCancel, onComplete }: RideStatusCardProps) {
     const [progress, setProgress] = useState(10);
+    const [chatId, setChatId] = useState<string | null>(null);
 
     useEffect(() => {
         if (rideStatus === 'completed') {
@@ -41,6 +44,20 @@ export default function RideStatusCard({ rideDetails, rideStatus, onCancel, onCo
         }
 
     }, [rideStatus]);
+
+    useEffect(() => {
+      const findChat = async () => {
+        if (rideId && pb.authStore.model) {
+          try {
+            const chat = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
+            setChatId(chat.id);
+          } catch(e) {
+            // No chat found for this ride yet, which is fine
+          }
+        }
+      }
+      findChat();
+    }, [rideId]);
 
 
   if (rideStatus === 'completed') {
@@ -98,9 +115,11 @@ export default function RideStatusCard({ rideDetails, rideStatus, onCancel, onCo
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-2">
         <Button variant="outline"><Phone className="mr-2"/> Ligar</Button>
-        <RideChat passengerName={rideDetails.driverName} isNegotiation={false}>
-          <Button className="w-full"><MessageSquare className="mr-2"/> Mensagem</Button>
-        </RideChat>
+        {chatId && (
+            <RideChat chatId={chatId} passengerName={rideDetails.driverName} isNegotiation={false}>
+              <Button className="w-full"><MessageSquare className="mr-2"/> Mensagem</Button>
+            </RideChat>
+        )}
         <Button variant="destructive" className="col-span-2" onClick={onCancel}>
             <Shield className="mr-2"/> Cancelar Corrida
         </Button>

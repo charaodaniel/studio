@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -46,32 +47,35 @@ export default function PassengerDashboard() {
     const unsubscribe = pb.collection('rides').subscribe<RideRecord>(activeRide.id, (e) => {
         if (e.action === 'update') {
             const updatedRide = e.record;
-            setActiveRide(updatedRide);
+            
+            pb.collection('rides').getOne<RideRecord>(updatedRide.id, { expand: 'driver' }).then(fullRecord => {
+              setActiveRide(fullRecord);
 
-            if (updatedRide.status === 'accepted' && updatedRide.expand?.driver) {
-                const driver = updatedRide.expand.driver;
-                setRideDetails({
-                    driverName: driver.name,
-                    driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
-                    vehicleModel: driver.driver_vehicle_model,
-                    licensePlate: driver.driver_vehicle_plate,
-                    eta: '5 minutos' // ETA can be calculated in a real app
-                });
-                setRideStatus('accepted');
-            } else if (updatedRide.status === 'in_progress') {
-                setRideStatus('in_progress');
-            } else if (updatedRide.status === 'completed') {
-                handleCompleteRide();
-            } else if (updatedRide.status === 'canceled') {
-                handleCancelRide();
-                toast({
-                    title: 'Corrida Cancelada',
-                    description: 'O motorista cancelou a corrida.',
-                    variant: 'destructive',
-                });
-            }
+              if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
+                  const driver = fullRecord.expand.driver;
+                  setRideDetails({
+                      driverName: driver.name,
+                      driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
+                      vehicleModel: driver.driver_vehicle_model,
+                      licensePlate: driver.driver_vehicle_plate,
+                      eta: '5 minutos' // ETA can be calculated in a real app
+                  });
+                  setRideStatus('accepted');
+              } else if (fullRecord.status === 'in_progress') {
+                  setRideStatus('in_progress');
+              } else if (fullRecord.status === 'completed') {
+                  handleCompleteRide();
+              } else if (fullRecord.status === 'canceled') {
+                  handleCancelRide();
+                  toast({
+                      title: 'Corrida Cancelada',
+                      description: 'O motorista cancelou a corrida.',
+                      variant: 'destructive',
+                  });
+              }
+            });
         }
-    }, { expand: 'driver' });
+    });
 
     return () => {
         unsubscribe();
@@ -124,10 +128,11 @@ export default function PassengerDashboard() {
               isSearching={rideStatus === 'searching'}
             />
           ) : (
-            rideDetails && (
+            rideDetails && activeRide && (
               <RideStatusCard
                 rideDetails={rideDetails}
                 rideStatus={rideStatus}
+                rideId={activeRide.id}
                 onCancel={handleCancelRide}
                 onComplete={handleCompleteRide}
               />

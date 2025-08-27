@@ -1,37 +1,110 @@
+
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, type ReactNode, useEffect, useCallback, useRef } from 'react';
+import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Handshake, Check, X } from 'lucide-react';
+import { Send, Bot, User, Handshake, Check, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import pb from '@/lib/pocketbase';
+import { type RecordModel } from 'pocketbase';
+import { ScrollArea } from '../ui/scroll-area';
+
+interface MessageRecord extends RecordModel {
+    chat: string;
+    sender: string;
+    text: string;
+    expand: {
+        sender: RecordModel;
+    }
+}
 
 interface RideChatProps {
     children: ReactNode;
+    chatId: string;
     passengerName: string;
     isNegotiation: boolean;
     isReadOnly?: boolean;
     onAcceptRide?: () => void;
 }
 
-export function RideChat({ children, passengerName, isNegotiation, isReadOnly = false, onAcceptRide }: RideChatProps) {
+export function RideChat({ children, chatId, passengerName, isNegotiation, isReadOnly = false, onAcceptRide }: RideChatProps) {
   const { toast } = useToast();
-  const [messages, setMessages] = useState([
-      { sender: 'user', text: isNegotiation ? `Acho R$ 100,00 um pouco caro. Consegue fazer por R$ 80,00?` : 'Ok, combinado. Estou a caminho.' },
-  ]);
+  const [messages, setMessages] = useState<MessageRecord[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
-    setMessages(prev => [...prev, { sender: 'me', text: newMessage }]);
-    setNewMessage('');
+
+  const fetchMessages = useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const result = await pb.collection('messages').getFullList<MessageRecord>({
+            filter: `chat = "${chatId}"`,
+            sort: 'created',
+            expand: 'sender'
+        });
+        setMessages(result);
+    } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        setMessages([]);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [chatId]);
+
+  useEffect(() => {
+    if(chatId) fetchMessages();
+  }, [chatId, fetchMessages]);
+
+  useEffect(() => {
+    if (!chatId) return;
+    const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', e => {
+        if (e.action === 'create' && e.record.chat === chatId) {
+            pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender' }).then(fullRecord => {
+                setMessages(prev => [...prev, fullRecord]);
+            });
+        }
+    });
+
+    return () => pb.collection('messages').unsubscribe('*');
+  }, [chatId]);
+
+  useEffect(() => {
+      if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      }
+    }, [messages]);
+
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !pb.authStore.model) return;
     
-    setTimeout(() => {
-        setMessages(prev => [...prev, { sender: 'user', text: "Ok, entendi." }]);
-    }, 1500)
+    setIsSending(true);
+    const text = newMessage;
+    setNewMessage(''); // Clear input immediately
+
+    try {
+        await pb.collection('messages').create({
+            chat: chatId,
+            sender: pb.authStore.model.id,
+            text: text
+        });
+         await pb.collection('chats').update(chatId, {
+            last_message: text,
+        });
+
+    } catch (error) {
+        console.error("Failed to send message:", error);
+        toast({ variant: 'destructive', title: 'Erro ao Enviar', description: 'Não foi possível enviar a mensagem.' });
+        setNewMessage(text); // Restore message on error
+    } finally {
+        setIsSending(false);
+    }
   }
 
   const handleAccept = () => {
@@ -42,13 +115,11 @@ export function RideChat({ children, passengerName, isNegotiation, isReadOnly = 
       if (onAcceptRide) {
           onAcceptRide();
       }
-      // This is a way to programmatically close the dialog.
-      // In a real app with controlled state, you'd pass a setter function.
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
   }
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => open && fetchMessages()}>
         <DialogTrigger asChild>
             {children}
         </DialogTrigger>
@@ -62,19 +133,27 @@ export function RideChat({ children, passengerName, isNegotiation, isReadOnly = 
                 </DialogDescription>
             </DialogHeader>
             <CardContent className="flex-grow space-y-4 flex flex-col overflow-y-auto px-4 pt-0">
-                <div className="space-y-4">
-                    {messages.map((msg, index) => (
-                        <div key={index} className={`flex items-start gap-3 ${msg.sender === 'me' ? 'flex-row-reverse' : ''}`}>
-                            <Avatar className="w-8 h-8 border">
-                                <AvatarFallback>{msg.sender === 'me' ? <Bot /> : <User />}</AvatarFallback>
-                            </Avatar>
-                            <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === 'me' ? 'bg-primary text-primary-foreground' : 'bg-background'}`}>
-                                <p className="font-bold text-primary">{msg.sender === 'me' ? 'Você' : passengerName}</p>
-                                <p>{msg.text}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <ScrollArea className="flex-1 pr-4 -mr-4" ref={scrollAreaRef}>
+                    <div className="space-y-4">
+                        {isLoading && <div className="text-center p-8"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>}
+                        {!isLoading && messages.map((msg) => {
+                            const sender = msg.expand.sender;
+                            const isMe = sender.id === pb.authStore.model?.id;
+                            const avatarUrl = sender.avatar ? pb.getFileUrl(sender, sender.avatar) : '';
+                            return (
+                                <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                    <Avatar className="w-8 h-8 border">
+                                        <AvatarFallback>{sender.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${isMe ? 'bg-primary text-primary-foreground' : 'bg-background'}`}>
+                                        <p className="font-bold">{isMe ? 'Você' : sender.name}</p>
+                                        <p>{msg.text}</p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </ScrollArea>
             </CardContent>
             {!isReadOnly && (
                 <CardFooter className="flex-col items-stretch gap-2 pt-4 border-t">
@@ -86,9 +165,16 @@ export function RideChat({ children, passengerName, isNegotiation, isReadOnly = 
                         placeholder="Digite sua mensagem..."
                         className="pr-12"
                         rows={1}
+                        disabled={isSending}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                            }
+                        }}
                         />
-                        <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" disabled={!newMessage} onClick={handleSendMessage}>
-                            <Send className="w-4 h-4"/>
+                        <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" disabled={!newMessage || isSending} onClick={handleSendMessage}>
+                            {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="w-4 h-4"/>}
                             <span className="sr-only">Enviar</span>
                         </Button>
                     </div>
