@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +56,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                 </div>
             </CardContent>
             <CardFooter className="grid grid-cols-2 gap-2">
-                {ride.is_negotiated && chatId ? (
+                {ride.is_negotiated ? (
                      <RideChat 
                         rideId={ride.id}
                         chatId={chatId}
@@ -68,7 +69,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                             Negociar Valor
                         </Button>
                     </RideChat>
-                ) : !ride.is_negotiated ? (
+                ) : (
                     <>
                         <Button variant="outline" className="w-full" onClick={() => onReject(ride.id)}>
                             <X className="mr-2 h-4 w-4" />
@@ -79,7 +80,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                             Aceitar
                         </Button>
                     </>
-                ) : null}
+                )}
 
             </CardFooter>
         </Card>
@@ -184,12 +185,14 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     };
     
     const handleReject = async (rideId: string) => {
-        toast({ variant: "destructive", title: "Corrida Rejeitada" });
-        setRequests(prev => prev.filter(r => r.ride.id !== rideId));
+        
         try {
             await pb.collection('rides').update(rideId, { status: 'canceled' });
+            toast({ variant: "destructive", title: "Corrida Rejeitada" });
+            setRequests(prev => prev.filter(r => r.ride.id !== rideId));
         } catch (error) {
             console.error("Failed to update ride to canceled:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível rejeitar a corrida."});
         }
     };
 
@@ -236,7 +239,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
-                    <RideChat rideId={acceptedRide.id} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
+                    <RideChat rideId={acceptedRide.id} chatId={null} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
                         <Button className="w-full">
                             <MessageSquareQuote className="mr-2 h-4 w-4" />
                             Abrir Chat com {acceptedRide.expand.passenger.name}

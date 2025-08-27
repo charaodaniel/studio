@@ -63,7 +63,8 @@ export function DriverProfilePage() {
     
     try {
         // First, update the user's status.
-        await pb.collection('users').update(user.id, { 'driver_status': newStatus });
+        const updatedUser = await pb.collection('users').update<User>(user.id, { 'driver_status': newStatus });
+        setUser(updatedUser);
 
         // The user object in authStore will be updated automatically, triggering a re-render.
         toast({
@@ -177,7 +178,7 @@ export function DriverProfilePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs defaultValue="requests" className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="requests">Solicitações</TabsTrigger>
           <TabsTrigger value="chats">Conversas</TabsTrigger>

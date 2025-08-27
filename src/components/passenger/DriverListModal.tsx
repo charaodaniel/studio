@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -56,26 +57,34 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
 
-    useEffect(() => {
-        const fetchDrivers = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                // Fetch all drivers with the 'Motorista' role
-                const allDrivers = await pb.collection('users').getFullList<Driver>({
-                    filter: 'role = "Motorista"',
-                });
-                setDrivers(allDrivers);
-            } catch (err) {
-                console.error("Failed to fetch drivers:", err);
-                setError("Não foi possível carregar os motoristas. Tente novamente.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchDrivers();
+    const fetchDrivers = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            // Fetch all drivers with the 'Motorista' role
+            const allDrivers = await pb.collection('users').getFullList<Driver>({
+                filter: 'role = "Motorista"',
+            });
+            setDrivers(allDrivers);
+        } catch (err) {
+            console.error("Failed to fetch drivers:", err);
+            setError("Não foi possível carregar os motoristas. Tente novamente.");
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchDrivers();
+        const unsubscribe = pb.collection('users').subscribe('*', (e) => {
+            if (e.record.role === 'Motorista') {
+                fetchDrivers();
+            }
+        });
+        return () => {
+            pb.collection('users').unsubscribe('*');
+        };
+    }, [fetchDrivers]);
 
     const handleToggle = (driverId: string) => {
         setOpenDriverId(prevId => prevId === driverId ? null : driverId);
