@@ -59,11 +59,15 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousP
             // Conditionally add passenger information
             if (isLoggedIn && pb.authStore.model) {
                 data.passenger = pb.authStore.model.id;
+                data.passenger_anonymous_name = null;
             } else {
+                data.passenger = null;
                 data.passenger_anonymous_name = anonymousPassengerName || "Passageiro Anônimo";
             }
             
+            console.log("Creating ride with data:", data);
             const record = await pb.collection('rides').create(data);
+
             toast({
                 title: "Corrida Solicitada!",
                 description: "Sua solicitação foi enviada aos motoristas próximos.",
