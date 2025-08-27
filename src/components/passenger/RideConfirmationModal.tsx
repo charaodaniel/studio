@@ -56,20 +56,26 @@ export default function RideConfirmationModal({
         }
 
         const data: { [key: string]: any } = {
-            // Ensure required fields have default values
             status: "requested",
-            started_by: "passenger",
             is_negotiated: isNegotiated,
-            origin_address: origin || 'Não informado',
-            destination_address: destination || 'Não informado',
+            origin_address: origin,
+            destination_address: destination,
             passenger: pb.authStore.model.id,
             target_driver: driver.id,
-            fare: isNegotiated ? 0 : calculatedFare,
-            distance_km: isNegotiated ? null : distance
+            started_by: "passenger",
         };
 
+        if (isNegotiated) {
+            data.fare = 0;
+        } else {
+            data.fare = calculatedFare;
+            data.distance_km = distance;
+        }
+
         try {
+            console.log("Creating ride with data:", data);
             const record = await pb.collection('rides').create(data);
+            
             toast({
                 title: "Corrida Solicitada!",
                 description: `Sua solicitação foi enviada para ${driver.name}.`,
@@ -80,7 +86,7 @@ export default function RideConfirmationModal({
             toast({
                 variant: "destructive",
                 title: "Erro ao Solicitar Corrida",
-                description: "Não foi possível criar sua solicitação. Tente novamente.",
+                description: "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.",
             });
         } finally {
             setIsLoading(false);
