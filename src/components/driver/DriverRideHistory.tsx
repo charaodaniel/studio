@@ -44,19 +44,6 @@ const appData = {
     cnpj: "99.999.999/0001-99"
 }
 
-// Function to load the logo image and convert it to Base64
-const getLogoBase64 = async (): Promise<string> => {
-    const response = await fetch('/logo.png');
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-};
-
-
 export function DriverRideHistory() {
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [rides, setRides] = useState<RideRecord[]>([]);
@@ -144,10 +131,12 @@ export function DriverRideHistory() {
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         
-        const logoBase64 = await getLogoBase64();
-
         const drawHeader = () => {
-            doc.addImage(logoBase64, 'PNG', 14, 15, 30, 10);
+            // Draw a styled logo with text
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(22);
+            doc.setTextColor(41, 121, 255); // Primary color
+            doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
             doc.setTextColor(40);
@@ -208,8 +197,6 @@ export function DriverRideHistory() {
                 drawHeader();
             }
         });
-
-        const finalY = (doc as any).lastAutoTable.finalY;
 
         // Driver and Company Info
         doc.setFontSize(10);
@@ -459,6 +446,7 @@ export function DriverRideHistory() {
     </div>
   );
 }
+
 
 
 
