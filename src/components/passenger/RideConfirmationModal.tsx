@@ -55,22 +55,17 @@ export default function RideConfirmationModal({
             return;
         }
 
-        const data: { [key: string]: any } = {
-            status: "requested",
-            is_negotiated: isNegotiated,
-            origin_address: origin,
-            destination_address: destination,
+        const data = {
             passenger: pb.authStore.model.id,
             target_driver: driver.id,
+            origin_address: origin,
+            destination_address: destination,
+            status: "requested",
+            is_negotiated: isNegotiated,
             started_by: "passenger",
+            fare: isNegotiated ? 0 : calculatedFare,
+            distance_km: isNegotiated ? 0 : distance,
         };
-
-        if (isNegotiated) {
-            data.fare = 0;
-        } else {
-            data.fare = calculatedFare;
-            data.distance_km = distance;
-        }
 
         try {
             console.log("Creating ride with data:", data);
