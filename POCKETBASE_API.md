@@ -34,9 +34,9 @@ Acesse a coleção `rides` e clique em **"Edit collection"**. Vá para a aba **"
 
 *   **List rule:**
     ```js
-    @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
+    @request.auth.id != ""
     ```
-    *Garante que um usuário só possa listar as corridas em que ele é passageiro ou motorista, ou se for um membro da equipe (Admin/Atendente).*
+    *Permite que usuários logados listem corridas. A lógica de filtrar corridas por passageiro/motorista é feita no frontend.*
 
 *   **View rule:**
     ```js
@@ -55,7 +55,7 @@ Crie uma **nova coleção** chamada `chats` (tipo "Base"). Adicione os campos ab
     *   Tipo: `Relation`
     *   Coleção Relacionada: `users`
     *   Max Select: `2`
-    *   Required: `Sim`
+    *   Required: `Não`
 2.  **`ride`**:
     *   Tipo: `Relation`
     *   Coleção Relacionada: `rides`
@@ -106,14 +106,14 @@ Crie uma **nova coleção** chamada `messages` (tipo "Base"). Adicione os campos
     *   Tipo: `Relation`
     *   Coleção Relacionada: `chats`
     *   Cascade Delete: `Sim` (para apagar as mensagens se o chat for deletado)
-    *   Required: `Sim`
+    *   Required: `Não`
 2.  **`sender`**:
     *   Tipo: `Relation`
     *   Coleção Relacionada: `users`
-    *   Required: `Sim`
+    *   Required: `Não`
 3.  **`text`**:
     *   Tipo: `Text`
-    *   Required: `Sim`
+    *   Required: `Não`
 
 #### **Regras de API**
 *   **List rule:**
