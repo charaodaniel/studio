@@ -8,7 +8,7 @@ Este documento detalha as **coleções** e **regras de API** necessárias para o
 
 ## 1. Coleção: `users` (Auth)
 
-Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras. Os campos desta coleção já são criados por padrão pelo PocketBase, mas adicione os campos personalizados do arquivo `pocketbase_schema.json`.
+Acesse na a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras. Os campos desta coleção já são criados por padrão pelo PocketBase, mas adicione os campos personalizados do arquivo `pocketbase_schema.json`.
 
 #### **Regras de API**
 
