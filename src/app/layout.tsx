@@ -2,11 +2,22 @@ import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { AppLayout } from '@/components/shared/AppLayout';
+import { Inter, Space_Grotesk } from 'next/font/google';
 
 const APP_NAME = "CEOLIN Mobilidade Urbana";
 const APP_DEFAULT_TITLE = "CEOLIN Mobilidade Urbana";
 const APP_TITLE_TEMPLATE = "%s - CEOLIN Mobilidade Urbana";
 const APP_DESCRIPTION = "Sua conexão para viagens tranquilas.";
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+});
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -54,12 +65,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="h-full">
+    <html lang="pt-BR" className={`${inter.variable} ${spaceGrotesk.variable} h-full`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased h-full bg-background">
         <AppLayout title="Bem-vindo!">
