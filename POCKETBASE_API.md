@@ -12,6 +12,12 @@ Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"
 
 #### **Regras de API**
 
+*   **List rule:**
+    ```js
+    @request.auth.id != ""
+    ```
+    *Permite que qualquer usuário autenticado possa listar outros usuários, necessário para que passageiros vejam a lista de motoristas disponíveis.*
+
 *   **View rule:**
     ```js
     id = @request.auth.id || name != ""

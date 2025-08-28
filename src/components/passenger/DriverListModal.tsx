@@ -63,25 +63,34 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setError(null);
         try {
             // Fetch all drivers with the 'Motorista' role
+            // The API rule for the 'users' collection must allow listing by authenticated users.
             const allDrivers = await pb.collection('users').getFullList<Driver>({
                 filter: 'role = "Motorista"',
             });
             setDrivers(allDrivers);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to fetch drivers:", err);
-            setError("Não foi possível carregar os motoristas. Tente novamente.");
+            if (err.status === 403) {
+                 setError("Você não tem permissão para ver os motoristas. Contate o administrador.");
+            } else {
+                setError("Não foi possível carregar os motoristas. Verifique a conexão.");
+            }
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
+        // Fetch drivers immediately when the modal is opened
         fetchDrivers();
+        
+        // Also subscribe to real-time updates
         const unsubscribe = pb.collection('users').subscribe('*', (e) => {
             if (e.record.role === 'Motorista') {
                 fetchDrivers();
             }
         });
+
         return () => {
             pb.collection('users').unsubscribe('*');
         };
