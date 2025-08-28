@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,6 +42,15 @@ export default function PassengerDashboard() {
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
   const [isQuickRideModalOpen, setIsQuickRideModalOpen] = useState(false);
   const [anonymousUserName, setAnonymousUserName] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
+
+   useEffect(() => {
+    setIsClient(true);
+    if (!pb.authStore.isValid) {
+      setIsQuickRideModalOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!activeRide) return;
@@ -133,6 +141,14 @@ export default function PassengerDashboard() {
     }, 5000);
   }
 
+  const handleRefreshLocation = () => {
+    setMapRefreshKey(prev => prev + 1);
+    toast({
+        title: 'Localização Atualizada',
+        description: 'As posições no mapa foram atualizadas.',
+    });
+  };
+
   return (
     <>
       <div className="container mx-auto p-4 grid lg:grid-cols-[400px_1fr] gap-8 h-full">
@@ -142,6 +158,7 @@ export default function PassengerDashboard() {
               onRideRequest={handleRequestRide}
               isSearching={rideStatus === 'searching'}
               anonymousUserName={anonymousUserName}
+              onRefreshLocation={handleRefreshLocation}
             />
           ) : (
             rideDetails && activeRide && (
@@ -156,15 +173,20 @@ export default function PassengerDashboard() {
           )}
         </div>
         <div className="flex-1 min-h-[400px] h-full lg:min-h-0">
-          <MapPlaceholder rideInProgress={rideStatus === 'in_progress' || rideStatus === 'accepted'} />
+          <MapPlaceholder 
+            rideInProgress={rideStatus === 'in_progress' || rideStatus === 'accepted'} 
+            refreshKey={mapRefreshKey}
+          />
         </div>
       </div>
       
-      <QuickRideModal 
-        isOpen={isQuickRideModalOpen}
-        onClose={() => setIsQuickRideModalOpen(false)}
-        onSubmit={handleQuickRideRequest}
-      />
+       {isClient && (
+        <QuickRideModal 
+            isOpen={isQuickRideModalOpen && !pb.authStore.isValid}
+            onClose={() => setIsQuickRideModalOpen(false)}
+            onSubmit={handleQuickRideRequest}
+        />
+       )}
     </>
   );
 }

@@ -18,10 +18,12 @@ const acceptedDriver = { id: 5, name: 'Roberto Andrade', vehicle: 'Chevrolet Oni
 
 interface MapPlaceholderProps {
   rideInProgress?: boolean;
+  refreshKey: number;
 }
 
-export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholderProps) {
+export default function MapPlaceholder({ rideInProgress = false, refreshKey }: MapPlaceholderProps) {
   const [onlineDrivers, setOnlineDrivers] = useState<FullDriver[]>([]);
+  const [userPosition, setUserPosition] = useState({ top: '50%', left: '50%' });
   
   const fetchOnlineDrivers = useCallback(async () => {
     try {
@@ -45,8 +47,11 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
 
   useEffect(() => {
     fetchOnlineDrivers();
+    setUserPosition({
+        top: `${Math.random() * 60 + 20}%`,
+        left: `${Math.random() * 60 + 20}%`,
+    });
     
-    // Subscribe to real-time updates
     const unsubscribe = pb.collection('users').subscribe('*', (e) => {
         if (e.record.role === 'Motorista') {
             fetchOnlineDrivers();
@@ -56,7 +61,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
     return () => {
         pb.collection('users').unsubscribe('*');
     };
-  }, [fetchOnlineDrivers]);
+  }, [fetchOnlineDrivers, refreshKey]);
   
   return (
     <Card className="w-full h-full overflow-hidden shadow-lg">
@@ -112,7 +117,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
             </div>
           )}
         </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <div style={userPosition} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center transition-all duration-500">
           <User className="h-10 w-10 text-primary-foreground bg-primary rounded-full p-2" />
           <div className="mt-2 text-center bg-primary/80 text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold">Você</div>
         </div>
