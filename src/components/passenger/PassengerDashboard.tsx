@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,8 +7,6 @@ import RideStatusCard from './RideStatusCard';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
-import WelcomeModal from '../shared/WelcomeModal';
-import QuickRideModal from './QuickRideModal';
 
 
 interface RideRecord extends RecordModel {
@@ -42,18 +39,9 @@ export default function PassengerDashboard() {
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
-  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
-  const [isQuickRideModalOpen, setIsQuickRideModalOpen] = useState(false);
-  const [anonymousUserName, setAnonymousUserName] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
   const [mapRefreshKey, setMapRefreshKey] = useState(0);
 
   useEffect(() => {
-    setIsClient(true);
-    if (!pb.authStore.isValid) {
-        setIsWelcomeModalOpen(true);
-    }
-
     // Ask for location permission on component mount
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -131,15 +119,6 @@ export default function PassengerDashboard() {
     }
   };
 
-  const handleQuickRideRequest = (name: string) => {
-    setIsQuickRideModalOpen(false);
-    setAnonymousUserName(name);
-    toast({ 
-        title: `Olá, ${name}!`, 
-        description: 'Seu nome foi registrado. Agora você pode solicitar uma corrida.' 
-    });
-  };
-
   const handleCancelRide = async () => {
     if (activeRide) {
         try {
@@ -151,7 +130,6 @@ export default function PassengerDashboard() {
     setRideStatus('idle');
     setRideDetails(null);
     setActiveRide(null);
-    setAnonymousUserName(null);
   };
   
   const handleCompleteRide = () => {
@@ -162,7 +140,6 @@ export default function PassengerDashboard() {
         setRideStatus('idle');
         setRideDetails(null);
         setActiveRide(null);
-        setAnonymousUserName(null);
     }, 5000);
   }
 
@@ -182,7 +159,7 @@ export default function PassengerDashboard() {
             <RideRequestForm
               onRideRequest={handleRequestRide}
               isSearching={rideStatus === 'searching'}
-              anonymousUserName={anonymousUserName}
+              anonymousUserName={null}
             />
           ) : (
             rideDetails && activeRide && (
@@ -204,24 +181,6 @@ export default function PassengerDashboard() {
           />
         </div>
       </div>
-      
-       {isClient && (
-        <>
-            <WelcomeModal 
-                isOpen={isWelcomeModalOpen && !pb.authStore.isValid}
-                onClose={() => setIsWelcomeModalOpen(false)}
-                onQuickRideClick={() => {
-                    setIsWelcomeModalOpen(false);
-                    setIsQuickRideModalOpen(true);
-                }}
-            />
-            <QuickRideModal 
-                isOpen={isQuickRideModalOpen}
-                onClose={() => setIsQuickRideModalOpen(false)}
-                onSubmit={handleQuickRideRequest}
-            />
-        </>
-       )}
     </>
   );
 }
