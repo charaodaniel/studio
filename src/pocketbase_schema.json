@@ -370,38 +370,12 @@
           "max": null,
           "pattern": ""
         }
-      },
-      {
-        "system": false,
-        "id": "new_created_field",
-        "name": "created",
-        "type": "date",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": "",
-          "max": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "new_updated_field",
-        "name": "updated",
-        "type": "date",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": "",
-          "max": ""
-        }
       }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
     "viewRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
-    "createRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.id != \"\" || passenger_anonymous_name != \"\"",
     "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
     "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}

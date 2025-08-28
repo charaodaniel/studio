@@ -84,7 +84,7 @@ export default function RideConfirmationModal({
             const rideRecord = await pb.collection('rides').create(rideData);
 
             // 2. If it's a negotiated ride, also create a chat
-            if (isNegotiated) {
+            if (isNegotiated && currentUser) {
                 await pb.collection('chats').create({
                     participants: [currentUser.id, driver.id],
                     ride: rideRecord.id,

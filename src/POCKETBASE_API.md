@@ -60,6 +60,12 @@ Vá para a aba **"API Rules"** e aplique as seguintes regras.
     ```
     *Permite a visualização dos detalhes de uma corrida sob as mesmas condições da `List rule`.*
 
+* **Create rule:**
+  ```js
+  @request.auth.id != "" || passenger_anonymous_name != ""
+  ```
+  *Permite que um usuário logado ou um usuário anônimo (corrida rápida) crie uma corrida.*
+
 ---
 
 ## 3. Coleção: `chats` (Nova)

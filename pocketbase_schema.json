@@ -216,8 +216,8 @@
     "indexes": [
       "CREATE UNIQUE INDEX `idx_users_name` ON `users` (`name`) WHERE name != ''"
     ],
-    "listRule": "@request.auth.id != \"\" && @request.auth.role = \"Admin\"",
-    "viewRule": "id = @request.auth.id || name != \"\"",
+    "listRule": "role = \"Motorista\"",
+    "viewRule": "id = @request.auth.id || role != \"\"",
     "createRule": "",
     "updateRule": "id = @request.auth.id || @request.auth.role = \"Admin\"",
     "deleteRule": "@request.auth.role = \"Admin\"",
@@ -375,7 +375,7 @@
     "indexes": [],
     "listRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
     "viewRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
-    "createRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.id != \"\" || passenger_anonymous_name != \"\"",
     "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
     "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {}
