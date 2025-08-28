@@ -155,14 +155,18 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                         expand: 'participants'
                     });
                     handleSelectChat(existingChat);
-                } catch (error) {
+                } catch (error: any) {
                      // If not found, create a new one
-                    if (error instanceof Error && error.message.includes("404")) {
-                        const newChat = await pb.collection('chats').create<ChatRecord>({
-                            participants: [pb.authStore.model?.id, preselectedUser.id]
-                        }, { expand: 'participants' });
-                        handleSelectChat(newChat);
-                        fetchChats(); // Refresh the list
+                    if (error.status === 404) {
+                        try {
+                            const newChat = await pb.collection('chats').create<ChatRecord>({
+                                participants: [pb.authStore.model?.id, preselectedUser.id]
+                            }, { expand: 'participants' });
+                            handleSelectChat(newChat);
+                            fetchChats(); // Refresh the list
+                        } catch (createError) {
+                            console.error("Error creating chat:", createError);
+                        }
                     } else {
                         console.error("Error finding or creating chat:", error);
                     }
