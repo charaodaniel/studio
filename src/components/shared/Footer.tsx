@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 
 export function Footer() {
@@ -9,7 +10,7 @@ export function Footer() {
             Termos de Uso
           </span>
         </Link>
-        <Link href="#" passHref>
+        <Link href="/docs" passHref>
           <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             Documentação
           </span>
