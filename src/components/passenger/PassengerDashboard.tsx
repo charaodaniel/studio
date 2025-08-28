@@ -183,7 +183,6 @@ export default function PassengerDashboard() {
               onRideRequest={handleRequestRide}
               isSearching={rideStatus === 'searching'}
               anonymousUserName={anonymousUserName}
-              onRefreshLocation={handleRefreshLocation}
             />
           ) : (
             rideDetails && activeRide && (
@@ -201,6 +200,7 @@ export default function PassengerDashboard() {
           <MapPlaceholder 
             rideInProgress={rideStatus === 'in_progress' || rideStatus === 'accepted'} 
             refreshKey={mapRefreshKey}
+            onRefreshLocation={handleRefreshLocation}
           />
         </div>
       </div>

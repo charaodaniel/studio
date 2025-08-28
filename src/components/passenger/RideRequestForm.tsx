@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Locate, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import { MapPin, Locate, ArrowRight, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
@@ -16,10 +16,9 @@ interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
   isSearching: boolean;
   anonymousUserName: string | null;
-  onRefreshLocation: () => void;
 }
 
-export default function RideRequestForm({ onRideRequest, isSearching, anonymousUserName, onRefreshLocation }: RideRequestFormProps) {
+export default function RideRequestForm({ onRideRequest, isSearching, anonymousUserName }: RideRequestFormProps) {
     const [origin, setOrigin] = useState('Rua Principal, 123');
     const [destination, setDestination] = useState('Shopping da Cidade');
     const { toast } = useToast();
@@ -40,9 +39,6 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
                 <CardTitle className="font-headline text-2xl">Onde vamos hoje?</CardTitle>
                 <CardDescription>Solicite uma corrida com facilidade e segurança.</CardDescription>
             </div>
-            <Button variant="ghost" size="icon" aria-label="Atualizar localização" onClick={onRefreshLocation}>
-                <RefreshCw />
-            </Button>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">

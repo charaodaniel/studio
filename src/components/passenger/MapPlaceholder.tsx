@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Car, Star, User } from 'lucide-react';
+import { Car, Star, User, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import pb from '@/lib/pocketbase';
@@ -19,9 +19,10 @@ const acceptedDriver = { id: 5, name: 'Roberto Andrade', vehicle: 'Chevrolet Oni
 interface MapPlaceholderProps {
   rideInProgress?: boolean;
   refreshKey: number;
+  onRefreshLocation: () => void;
 }
 
-export default function MapPlaceholder({ rideInProgress = false, refreshKey }: MapPlaceholderProps) {
+export default function MapPlaceholder({ rideInProgress = false, refreshKey, onRefreshLocation }: MapPlaceholderProps) {
   const [onlineDrivers, setOnlineDrivers] = useState<FullDriver[]>([]);
   const [userPosition, setUserPosition] = useState({ top: '50%', left: '50%' });
   
@@ -74,6 +75,11 @@ export default function MapPlaceholder({ rideInProgress = false, refreshKey }: M
           className="object-cover opacity-100"
           priority
         />
+         <div className="absolute top-2 right-2 z-10">
+          <Button variant="ghost" size="icon" aria-label="Atualizar localização" onClick={onRefreshLocation} className="bg-background/50 hover:bg-background/80">
+              <RefreshCw className="h-5 w-5 text-foreground" />
+          </Button>
+        </div>
         <div className="absolute inset-0 bg-black/20"> {/* Added a slight overlay for text readability */}
           {!rideInProgress ? (
             onlineDrivers.map((driver) => (
