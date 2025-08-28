@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +8,7 @@ import RideStatusCard from './RideStatusCard';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
+import WelcomeModal from '../shared/WelcomeModal';
 import QuickRideModal from './QuickRideModal';
 
 
@@ -40,17 +42,40 @@ export default function PassengerDashboard() {
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isQuickRideModalOpen, setIsQuickRideModalOpen] = useState(false);
   const [anonymousUserName, setAnonymousUserName] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [mapRefreshKey, setMapRefreshKey] = useState(0);
 
-   useEffect(() => {
+  useEffect(() => {
     setIsClient(true);
     if (!pb.authStore.isValid) {
-      setIsQuickRideModalOpen(true);
+        setIsWelcomeModalOpen(true);
     }
-  }, []);
+
+    // Ask for location permission on component mount
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                // Permission granted. We don't need to use the coordinates for now.
+                console.log("Location permission granted.");
+            },
+            (error) => {
+                // Permission denied or other error.
+                if (error.code === error.PERMISSION_DENIED) {
+                    toast({
+                        title: 'Permissão de Localização Negada',
+                        description: 'Para uma melhor experiência, considere ativar a localização nas configurações do seu navegador.',
+                        variant: 'destructive',
+                        duration: 5000,
+                    });
+                }
+            }
+        );
+    }
+
+  }, [toast]);
 
   useEffect(() => {
     if (!activeRide) return;
@@ -181,11 +206,21 @@ export default function PassengerDashboard() {
       </div>
       
        {isClient && (
-        <QuickRideModal 
-            isOpen={isQuickRideModalOpen && !pb.authStore.isValid}
-            onClose={() => setIsQuickRideModalOpen(false)}
-            onSubmit={handleQuickRideRequest}
-        />
+        <>
+            <WelcomeModal 
+                isOpen={isWelcomeModalOpen && !pb.authStore.isValid}
+                onClose={() => setIsWelcomeModalOpen(false)}
+                onQuickRideClick={() => {
+                    setIsWelcomeModalOpen(false);
+                    setIsQuickRideModalOpen(true);
+                }}
+            />
+            <QuickRideModal 
+                isOpen={isQuickRideModalOpen}
+                onClose={() => setIsQuickRideModalOpen(false)}
+                onSubmit={handleQuickRideRequest}
+            />
+        </>
        )}
     </>
   );
