@@ -11,6 +11,7 @@ import { Progress } from '../ui/progress';
 import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
 import pb from '@/lib/pocketbase';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -27,6 +28,7 @@ interface RideStatusCardProps {
 export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNegotiated, onCancel, onComplete }: RideStatusCardProps) {
     const [progress, setProgress] = useState(10);
     const [chatId, setChatId] = useState<string | null>(null);
+    const { playNotification } = useNotificationSound();
 
     useEffect(() => {
         if (rideStatus === 'completed') {
@@ -38,6 +40,7 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
             const timer = setTimeout(() => {
                 setProgress(60);
             }, 2000);
+            playNotification();
             return () => clearTimeout(timer);
         }
         
@@ -45,7 +48,7 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
             setProgress(100);
         }
 
-    }, [rideStatus]);
+    }, [rideStatus, playNotification]);
 
     useEffect(() => {
       const findChat = async () => {

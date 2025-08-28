@@ -14,6 +14,7 @@ import pb from '@/lib/pocketbase';
 import { type RecordModel } from 'pocketbase';
 import { ScrollArea } from '../ui/scroll-area';
 import { Input } from '../ui/input';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface MessageRecord extends RecordModel {
     chat: string;
@@ -36,6 +37,7 @@ interface RideChatProps {
 
 export function RideChat({ children, rideId, chatId, passengerName, isNegotiation, isReadOnly = false, onAcceptRide }: RideChatProps) {
   const { toast } = useToast();
+  const { playNotification } = useNotificationSound();
   const [messages, setMessages] = useState<MessageRecord[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -114,6 +116,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     if (!currentChatId) return;
     const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', e => {
         if (e.action === 'create' && e.record.chat === currentChatId) {
+            playNotification();
             pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender' }).then(fullRecord => {
                 setMessages(prev => [...prev, fullRecord]);
             });
@@ -121,7 +124,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     });
 
     return () => pb.collection('messages').unsubscribe('*');
-  }, [currentChatId]);
+  }, [currentChatId, playNotification]);
 
   useEffect(() => {
       if (scrollAreaRef.current) {

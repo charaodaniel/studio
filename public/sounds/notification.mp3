@@ -1,0 +1,3 @@
+// Adding a placeholder for the sound file. The build system will handle the actual binary file.
+// This is a common practice for indicating the presence of non-text assets.
+"This is a placeholder for notification.mp3"

@@ -240,6 +240,7 @@ export function DriverRideHistory() {
         }
 
         try {
+            const now = new Date().toISOString();
             const data = {
                 driver: pb.authStore.model.id,
                 passenger: null,
@@ -249,6 +250,8 @@ export function DriverRideHistory() {
                 status: 'completed',
                 started_by: 'driver',
                 is_negotiated: false,
+                created: now,
+                updated: now,
             };
             await pb.collection('rides').create(data);
 

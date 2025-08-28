@@ -13,6 +13,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -94,6 +95,7 @@ interface FullRideRequest {
 
 export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: string) => void }) {
     const { toast } = useToast();
+    const { playNotification } = useNotificationSound();
     const [requests, setRequests] = useState<FullRideRequest[]>([]);
     const [acceptedRide, setAcceptedRide] = useState<RideRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -147,6 +149,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
 
             if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
                  fetchRequests(); // Re-fetch all to get chat info
+                 playNotification();
             }
             if (e.action === 'update' && e.record.status !== 'requested') {
                 setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
@@ -160,7 +163,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
             pb.collection('rides').unsubscribe('*');
         };
 
-    }, [fetchRequests, acceptedRide]);
+    }, [fetchRequests, acceptedRide, playNotification]);
 
 
     const handleAccept = async (ride: RideRecord) => {
