@@ -8,10 +8,13 @@ import RideStatusCard from './RideStatusCard';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
+import WelcomeModal from '../shared/WelcomeModal';
+import QuickRideModal from './QuickRideModal';
 
 
 interface RideRecord extends RecordModel {
     status: RideStatus;
+    passenger_anonymous_name?: string;
     expand?: {
         driver: DriverRecord;
     }
@@ -39,6 +42,20 @@ export default function PassengerDashboard() {
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+  const [isQuickRideModalOpen, setIsQuickRideModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Show welcome modal only if user is not logged in
+    if (!pb.authStore.isValid) {
+      // Use a timeout to prevent hydration errors and give a smoother entry
+      const timer = setTimeout(() => {
+        setIsWelcomeModalOpen(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
 
   useEffect(() => {
     if (!activeRide) return;
@@ -94,6 +111,14 @@ export default function PassengerDashboard() {
     }
   };
 
+  const handleQuickRideRequest = (name: string) => {
+    setIsQuickRideModalOpen(false);
+    toast({ title: 'Obrigado!', description: 'Agora escolha um motorista para iniciar sua corrida rápida.' });
+    
+    // Here, you could store the anonymous name in a state to pass down
+    // For now, we assume the ride request form will handle it.
+  };
+
   const handleCancelRide = async () => {
     if (activeRide) {
         try {
@@ -143,6 +168,20 @@ export default function PassengerDashboard() {
           <MapPlaceholder rideInProgress={rideStatus === 'in_progress' || rideStatus === 'accepted'} />
         </div>
       </div>
+      
+       <WelcomeModal 
+        isOpen={isWelcomeModalOpen} 
+        onClose={() => setIsWelcomeModalOpen(false)} 
+        onQuickRideClick={() => {
+            setIsWelcomeModalOpen(false);
+            setIsQuickRideModalOpen(true);
+        }}
+      />
+      <QuickRideModal 
+        isOpen={isQuickRideModalOpen}
+        onClose={() => setIsQuickRideModalOpen(false)}
+        onSubmit={handleQuickRideRequest}
+      />
     </>
   );
 }
