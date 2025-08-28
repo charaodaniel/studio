@@ -27,7 +27,7 @@ Siga os passos abaixo para executar o projeto localmente em seu ambiente de dese
 ### 1. Pré-requisitos
 
 -   [Node.js](https://nodejs.org/) (versão 18 ou superior)
--   [pnpm](https://pnpm.io/) (recomendado, mas `npm` ou `yarn` também funcionam)
+-   Um gerenciador de pacotes Node, como `npm`, `pnpm` ou `yarn`.
 
 ### 2. Clonar o Repositório
 
@@ -38,6 +38,11 @@ cd <NOME_DA_PASTA_DO_PROJETO>
 
 ### 3. Instalar Dependências
 
+Use o gerenciador de pacotes de sua preferência. Por exemplo, com `npm`:
+```bash
+npm install
+```
+Ou com `pnpm`:
 ```bash
 pnpm install
 ```
@@ -68,7 +73,7 @@ Este protótipo foi projetado para se conectar a um backend **PocketBase**.
 Com tudo configurado, inicie o servidor de desenvolvimento:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 O aplicativo estará disponível em `http://localhost:9002` (ou outra porta, se a 9002 estiver em uso).
@@ -77,10 +82,10 @@ O aplicativo estará disponível em `http://localhost:9002` (ou outra porta, se 
 
 ## 📜 Scripts Disponíveis
 
--   `pnpm dev`: Inicia o servidor de desenvolvimento com Fast Refresh.
--   `pnpm build`: Compila o aplicativo para produção.
--   `pnpm start`: Inicia o servidor de produção após o build.
--   `pnpm lint`: Executa o linter para verificar a qualidade do código.
+-   `npm run dev`: Inicia o servidor de desenvolvimento com Fast Refresh.
+-   `npm run build`: Compila o aplicativo para produção.
+-   `npm run start`: Inicia o servidor de produção após o build.
+-   `npm run lint`: Executa o linter para verificar a qualidade do código.
 
 ---
 
