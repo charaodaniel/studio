@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Logo from './Logo';
 import { Car, LogIn } from 'lucide-react';
@@ -17,8 +17,11 @@ export default function WelcomeModal({ isOpen, onClose, onQuickRideClick }: Welc
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md text-center p-0">
-        
-        <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 p-6 pt-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Bem-vindo</DialogTitle>
+          <DialogDescription>Escolha como começar.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2 p-6">
             <Button size="lg" onClick={onQuickRideClick}>
                 <Car className="mr-2 h-4 w-4" />
                 Corrida Rápida
