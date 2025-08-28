@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
     const [destination, setDestination] = useState('Shopping da Cidade');
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
@@ -30,6 +32,44 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
 
     const isLoggedIn = isClient && pb.authStore.isValid;
     const canRequest = isLoggedIn || !!anonymousUserName;
+
+    const handleGetCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            toast({
+                variant: 'destructive',
+                title: 'Geolocalização não suportada',
+                description: 'Seu navegador não suporta a captura de localização.',
+            });
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                // Em um app real, você usaria position.coords.latitude e position.coords.longitude
+                // para chamar uma API de geocodificação reversa e obter o endereço.
+                // Aqui, vamos apenas simular o resultado.
+                setOrigin('Minha Localização Atual');
+                toast({
+                    title: 'Localização Capturada!',
+                    description: 'Seu local de partida foi atualizado.',
+                });
+                setIsLocating(false);
+            },
+            (error) => {
+                let description = 'Não foi possível obter sua localização.';
+                if (error.code === error.PERMISSION_DENIED) {
+                    description = 'A permissão para acessar a localização foi negada.';
+                }
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro de Localização',
+                    description: description,
+                });
+                setIsLocating(false);
+            }
+        );
+    };
 
   return (
     <Card className="h-full flex flex-col">
@@ -52,9 +92,9 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
               <Label htmlFor="pickup-local">Local de Partida</Label>
               <div className="flex items-center gap-2">
                 <MapPin className="text-muted-foreground" />
-                <Input id="pickup-local" placeholder="Insira seu local de partida" value={origin} onChange={(e) => setOrigin(e.target.value)} disabled={isSearching}/>
-                <Button variant="ghost" size="icon" aria-label="Usar localização atual" disabled={isSearching}>
-                  <Locate />
+                <Input id="pickup-local" placeholder="Insira seu local de partida" value={origin} onChange={(e) => setOrigin(e.target.value)} disabled={isSearching || isLocating}/>
+                <Button variant="ghost" size="icon" aria-label="Usar localização atual" onClick={handleGetCurrentLocation} disabled={isSearching || isLocating}>
+                  {isLocating ? <Loader2 className="animate-spin" /> : <Locate />}
                 </Button>
               </div>
             </div>
