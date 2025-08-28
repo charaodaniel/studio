@@ -5,13 +5,14 @@ import { useState, type ReactNode, useEffect, useCallback, useRef } from 'react'
 import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Handshake, Check, X, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Handshake, Check, X, Loader2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import pb from '@/lib/pocketbase';
 import { type RecordModel } from 'pocketbase';
 import { ScrollArea } from '../ui/scroll-area';
+import { Input } from '../ui/input';
 
 interface MessageRecord extends RecordModel {
     chat: string;
@@ -40,20 +41,23 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   const [isSending, setIsSending] = useState(false);
   const [currentChatId, setCurrentChatId] = useState(chatId);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [proposedFare, setProposedFare] = useState('');
 
 
   const findOrCreateChat = useCallback(async () => {
-    if (!rideId || !pb.authStore.model) return;
+    if (!rideId || !pb.authStore.model) return null;
     
-    // First, try to find an existing chat for the ride
     try {
       const chat = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
       setCurrentChatId(chat.id);
       return chat.id;
     } catch(e) {
-      // If no chat exists, create one
       try {
         const ride = await pb.collection('rides').getOne(rideId);
+        if (!ride.passenger) {
+             toast({ variant: 'destructive', title: 'Erro', description: 'Esta corrida não tem um passageiro definido.' });
+             return null;
+        }
         const chatData = {
           participants: [pb.authStore.model.id, ride.passenger],
           ride: rideId
@@ -118,12 +122,10 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     }, [messages]);
 
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !pb.authStore.model || !currentChatId) return;
-    
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || !pb.authStore.model || !currentChatId) return;
+
     setIsSending(true);
-    const text = newMessage;
-    setNewMessage(''); // Clear input immediately
 
     try {
         await pb.collection('messages').create({
@@ -138,11 +140,42 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     } catch (error) {
         console.error("Failed to send message:", error);
         toast({ variant: 'destructive', title: 'Erro ao Enviar', description: 'Não foi possível enviar a mensagem.' });
-        setNewMessage(text); // Restore message on error
     } finally {
         setIsSending(false);
     }
   }
+
+  const handleSendTextMessage = async () => {
+      await sendMessage(newMessage);
+      setNewMessage('');
+  }
+  
+  const handleSendFareProposal = async () => {
+    const fareValue = parseFloat(proposedFare);
+    if (isNaN(fareValue) || fareValue <= 0) {
+        toast({ variant: 'destructive', title: 'Valor Inválido', description: 'Por favor, insira um valor numérico positivo.'});
+        return;
+    }
+    
+    setIsSending(true);
+    try {
+        // Update ride fare
+        await pb.collection('rides').update(rideId, { fare: fareValue });
+        
+        // Send a message to the chat
+        const proposalMessage = `Proposta de R$ ${fareValue.toFixed(2).replace('.',',')} enviada. Aguardando aceite do passageiro.`;
+        await sendMessage(proposalMessage);
+
+        toast({ title: 'Proposta Enviada!', description: 'Sua proposta foi enviada ao passageiro.' });
+        setProposedFare('');
+    } catch(error) {
+        console.error("Failed to send fare proposal:", error);
+        toast({ variant: 'destructive', title: 'Erro ao Enviar Proposta', description: 'Tente novamente.' });
+    } finally {
+        setIsSending(false);
+    }
+  };
+
 
   const handleAccept = () => {
       toast({
@@ -193,6 +226,25 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
             </CardContent>
             {!isReadOnly && (
                 <CardFooter className="flex-col items-stretch gap-2 pt-4 border-t">
+                     {isNegotiation && (
+                        <div className="flex gap-2">
+                           <div className="relative flex-grow">
+                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                             <Input 
+                                type="number" 
+                                placeholder="Valor (R$)" 
+                                className="pl-9"
+                                value={proposedFare}
+                                onChange={(e) => setProposedFare(e.target.value)}
+                                disabled={isSending}
+                             />
+                           </div>
+                           <Button onClick={handleSendFareProposal} disabled={!proposedFare || isSending}>
+                             {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="w-4 h-4"/>}
+                              <span className="hidden sm:inline ml-2">Propor</span>
+                           </Button>
+                        </div>
+                    )}
                     <div className="relative">
                         <Textarea
                         id="driver-message"
@@ -205,11 +257,11 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
-                                handleSendMessage();
+                                handleSendTextMessage();
                             }
                         }}
                         />
-                        <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" disabled={!newMessage || isSending} onClick={handleSendMessage}>
+                        <Button size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" disabled={!newMessage || isSending} onClick={handleSendTextMessage}>
                             {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="w-4 h-4"/>}
                             <span className="sr-only">Enviar</span>
                         </Button>
