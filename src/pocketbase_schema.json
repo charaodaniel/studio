@@ -216,8 +216,8 @@
     "indexes": [
       "CREATE UNIQUE INDEX `idx_users_name` ON `users` (`name`) WHERE name != ''"
     ],
-    "listRule": "@request.auth.id != \"\" && @request.auth.role = \"Admin\"",
-    "viewRule": "id = @request.auth.id || name != \"\"",
+    "listRule": "role = \"Motorista\"",
+    "viewRule": "id = @request.auth.id || role != \"\"",
     "createRule": "",
     "updateRule": "id = @request.auth.id || @request.auth.role = \"Admin\"",
     "deleteRule": "@request.auth.role = \"Admin\"",

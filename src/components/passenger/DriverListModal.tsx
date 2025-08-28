@@ -62,8 +62,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setIsLoading(true);
         setError(null);
         try {
-            // Fetch all drivers with the 'Motorista' role
-            // The API rule for the 'users' collection must allow listing by authenticated users.
+            // The API rule now allows anyone to list users with the role "Motorista"
             const allDrivers = await pb.collection('users').getFullList<Driver>({
                 filter: 'role = "Motorista"',
             });

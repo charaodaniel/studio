@@ -14,15 +14,15 @@ Acesse a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"
 
 *   **List rule:**
     ```js
-    @request.auth.id != ""
+    role = "Motorista"
     ```
-    *Permite que qualquer usuário autenticado possa listar outros usuários, necessário para que passageiros vejam a lista de motoristas disponíveis.*
+    *Permite que qualquer pessoa (logada ou não) possa listar os usuários que têm o perfil de "Motorista", essencial para o mapa e a seleção de motoristas.*
 
 *   **View rule:**
     ```js
-    id = @request.auth.id || name != ""
+    id = @request.auth.id || role != ""
     ```
-    *Permite que o nome e avatar de um usuário sejam vistos por outros, o que é necessário para o histórico de corridas e chats.*
+    *Permite que o nome e avatar de um usuário sejam vistos por outros, o que é necessário para o histórico de corridas, chats e para exibir os motoristas no mapa.*
 
 *   **Update rule:**
     ```js
