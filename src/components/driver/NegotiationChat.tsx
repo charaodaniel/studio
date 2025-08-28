@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, type ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -42,6 +43,13 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   const [currentChatId, setCurrentChatId] = useState(chatId);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [proposedFare, setProposedFare] = useState('');
+  const [isPassenger, setIsPassenger] = useState(false);
+
+  useEffect(() => {
+    if (pb.authStore.isValid && pb.authStore.model?.role === 'Passageiro') {
+      setIsPassenger(true);
+    }
+  }, [])
 
 
   const findOrCreateChat = useCallback(async () => {
@@ -159,7 +167,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     
     setIsSending(true);
     try {
-        // Update ride fare
+        // Update ride fare, but don't accept it yet.
         await pb.collection('rides').update(rideId, { fare: fareValue });
         
         // Send a message to the chat
@@ -177,14 +185,29 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   };
 
 
-  const handleAccept = () => {
-      toast({
-          title: "Oferta Aceita!",
-          description: `Você aceitou a corrida de ${passengerName}.`,
-      });
-      if (onAcceptRide) {
-          onAcceptRide();
-      }
+  const handleAccept = async () => {
+    try {
+        if (isPassenger) {
+            await pb.collection('rides').update(rideId, {
+                // Here passenger confirms the fare and accepts the ride
+                status: 'accepted',
+            });
+             toast({ title: "Proposta Aceita!", description: `Aguarde o motorista iniciar a viagem.` });
+        } else { // Driver accepts
+            if (onAcceptRide) {
+                onAcceptRide();
+            }
+        }
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    } catch (error) {
+        console.error("Error accepting ride/proposal:", error);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível completar a ação.' });
+    }
+  }
+
+  const handleReject = async () => {
+      // Logic for passenger to reject a proposal or driver to reject a ride
+      toast({ variant: "destructive", title: "Ação realizada", description: "A proposta/corrida foi rejeitada." });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
   }
 
@@ -226,7 +249,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
             </CardContent>
             {!isReadOnly && (
                 <CardFooter className="flex-col items-stretch gap-2 pt-4 border-t">
-                     {isNegotiation && (
+                     {isNegotiation && !isPassenger && (
                         <div className="flex gap-2">
                            <div className="relative flex-grow">
                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -268,7 +291,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
                     </div>
                     {isNegotiation && (
                         <div className="flex gap-2">
-                                <Button variant="destructive" className="w-full"><X className="mr-2 h-4 w-4" /> Rejeitar</Button>
+                                <Button variant="destructive" className="w-full" onClick={handleReject}><X className="mr-2 h-4 w-4" /> Rejeitar</Button>
                                 <Button className="w-full" onClick={handleAccept}><Check className="mr-2 h-4 w-4" /> Aceitar Oferta</Button>
                         </div>
                     )}

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,11 +19,12 @@ interface RideStatusCardProps {
   rideDetails: RideDetails;
   rideStatus: RideStatus;
   rideId: string;
+  isNegotiated: boolean;
   onCancel: () => void;
   onComplete: () => void;
 }
 
-export default function RideStatusCard({ rideDetails, rideStatus, rideId, onCancel, onComplete }: RideStatusCardProps) {
+export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNegotiated, onCancel, onComplete }: RideStatusCardProps) {
     const [progress, setProgress] = useState(10);
     const [chatId, setChatId] = useState<string | null>(null);
 
@@ -115,8 +117,14 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, onCanc
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-2">
         <Button variant="outline"><Phone className="mr-2"/> Ligar</Button>
-        <RideChat rideId={rideId} chatId={chatId} passengerName={rideDetails.driverName} isNegotiation={false}>
-          <Button className="w-full"><MessageSquare className="mr-2"/> Mensagem</Button>
+        <RideChat 
+            rideId={rideId} 
+            chatId={chatId} 
+            passengerName={rideDetails.driverName} 
+            isNegotiation={isNegotiated} 
+            isReadOnly={!isNegotiated} // Passenger can only accept/reject, not propose
+        >
+          <Button className="w-full"><MessageSquare className="mr-2"/> {isNegotiated ? 'Negociar/Chat' : 'Chat'}</Button>
         </RideChat>
         <Button variant="destructive" className="col-span-2" onClick={onCancel}>
             <Shield className="mr-2"/> Cancelar Corrida

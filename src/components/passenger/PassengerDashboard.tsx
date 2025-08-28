@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface RideRecord extends RecordModel {
     status: RideStatus;
+    is_negotiated: boolean;
     passenger_anonymous_name?: string;
     expand?: {
         driver: DriverRecord;
@@ -176,6 +178,7 @@ export default function PassengerDashboard() {
                 rideDetails={rideDetails}
                 rideStatus={rideStatus}
                 rideId={activeRide.id}
+                isNegotiated={activeRide.is_negotiated}
                 onCancel={handleCancelRide}
                 onComplete={handleCompleteRide}
               />
