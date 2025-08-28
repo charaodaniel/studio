@@ -171,3 +171,5 @@ Crie uma **nova coleção** chamada `messages` (tipo "Base"). Adicione os campos
 ---
 
 Após salvar essas coleções e regras, os problemas de permissão e carregamento do histórico e do chat serão resolvidos.
+
+    
