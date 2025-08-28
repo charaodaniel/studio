@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, type ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -88,7 +87,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     try {
         const result = await pb.collection('messages').getFullList<MessageRecord>({
             filter: `chat = "${id}"`,
-            sort: 'created',
+            sort: 'id',
             expand: 'sender'
         });
         setMessages(result);

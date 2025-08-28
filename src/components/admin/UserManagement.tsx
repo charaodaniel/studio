@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -113,7 +112,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         try {
             const result = await pb.collection('messages').getFullList<MessageRecord>({
                 filter: `chat = "${chatId}"`,
-                sort: 'created'
+                sort: 'id'
             });
             setMessages(result);
         } catch (error) {
