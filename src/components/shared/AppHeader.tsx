@@ -4,18 +4,16 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Car, Rocket, Shield, User, Download } from 'lucide-react';
-import PassengerAuthForm from '../auth/PassengerAuthForm';
+import { Download, LogIn } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
   Dialog,
   DialogContent,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import AdminAuthForm from '../auth/AdminAuthForm';
-import DriverAuthForm from '../auth/DriverAuthForm';
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
+import LoginOptionsModal from '../auth/LoginOptionsModal';
 
 // Define the interface for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -116,39 +114,15 @@ export function AppHeader({
               </Button>
             )}
              <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Shield className="h-5 w-5" />
-                  <span className="sr-only">Admin</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="p-0">
-                <AdminAuthForm />
-              </DialogContent>
-            </Dialog>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Car className="h-5 w-5" />
-                  <span className="sr-only">Área do Motorista</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="p-0">
-                <DriverAuthForm />
-              </DialogContent>
-            </Dialog>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <User className="h-5 w-5" />
-                  <span className="sr-only">Toggle user menu</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[90vh] flex flex-col p-0">
-                <div className="flex-1 overflow-hidden">
-                    <PassengerAuthForm />
-                </div>
-              </DialogContent>
+                <DialogTrigger asChild>
+                    <Button>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Login
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="p-0">
+                    <LoginOptionsModal />
+                </DialogContent>
             </Dialog>
           </div>
         </div>

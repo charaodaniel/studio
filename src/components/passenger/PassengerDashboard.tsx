@@ -8,7 +8,6 @@ import RideStatusCard from './RideStatusCard';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
-import WelcomeModal from '../shared/WelcomeModal';
 import QuickRideModal from './QuickRideModal';
 
 
@@ -42,21 +41,8 @@ export default function PassengerDashboard() {
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
-  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isQuickRideModalOpen, setIsQuickRideModalOpen] = useState(false);
   const [anonymousUserName, setAnonymousUserName] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Show welcome modal only if user is not logged in and no anonymous user is set
-    if (!pb.authStore.isValid && !anonymousUserName) {
-      // Use a timeout to prevent hydration errors and give a smoother entry
-      const timer = setTimeout(() => {
-        setIsWelcomeModalOpen(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [anonymousUserName]);
-
 
   useEffect(() => {
     if (!activeRide) return;
@@ -174,14 +160,6 @@ export default function PassengerDashboard() {
         </div>
       </div>
       
-       <WelcomeModal 
-        isOpen={isWelcomeModalOpen} 
-        onClose={() => setIsWelcomeModalOpen(false)} 
-        onQuickRideClick={() => {
-            setIsWelcomeModalOpen(false);
-            setIsQuickRideModalOpen(true);
-        }}
-      />
       <QuickRideModal 
         isOpen={isQuickRideModalOpen}
         onClose={() => setIsQuickRideModalOpen(false)}
