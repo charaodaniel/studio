@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
@@ -65,8 +66,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${spaceGrotesk.variable} h-full`}>
-      <head>
-      </head>
+      <head />
       <body className="font-body antialiased h-full bg-background">
         {children}
         <Toaster />
