@@ -148,14 +148,19 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
              if (!driverId) return;
 
             if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
-                 fetchRequests(); // Re-fetch all to get chat info
+                 fetchRequests();
                  playNotification();
             }
-            if (e.action === 'update' && e.record.status !== 'requested') {
-                setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
-                 if (acceptedRide?.id === e.record.id) {
+             // When a ride is updated, check if it's one of ours
+            if (e.action === 'update' && e.record.driver === driverId) {
+                // If the ride is no longer 'requested', remove it from the request list
+                if (e.record.status !== 'requested') {
+                    setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
+                }
+                // If the updated ride is the one we've accepted, but it got canceled by the passenger, for example.
+                if (acceptedRide?.id === e.record.id && (e.record.status === 'canceled' || e.record.status === 'completed')) {
                     setAcceptedRide(null);
-                 }
+                }
             }
         });
 
