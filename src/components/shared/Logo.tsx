@@ -1,3 +1,4 @@
+
 import type { ComponentProps } from 'react';
 
 // Omit 'src' and 'alt' to enforce them, and allow other Image props to be passed.
