@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
-import { AppLayout } from '@/components/shared/AppLayout';
 import { Inter, Space_Grotesk } from 'next/font/google';
 
 const APP_NAME = "CEOLIN Mobilidade Urbana";
@@ -69,9 +68,7 @@ export default function RootLayout({
       <head>
       </head>
       <body className="font-body antialiased h-full bg-background">
-        <AppLayout title="Bem-vindo!">
-          {children}
-        </AppLayout>
+        {children}
         <Toaster />
       </body>
     </html>

@@ -1,5 +1,9 @@
 
+'use client';
+
 import Link from 'next/link';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import DocsModal from './DocsModal';
 
 export function Footer() {
   return (
@@ -10,11 +14,14 @@ export function Footer() {
             Termos de Uso
           </span>
         </Link>
-        <Link href="/docs" passHref>
-          <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-            Documentação
-          </span>
-        </Link>
+        <Dialog>
+          <DialogTrigger asChild>
+             <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                Documentação
+            </span>
+          </DialogTrigger>
+          <DocsModal />
+        </Dialog>
       </div>
     </footer>
   );
