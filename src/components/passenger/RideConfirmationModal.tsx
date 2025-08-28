@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,10 +18,11 @@ interface RideConfirmationModalProps {
     destination: string;
     isNegotiated: boolean;
     onConfirm: (rideId: string) => void;
+    passengerAnonymousName: string | null;
 }
 
 export default function RideConfirmationModal({
-    isOpen, onOpenChange, driver, origin, destination, isNegotiated, onConfirm
+    isOpen, onOpenChange, driver, origin, destination, isNegotiated, onConfirm, passengerAnonymousName
 }: RideConfirmationModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [calculatedFare, setCalculatedFare] = useState<number>(0);
@@ -46,11 +48,11 @@ export default function RideConfirmationModal({
     const handleConfirmRide = async () => {
         setIsLoading(true);
         const currentUser = pb.authStore.model;
-        if (!currentUser) {
+        if (!currentUser && !passengerAnonymousName) {
             toast({
                 variant: 'destructive',
-                title: 'Erro de Autenticação',
-                description: 'Você precisa estar logado para confirmar uma corrida.',
+                title: 'Erro de Identificação',
+                description: 'Você precisa estar logado ou fornecer um nome para solicitar uma corrida.',
             });
             setIsLoading(false);
             return;
@@ -69,7 +71,7 @@ export default function RideConfirmationModal({
         try {
             // 1. Create the ride record
             const rideData = {
-                passenger: currentUser.id,
+                passenger: currentUser?.id || null, // Can be null for anonymous
                 driver: driver.id,
                 origin_address: origin,
                 destination_address: destination,
@@ -77,6 +79,7 @@ export default function RideConfirmationModal({
                 is_negotiated: isNegotiated,
                 started_by: "passenger",
                 fare: isNegotiated ? 0 : (calculatedFare || 0),
+                passenger_anonymous_name: passengerAnonymousName,
             };
             const rideRecord = await pb.collection('rides').create(rideData);
 

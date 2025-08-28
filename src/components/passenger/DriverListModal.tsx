@@ -23,6 +23,7 @@ interface DriverListModalProps {
     destination: string;
     isNegotiated: boolean;
     onRideRequest: (rideId: string) => void;
+    passengerAnonymousName: string | null;
 }
 
 const getStatusVariant = (status?: string) => {
@@ -49,7 +50,7 @@ const getStatusLabel = (status?: string) => {
 };
 
 
-export default function DriverListModal({ origin, destination, isNegotiated, onRideRequest }: DriverListModalProps) {
+export default function DriverListModal({ origin, destination, isNegotiated, onRideRequest, passengerAnonymousName }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<string | null>(null);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -221,9 +222,9 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                         // Close the parent dialog as well
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
                     }}
+                    passengerAnonymousName={passengerAnonymousName}
                 />
             )}
         </>
     );
 }
-

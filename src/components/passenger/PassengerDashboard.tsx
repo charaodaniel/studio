@@ -44,17 +44,18 @@ export default function PassengerDashboard() {
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [isQuickRideModalOpen, setIsQuickRideModalOpen] = useState(false);
+  const [anonymousUserName, setAnonymousUserName] = useState<string | null>(null);
 
   useEffect(() => {
-    // Show welcome modal only if user is not logged in
-    if (!pb.authStore.isValid) {
+    // Show welcome modal only if user is not logged in and no anonymous user is set
+    if (!pb.authStore.isValid && !anonymousUserName) {
       // Use a timeout to prevent hydration errors and give a smoother entry
       const timer = setTimeout(() => {
         setIsWelcomeModalOpen(true);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [anonymousUserName]);
 
 
   useEffect(() => {
@@ -113,10 +114,11 @@ export default function PassengerDashboard() {
 
   const handleQuickRideRequest = (name: string) => {
     setIsQuickRideModalOpen(false);
-    toast({ title: 'Obrigado!', description: 'Agora escolha um motorista para iniciar sua corrida rápida.' });
-    
-    // Here, you could store the anonymous name in a state to pass down
-    // For now, we assume the ride request form will handle it.
+    setAnonymousUserName(name);
+    toast({ 
+        title: `Olá, ${name}!`, 
+        description: 'Seu nome foi registrado. Agora você pode solicitar uma corrida.' 
+    });
   };
 
   const handleCancelRide = async () => {
@@ -130,6 +132,7 @@ export default function PassengerDashboard() {
     setRideStatus('idle');
     setRideDetails(null);
     setActiveRide(null);
+    setAnonymousUserName(null);
   };
   
   const handleCompleteRide = () => {
@@ -140,6 +143,7 @@ export default function PassengerDashboard() {
         setRideStatus('idle');
         setRideDetails(null);
         setActiveRide(null);
+        setAnonymousUserName(null);
     }, 5000);
   }
 
@@ -151,6 +155,7 @@ export default function PassengerDashboard() {
             <RideRequestForm
               onRideRequest={handleRequestRide}
               isSearching={rideStatus === 'searching'}
+              anonymousUserName={anonymousUserName}
             />
           ) : (
             rideDetails && activeRide && (

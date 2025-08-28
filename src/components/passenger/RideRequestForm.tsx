@@ -16,9 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
   isSearching: boolean;
+  anonymousUserName: string | null;
 }
 
-export default function RideRequestForm({ onRideRequest, isSearching }: RideRequestFormProps) {
+export default function RideRequestForm({ onRideRequest, isSearching, anonymousUserName }: RideRequestFormProps) {
     const [origin, setOrigin] = useState('Rua Principal, 123');
     const [destination, setDestination] = useState('Shopping da Cidade');
     const { toast } = useToast();
@@ -29,7 +30,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
     }, []);
 
     const isLoggedIn = isClient && pb.authStore.isValid;
-
+    const canRequest = isLoggedIn || !!anonymousUserName;
 
   return (
     <Card className="h-full flex flex-col">
@@ -64,7 +65,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
              <div className="space-y-2">
                  <Dialog>
                     <DialogTrigger asChild>
-                      <Button className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>
+                      <Button className="w-full" size="lg" disabled={isSearching || !canRequest}>
                          {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                          {isSearching ? 'Procurando Motorista...' : 'Escolher Motorista'}
                       </Button>
@@ -75,6 +76,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                         destination={destination}
                         isNegotiated={false}
                         onRideRequest={onRideRequest}
+                        passengerAnonymousName={anonymousUserName}
                         />
                     </DialogContent>
                 </Dialog>
@@ -101,7 +103,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
             </div>
              <Dialog>
                 <DialogTrigger asChild>
-                    <Button className="w-full" size="lg" disabled={isSearching || !isLoggedIn}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    <Button className="w-full" size="lg" disabled={isSearching || !canRequest}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                    <DriverListModal 
@@ -109,6 +111,7 @@ export default function RideRequestForm({ onRideRequest, isSearching }: RideRequ
                     destination={destination}
                     isNegotiated={true}
                     onRideRequest={onRideRequest}
+                    passengerAnonymousName={anonymousUserName}
                    />
                 </DialogContent>
             </Dialog>
