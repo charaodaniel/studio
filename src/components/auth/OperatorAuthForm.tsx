@@ -1,18 +1,17 @@
 
-
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/shared/Logo';
-import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '../ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import pb from '@/lib/pocketbase';
 import { Loader2 } from 'lucide-react';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 export default function OperatorAuthForm() {
   const [email, setEmail] = useState('');
@@ -81,9 +80,14 @@ export default function OperatorAuthForm() {
             <div className="space-y-2">
             <div className="flex items-center">
                 <Label htmlFor="password-operator">Senha</Label>
-                <Link href="#" className="ml-auto inline-block text-sm underline">
-                Esqueceu sua senha?
-                </Link>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <button type="button" className="ml-auto inline-block text-sm underline">Esqueceu sua senha?</button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <ForgotPasswordForm />
+                    </DialogContent>
+                </Dialog>
             </div>
             <Input 
                 id="password-operator" 

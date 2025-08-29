@@ -1,14 +1,12 @@
 
-
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Logo from '../shared/Logo';
 import { Checkbox } from '../ui/checkbox';
@@ -16,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import pb from '@/lib/pocketbase';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 export default function DriverAuthForm() {
   const { toast } = useToast();
@@ -131,9 +130,14 @@ export default function DriverAuthForm() {
                 <div className="space-y-2">
                    <div className="flex items-center">
                      <Label htmlFor="password-login-driver">Senha</Label>
-                     <Link href="#" className="ml-auto inline-block text-sm underline">
-                        Esqueceu sua senha?
-                     </Link>
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <button type="button" className="ml-auto inline-block text-sm underline">Esqueceu sua senha?</button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <ForgotPasswordForm />
+                        </DialogContent>
+                     </Dialog>
                    </div>
                    <div className="relative">
                         <Input 
