@@ -57,7 +57,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
             const records = await pb.collection('users').getFullList<User>({
                 sort: '-created',
                 filter: filter,
-            });
+            }, { admin: true }); // Força a requisição como admin para ver todos os usuários
             setUsers(records);
         } catch (err: any) {
             console.error("Failed to fetch users:", err);
