@@ -228,6 +228,20 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
             toast({ variant: "destructive", title: "Erro", description: "Não foi possível finalizar a viagem."});
         }
     }
+    
+    const handleCancelByDriver = async () => {
+        if (!acceptedRide) return;
+        try {
+            await pb.collection('rides').update(acceptedRide.id, { status: 'canceled' });
+            toast({ variant: "destructive", title: "Corrida Cancelada", description: "A corrida foi cancelada e o passageiro notificado." });
+            setAcceptedRide(null);
+            setPassengerOnBoard(false);
+            setDriverStatus('online');
+            fetchRequests();
+        } catch (error) {
+             toast({ variant: "destructive", title: "Erro", description: "Não foi possível cancelar a corrida."});
+        }
+    }
 
     if (acceptedRide) {
          return (
@@ -275,14 +289,14 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Informar Imprevisto ao Passageiro?</AlertDialogTitle>
+                                <AlertDialogTitle>Cancelar a Corrida?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Isso notificará o passageiro que você teve um problema e solicitará a troca de motorista. Use esta opção apenas em caso de real necessidade.
+                                    Isso notificará o passageiro que você teve um problema e cancelará a viagem. Use esta opção apenas em caso de real necessidade.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction className="bg-amber-600 hover:bg-amber-700">Sim, Notificar</AlertDialogAction>
+                                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleCancelByDriver}>Sim, Cancelar Corrida</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
