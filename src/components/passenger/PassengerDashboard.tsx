@@ -75,7 +75,7 @@ export default function PassengerDashboard() {
 
     const subscribeToRide = async () => {
         // Subscribe to updates for the active ride
-        unsubscribe = await pb.collection('rides').subscribe<RideRecord>(activeRide.id, (e) => {
+        unsubscribe = pb.collection('rides').subscribe<RideRecord>(activeRide.id, (e) => {
             if (e.action === 'update') {
                 const updatedRide = e.record;
                 
@@ -111,6 +111,7 @@ export default function PassengerDashboard() {
 
     subscribeToRide();
 
+    // The cleanup function should call the unsubscribe function returned by subscribe.
     return () => {
         if (unsubscribe) {
             unsubscribe();
