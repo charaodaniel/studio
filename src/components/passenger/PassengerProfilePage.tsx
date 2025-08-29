@@ -11,7 +11,7 @@ import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
-import { LogOut } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
@@ -29,7 +29,10 @@ export function PassengerProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     const currentUser = pb.authStore.model as User | null;
@@ -55,6 +58,34 @@ export function PassengerProfilePage() {
     });
     router.push('/');
   };
+  
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (newPassword.length < 8) {
+      toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 8 caracteres.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ variant: 'destructive', title: 'Senhas não coincidem', description: 'Por favor, verifique a confirmação da senha.' });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await pb.collection('users').update(user.id, {
+        password: newPassword,
+        passwordConfirm: confirmPassword
+      });
+      toast({ title: 'Senha alterada com sucesso!' });
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível atualizar sua senha. Tente novamente.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAvatarSave = async (newImage: string) => {
     if (!user) return;
@@ -65,7 +96,6 @@ export function PassengerProfilePage() {
         
         const updatedRecord = await pb.collection('users').update(user.id, formData);
         
-        // This will trigger the authStore change and update the UI
         pb.authStore.save(pb.authStore.token, updatedRecord as any);
         
         toast({ title: 'Avatar atualizado com sucesso!' });
@@ -162,18 +192,21 @@ export function PassengerProfilePage() {
             </TabsContent>
             <TabsContent value="security">
                 <div className="bg-card rounded-lg p-6 space-y-6 max-w-md mx-auto">
-                    <div className="space-y-4">
+                    <form onSubmit={handleChangePassword} className="space-y-4">
                         <h3 className="font-semibold font-headline">Alterar Senha</h3>
                         <div>
-                            <Label htmlFor="password">Nova Senha</Label>
-                            <Input id="password" type="password" />
+                            <Label htmlFor="newPassword">Nova Senha</Label>
+                            <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={isSaving}/>
                         </div>
                          <div>
-                            <Label htmlFor="password-confirm">Confirmar Nova Senha</Label>
-                            <Input id="password-confirm" type="password" />
+                            <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                            <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isSaving}/>
                         </div>
-                        <Button className="w-full">Alterar Senha</Button>
-                    </div>
+                        <Button type="submit" className="w-full" disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Alterar Senha
+                        </Button>
+                    </form>
                      <div className="space-y-4">
                         <h3 className="font-semibold font-headline">Sessão</h3>
                         <Button variant="outline" className="w-full" onClick={handleLogout}>
