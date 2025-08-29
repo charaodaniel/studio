@@ -19,9 +19,11 @@ import pb from "@/lib/pocketbase";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
-import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { cn } from "@/lib/utils";
 import DriverStatusLogModal from "./DriverStatusLogModal";
+import AddUserForm from "./AddUserForm";
+import { ScrollArea } from "../ui/scroll-area";
   
   export default function UserManagementTable() {
     const { toast } = useToast();
@@ -68,8 +70,21 @@ import DriverStatusLogModal from "./DriverStatusLogModal";
     
     return (
         <Dialog open={!!selectedUserForLog} onOpenChange={(isOpen) => !isOpen && setSelectedUserForLog(null)}>
-            <div className="flex justify-end mb-4">
-                <Button><UserPlus className="mr-2 h-4 w-4"/> Adicionar Usuário</Button>
+             <div className="flex justify-end mb-4">
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button><UserPlus className="mr-2 h-4 w-4"/> Adicionar Usuário</Button>
+                    </DialogTrigger>
+                     <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle>Adicionar Novo Usuário</DialogTitle>
+                        <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[80vh]">
+                        <AddUserForm onUserAdded={fetchUsers} />
+                        </ScrollArea>
+                    </DialogContent>
+                </Dialog>
             </div>
             <div className="rounded-md border">
                 <Table>
@@ -158,7 +173,7 @@ import DriverStatusLogModal from "./DriverStatusLogModal";
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta ação vai {user.disabled ? "reativar" : "desativar"} o acesso do usuário {user.name} à plataforma.
+                                                Esta ação vai {user.disabled ? "reativar" : "desativar"} o acesso do usuário ${user.name} à plataforma.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
