@@ -22,8 +22,8 @@ export default function UserManagementTabs() {
 
     return (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-grow flex flex-col">
-            <div className="bg-card">
-                <TabsList className="grid w-full grid-cols-4 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-7 rounded-none">
+            <div className="bg-card w-full overflow-x-auto">
+                <TabsList className="rounded-none h-auto">
                     <TabsTrigger value="management"><List className="mr-2 h-4 w-4"/> Gerenciar</TabsTrigger>
                     <TabsTrigger value="documents"><FileCheck className="mr-2 h-4 w-4"/> Documentos</TabsTrigger>
                     <TabsTrigger value="conversations"><MessageSquare className="mr-2 h-4 w-4"/> Conversas</TabsTrigger>
