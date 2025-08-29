@@ -71,11 +71,9 @@ export default function PassengerDashboard() {
   useEffect(() => {
     if (!activeRide) return;
 
-    let unsubscribe: () => void;
-
-    const subscribeToRide = async () => {
+    const subscribeToRide = () => {
         // Subscribe to updates for the active ride
-        unsubscribe = pb.collection('rides').subscribe<RideRecord>(activeRide.id, (e) => {
+        return pb.collection('rides').subscribe<RideRecord>(activeRide.id, (e) => {
             if (e.action === 'update') {
                 const updatedRide = e.record;
                 
@@ -109,13 +107,11 @@ export default function PassengerDashboard() {
         });
     }
 
-    subscribeToRide();
+    const unsubscribe = subscribeToRide();
 
     // The cleanup function should call the unsubscribe function returned by subscribe.
     return () => {
-        if (unsubscribe) {
-            unsubscribe();
-        }
+        unsubscribe();
     }
   }, [activeRide, toast]);
 
