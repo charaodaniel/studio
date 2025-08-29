@@ -33,6 +33,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     driver_cnpj: user.driver_cnpj,
     driver_pix_key: user.driver_pix_key,
   });
+  const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -55,6 +56,29 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
       toast({ variant: 'destructive', title: 'Erro ao Salvar', description: 'Não foi possível atualizar o usuário.' });
     }
   };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword.password || !newPassword.confirmPassword) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Preencha ambos os campos de senha.' });
+        return;
+    }
+    if (newPassword.password !== newPassword.confirmPassword) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
+        return;
+    }
+    try {
+        await pb.collection('users').update(user.id, {
+            password: newPassword.password,
+            passwordConfirm: newPassword.confirmPassword,
+        });
+        toast({ title: 'Senha Alterada!', description: `A senha de ${user.name} foi alterada com sucesso.` });
+        setNewPassword({ password: '', confirmPassword: '' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Tente novamente.' });
+    }
+  };
+
 
   const avatarUrl = user.avatar ? pb.getFileUrl(user, user.avatar) : '';
 
@@ -177,6 +201,26 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
                 </CardContent>
               </Card>
           )}
+        
+          {isEditing && (
+              <Card>
+                <CardContent className="p-4">
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                        <h3 className="font-medium text-destructive">Alterar Senha</h3>
+                        <div className="space-y-1">
+                            <Label htmlFor="new-password">Nova Senha</Label>
+                            <Input id="new-password" type="password" value={newPassword.password} onChange={(e) => setNewPassword(prev => ({...prev, password: e.target.value}))} required />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
+                            <Input id="confirm-new-password" type="password" value={newPassword.confirmPassword} onChange={(e) => setNewPassword(prev => ({...prev, confirmPassword: e.target.value}))} required />
+                        </div>
+                        <Button type="submit" variant="secondary" className="w-full">Confirmar Nova Senha</Button>
+                    </form>
+                </CardContent>
+              </Card>
+          )}
+
         </div>
       </div>
     </div>

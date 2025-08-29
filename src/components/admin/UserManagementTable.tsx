@@ -140,9 +140,8 @@ import UserProfile from "./UserProfile";
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                 <DropdownMenuItem onSelect={() => setSelectedUserForEdit(user)}>
-                                    <Edit className="mr-2 h-4 w-4"/>Editar
+                                    <Edit className="mr-2 h-4 w-4"/>Editar / Alterar Senha
                                 </DropdownMenuItem>
-                                <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4"/>Alterar Senha</DropdownMenuItem>
                                 {user.role === 'Motorista' && (
                                     <>
                                         <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
