@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileDown, ShieldAlert, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2 } from "lucide-react";
+import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import pb from "@/lib/pocketbase";
 import type { User } from "./UserList";
@@ -24,6 +24,32 @@ import DriverStatusLogModal from "./DriverStatusLogModal";
 import AddUserForm from "./AddUserForm";
 import { ScrollArea } from "../ui/scroll-area";
 import UserProfile from "./UserProfile";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import type { RecordModel } from "pocketbase";
+
+interface RideRecord extends RecordModel {
+    passenger: string | null;
+    driver: string;
+    origin_address: string;
+    destination_address: string;
+    status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
+    fare: number;
+    is_negotiated: boolean;
+    started_by: 'passenger' | 'driver';
+    passenger_anonymous_name?: string;
+    created: string;
+    updated: string;
+    expand?: {
+        driver?: RecordModel;
+        passenger?: RecordModel;
+    }
+}
+
+const appData = {
+    name: "CEOLIN Mobilidade Urbana",
+    cnpj: "52.905.738/0001-00"
+}
   
   export default function UserManagementTable() {
     const { toast } = useToast();
@@ -50,6 +76,95 @@ import UserProfile from "./UserProfile";
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    const fetchRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
+        try {
+            const result = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${driverId}"`,
+                sort: '-created',
+                expand: 'passenger',
+            });
+            return result;
+        } catch (err: any) {
+            console.error("Failed to fetch rides for report:", err);
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao buscar corridas',
+                description: 'Não foi possível gerar o relatório.'
+            });
+            return [];
+        }
+    }
+
+    const handleGenerateCSV = async (driver: User) => {
+        const rides = await fetchRidesForDriver(driver.id);
+        if (rides.length === 0) {
+            toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no histórico.` });
+            return;
+        }
+        
+        const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status"];
+        const rows = rides.map(ride => 
+            [
+                ride.id, 
+                new Date(ride.updated).toLocaleDateString('pt-BR'), 
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'N/A', 
+                `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
+                ride.fare.toFixed(2).replace('.', ','), 
+                ride.status, 
+            ].join(',')
+        );
+
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + headers.join(',') + "\n" 
+            + rows.join('\n');
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `historico_${driver.name.replace(/\s+/g, '_')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleGeneratePDF = async (driver: User) => {
+        const rides = await fetchRidesForDriver(driver.id);
+         if (rides.length === 0) {
+            toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no histórico.` });
+            return;
+        }
+
+        const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.text("Relatório de Corridas", pageWidth / 2, 22, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.text(`Motorista: ${driver.name}`, 14, 40);
+        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 14, 40, { align: 'right' });
+
+        const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
+        const tableRows: (string | null)[][] = rides.map(ride => [
+            new Date(ride.updated).toLocaleDateString('pt-BR'),
+            ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'N/A',
+            `${ride.origin_address} -> ${ride.destination_address}`,
+            `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+            ride.status,
+        ]);
+        
+        (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 50,
+            theme: 'grid',
+        });
+
+        doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
+    };
 
     const handleToggleUserStatus = async (user: User) => {
       const newStatus = !user.disabled;
@@ -140,7 +255,7 @@ import UserProfile from "./UserProfile";
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                 <DropdownMenuItem onSelect={() => setSelectedUserForEdit(user)}>
-                                    <Edit className="mr-2 h-4 w-4"/>Editar / Alterar Senha
+                                    <Edit className="mr-2 h-4 w-4"/>Editar / Ver Perfil
                                 </DropdownMenuItem>
                                 {user.role === 'Motorista' && (
                                     <>
@@ -153,8 +268,8 @@ import UserProfile from "./UserProfile";
                                                 Gerar Relatório
                                             </DropdownMenuSubTrigger>
                                             <DropdownMenuSubContent>
-                                                <DropdownMenuItem><FileText className="mr-2 h-4 w-4" /> PDF</DropdownMenuItem>
-                                                <DropdownMenuItem><FileText className="mr-2 h-4 w-4" /> CSV</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleGeneratePDF(user)}><FileText className="mr-2 h-4 w-4" /> PDF</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleGenerateCSV(user)}><FileText className="mr-2 h-4 w-4" /> CSV</DropdownMenuItem>
                                             </DropdownMenuSubContent>
                                         </DropdownMenuSub>
                                     </>
@@ -164,7 +279,7 @@ import UserProfile from "./UserProfile";
                                     <AlertDialogTrigger asChild>
                                         <DropdownMenuItem
                                             onSelect={(e) => e.preventDefault()}
-                                            className={cn("text-red-600", user.disabled && "text-green-600")}
+                                            className={cn("text-red-600 focus:bg-red-100 focus:text-red-700", user.disabled && "text-green-600 focus:bg-green-100 focus:text-green-700")}
                                         >
                                             <Trash2 className="mr-2 h-4 w-4"/>{user.disabled ? "Ativar" : "Desativar"}
                                         </DropdownMenuItem>
