@@ -4,12 +4,19 @@
 
 import { useState, useEffect } from 'react';
 import RideRequestForm from './RideRequestForm';
-import MapPlaceholder from './MapPlaceholder';
 import RideStatusCard from './RideStatusCard';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { Card, CardContent } from '../ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Star, Car, Send } from 'lucide-react';
+import type { User as Driver } from '../admin/UserList';
+import RideConfirmationModal from './RideConfirmationModal';
+import { cn } from '@/lib/utils';
 
 
 interface RideRecord extends RecordModel {
@@ -38,6 +45,30 @@ export interface RideDetails {
   eta: string;
 }
 
+const getStatusVariant = (status?: string) => {
+    switch (status) {
+        case 'online':
+            return 'bg-green-100 text-green-800 border-green-200';
+        case 'urban-trip':
+        case 'rural-trip':
+            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'offline':
+        default:
+            return 'bg-red-100 text-red-800 border-red-200';
+    }
+};
+
+const getStatusLabel = (status?: string) => {
+    const labels: { [key: string]: string } = {
+        'online': 'Online',
+        'offline': 'Offline',
+        'urban-trip': 'Em Viagem',
+        'rural-trip': 'Em Viagem',
+    };
+    return labels[status || 'offline'] || status;
+};
+
+
 export default function PassengerDashboard() {
   const { toast } = useToast();
   const { playNotification } = useNotificationSound();
@@ -45,6 +76,15 @@ export default function PassengerDashboard() {
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
   const [mapRefreshKey, setMapRefreshKey] = useState(0);
+
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  
+  // State for the form
+  const [origin, setOrigin] = useState('Rua Principal, 123');
+  const [destination, setDestination] = useState('Shopping da Cidade');
 
   useEffect(() => {
     // Ask for location permission on component mount
@@ -67,15 +107,30 @@ export default function PassengerDashboard() {
             }
         );
     }
+     const fetchDrivers = async () => {
+        setIsLoadingDrivers(true);
+        try {
+            const driverRecords = await pb.collection('users').getFullList<Driver>({
+                filter: 'role = "Motorista"',
+            });
+            setDrivers(driverRecords);
+        } catch (error) {
+            console.error("Failed to fetch drivers:", error);
+            toast({ variant: 'destructive', title: 'Erro ao buscar motoristas' });
+        } finally {
+            setIsLoadingDrivers(false);
+        }
+    };
+    fetchDrivers();
 
   }, [toast]);
 
   useEffect(() => {
     if (!activeRide) return;
 
-    const unsubscribe = pb.collection('rides').subscribe<RideRecord>(activeRide.id, (e) => {
+    const unsubscribe = pb.collection('rides').subscribe(activeRide.id, (e) => {
         if (e.action === 'update') {
-            const updatedRide = e.record;
+            const updatedRide = e.record as RideRecord;
             
             pb.collection('rides').getOne<RideRecord>(updatedRide.id, { expand: 'driver' }).then(fullRecord => {
               setActiveRide(fullRecord);
@@ -157,45 +212,96 @@ export default function PassengerDashboard() {
     }, 5000);
   }
 
-  const handleRefreshLocation = () => {
-    setMapRefreshKey(prev => prev + 1);
-    toast({
-        title: 'Localização Atualizada',
-        description: 'As posições no mapa foram atualizadas.',
-    });
-  };
+  const handleSelectDriver = (driver: Driver) => {
+    setSelectedDriver(driver);
+    setIsConfirmationOpen(true);
+  }
 
   return (
-    <>
-      <div className="container mx-auto p-4 grid lg:grid-cols-[400px_1fr] gap-8 h-full">
-        <div className="h-full flex flex-col">
-          {rideStatus === 'idle' || rideStatus === 'searching' ? (
-            <RideRequestForm
-              onRideRequest={handleRequestRide}
-              isSearching={rideStatus === 'searching'}
-              anonymousUserName={null}
-            />
-          ) : (
-            rideDetails && activeRide && (
-              <RideStatusCard
-                rideDetails={rideDetails}
-                rideStatus={rideStatus}
-                rideId={activeRide.id}
-                isNegotiated={activeRide.is_negotiated}
-                onCancel={() => handleCancelRide(true)}
-                onComplete={handleCompleteRide}
-              />
-            )
-          )}
-        </div>
-        <div className="flex-1 min-h-[400px] h-full lg:min-h-0">
-          <MapPlaceholder 
-            rideInProgress={rideStatus === 'in_progress' || rideStatus === 'accepted'} 
-            refreshKey={mapRefreshKey}
-            onRefreshLocation={handleRefreshLocation}
+    <div className="container mx-auto p-4 flex flex-col gap-8 h-full">
+      <div className="w-full lg:max-w-md mx-auto">
+        {rideStatus === 'idle' || rideStatus === 'searching' ? (
+          <RideRequestForm
+            onRideRequest={handleRequestRide}
+            isSearching={rideStatus === 'searching'}
+            anonymousUserName={null}
+            origin={origin}
+            setOrigin={setOrigin}
+            destination={destination}
+            setDestination={setDestination}
           />
-        </div>
+        ) : (
+          rideDetails && activeRide && (
+            <RideStatusCard
+              rideDetails={rideDetails}
+              rideStatus={rideStatus}
+              rideId={activeRide.id}
+              isNegotiated={activeRide.is_negotiated}
+              onCancel={() => handleCancelRide(true)}
+              onComplete={handleCompleteRide}
+            />
+          )
+        )}
       </div>
-    </>
+
+      {(rideStatus === 'idle' || rideStatus === 'searching') && (
+        <div className="space-y-4">
+            <h2 className="font-headline text-xl text-center">Motoristas Disponíveis</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {drivers.map(driver => {
+                const isAvailable = driver.driver_status === 'online';
+                return (
+                    <Card key={driver.id} className="flex flex-col">
+                        <CardContent className="p-4 flex-grow">
+                            <div className="flex flex-col items-center text-center gap-2">
+                                <Avatar className="h-16 w-16 mb-2">
+                                    <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                                    <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <p className="font-bold">{driver.name}</p>
+                                <Badge variant="outline" className={cn("text-xs", getStatusVariant(driver.driver_status))}>
+                                    {getStatusLabel(driver.driver_status)}
+                                </Badge>
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                    <Car className="h-4 w-4" />
+                                    <span>{driver.driver_vehicle_model || 'Não informado'}</span>
+                                </div>
+                                <div className="flex items-center text-xs text-muted-foreground">
+                                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 mr-1" />
+                                    <span>4.8</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <div className="p-4 pt-0">
+                           <Button 
+                              className="w-full" 
+                              onClick={() => handleSelectDriver(driver)} 
+                              disabled={!isAvailable}>
+                                <Send className="mr-2 h-4 w-4" /> Chamar
+                            </Button>
+                        </div>
+                    </Card>
+                )
+            })}
+            </div>
+        </div>
+      )}
+
+        {selectedDriver && (
+            <RideConfirmationModal
+                isOpen={isConfirmationOpen}
+                onOpenChange={setIsConfirmationOpen}
+                driver={selectedDriver}
+                origin={origin}
+                destination={destination}
+                isNegotiated={false} // This view logic defaults to non-negotiated. The form handles negotiation.
+                onConfirm={(rideId) => {
+                    setIsConfirmationOpen(false);
+                    onRideRequest(rideId);
+                }}
+                passengerAnonymousName={null}
+            />
+        )}
+    </div>
   );
 }

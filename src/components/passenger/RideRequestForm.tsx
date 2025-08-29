@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -17,11 +18,13 @@ interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
   isSearching: boolean;
   anonymousUserName: string | null;
+  origin: string;
+  setOrigin: (value: string) => void;
+  destination: string;
+  setDestination: (value: string) => void;
 }
 
-export default function RideRequestForm({ onRideRequest, isSearching, anonymousUserName }: RideRequestFormProps) {
-    const [origin, setOrigin] = useState('Rua Principal, 123');
-    const [destination, setDestination] = useState('Shopping da Cidade');
+export default function RideRequestForm({ onRideRequest, isSearching, anonymousUserName, origin, setOrigin, destination, setDestination }: RideRequestFormProps) {
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
@@ -106,23 +109,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
               </div>
             </div>
              <div className="space-y-2">
-                 <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="w-full" size="lg" disabled={isSearching || !canRequest}>
-                         {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                         {isSearching ? 'Procurando Motorista...' : 'Escolher Motorista'}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                       <DriverListModal 
-                        origin={origin} 
-                        destination={destination}
-                        isNegotiated={false}
-                        onRideRequest={onRideRequest}
-                        passengerAnonymousName={anonymousUserName}
-                        />
-                    </DialogContent>
-                </Dialog>
+                 <p className="text-sm text-muted-foreground text-center">Para corridas locais, escolha um motorista na lista abaixo.</p>
              </div>
           </TabsContent>
           <TabsContent value="intercity" className="pt-6 space-y-6">

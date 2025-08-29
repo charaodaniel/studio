@@ -18,14 +18,13 @@ const acceptedDriver = { id: 5, name: 'Roberto Andrade', vehicle: 'Chevrolet Oni
 
 interface MapPlaceholderProps {
   rideInProgress?: boolean;
-  refreshKey: number;
-  onRefreshLocation: () => void;
 }
 
-export default function MapPlaceholder({ rideInProgress = false, refreshKey, onRefreshLocation }: MapPlaceholderProps) {
+export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholderProps) {
   const [onlineDrivers, setOnlineDrivers] = useState<FullDriver[]>([]);
   const [userPosition, setUserPosition] = useState({ top: '50%', left: '50%' });
-  
+  const [refreshKey, setMapRefreshKey] = useState(0);
+
   const fetchOnlineDrivers = useCallback(async () => {
     try {
       const driverRecords = await pb.collection('users').getFullList<Driver>({
@@ -63,6 +62,10 @@ export default function MapPlaceholder({ rideInProgress = false, refreshKey, onR
         pb.collection('users').unsubscribe('*');
     };
   }, [fetchOnlineDrivers, refreshKey]);
+
+  const onRefreshLocation = () => {
+      setMapRefreshKey(prev => prev + 1);
+  }
   
   return (
     <Card className="w-full h-full overflow-hidden shadow-lg">
