@@ -17,11 +17,7 @@ import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { PassengerRideHistory } from './PassengerRideHistory';
-
-const conversations = [
-    { id: 1, name: "Roberto Andrade", lastMessage: "Olá! Chego em 5 minutos.", unread: 1, time: "14:32" },
-    { id: 2, name: "Carlos Lima", lastMessage: "Obrigado pela corrida!", unread: 0, time: "Ontem" },
-];
+import { PassengerChatHistory } from './PassengerChatHistory';
 
 
 export function PassengerProfilePage() {
@@ -163,32 +159,7 @@ export function PassengerProfilePage() {
                 <PassengerRideHistory />
             </TabsContent>
             <TabsContent value="chats">
-                <div className="bg-card rounded-lg p-4">
-                    <div className="flex flex-col">
-                    {conversations.map((convo) => (
-                    <div key={convo.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 border-b">
-                        <Avatar className="h-10 w-10">
-                            <AvatarImage src={`https://placehold.co/40x40.png?text=${convo.name.charAt(0)}`} data-ai-hint="user portrait"/>
-                            <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 overflow-hidden">
-                        <div className="flex justify-between items-center">
-                            <p className="font-semibold truncate">{convo.name}</p>
-                            <p className={`text-xs ${convo.unread > 0 ? 'text-primary' : 'text-muted-foreground'}`}>{convo.time}</p>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
-                            {convo.unread > 0 && (
-                                <div className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                    {convo.unread}
-                                </div>
-                            )}
-                            </div>
-                        </div>
-                    </div>
-                    ))}
-                </div>
-                </div>
+                <PassengerChatHistory />
             </TabsContent>
             <TabsContent value="security">
                 <div className="bg-card rounded-lg p-6 space-y-6 max-w-md mx-auto">
