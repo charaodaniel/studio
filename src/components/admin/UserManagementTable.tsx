@@ -142,7 +142,7 @@ const appData = {
         const drawHeader = (data: any) => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
-            doc.setTextColor(41, 121, 255);
+            doc.setTextColor(220, 38, 38); // Red color for CEOLIN
             doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
@@ -206,7 +206,7 @@ const appData = {
             body: tableRows,
             startY: 75,
             theme: 'grid',
-            headStyles: { fillColor: [41, 121, 255], textColor: 255, fontStyle: 'bold' },
+            headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' }, // Red header
             styles: { cellPadding: 3, fontSize: 9 },
             columnStyles: { 3: { halign: 'right' } },
             didDrawPage: drawHeader,

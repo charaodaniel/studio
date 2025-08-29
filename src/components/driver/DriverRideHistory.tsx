@@ -134,7 +134,7 @@ export function DriverRideHistory() {
         const drawHeader = (data: any) => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
-            doc.setTextColor(41, 121, 255);
+            doc.setTextColor(220, 38, 38); // Red color for CEOLIN
             doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
@@ -194,7 +194,7 @@ export function DriverRideHistory() {
             startY: 75,
             theme: 'grid',
             headStyles: {
-                fillColor: [41, 121, 255],
+                fillColor: [220, 38, 38], // Red header
                 textColor: 255,
                 fontStyle: 'bold',
             },
