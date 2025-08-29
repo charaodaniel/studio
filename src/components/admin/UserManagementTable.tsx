@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import {
@@ -24,6 +23,7 @@ import { cn } from "@/lib/utils";
 import DriverStatusLogModal from "./DriverStatusLogModal";
 import AddUserForm from "./AddUserForm";
 import { ScrollArea } from "../ui/scroll-area";
+import UserProfile from "./UserProfile";
   
   export default function UserManagementTable() {
     const { toast } = useToast();
@@ -31,13 +31,14 @@ import { ScrollArea } from "../ui/scroll-area";
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
+    const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
 
 
     const fetchUsers = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const records = await pb.collection('users').getFullList<User>({ sort: '-created' });
+            const records = await pb.collection('users').getFullList<User>({ sort: '-created' }, { admin: true });
             setUsers(records);
         } catch (err: any) {
             setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor.");
@@ -69,7 +70,7 @@ import { ScrollArea } from "../ui/scroll-area";
     }
     
     return (
-        <Dialog open={!!selectedUserForLog} onOpenChange={(isOpen) => !isOpen && setSelectedUserForLog(null)}>
+        <>
              <div className="flex justify-end mb-4">
                 <Dialog>
                     <DialogTrigger asChild>
@@ -138,15 +139,15 @@ import { ScrollArea } from "../ui/scroll-area";
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem><Edit className="mr-2 h-4 w-4"/>Editar</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setSelectedUserForEdit(user)}>
+                                    <Edit className="mr-2 h-4 w-4"/>Editar
+                                </DropdownMenuItem>
                                 <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4"/>Alterar Senha</DropdownMenuItem>
                                 {user.role === 'Motorista' && (
                                     <>
-                                        <DialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
-                                                <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
-                                            </DropdownMenuItem>
-                                        </DialogTrigger>
+                                        <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
+                                            <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
+                                        </DropdownMenuItem>
                                         <DropdownMenuSub>
                                             <DropdownMenuSubTrigger>
                                                 <FileDown className="mr-2 h-4 w-4" />
@@ -192,11 +193,34 @@ import { ScrollArea } from "../ui/scroll-area";
                     </TableBody>
                 </Table>
             </div>
-            {selectedUserForLog && (
-                <DialogContent>
-                    <DriverStatusLogModal user={selectedUserForLog} />
-                </DialogContent>
-            )}
-      </Dialog>
+            
+            <Dialog open={!!selectedUserForLog} onOpenChange={(isOpen) => !isOpen && setSelectedUserForLog(null)}>
+                 {selectedUserForLog && (
+                    <DialogContent>
+                        <DriverStatusLogModal user={selectedUserForLog} />
+                    </DialogContent>
+                )}
+            </Dialog>
+
+            <Dialog open={!!selectedUserForEdit} onOpenChange={(isOpen) => !isOpen && setSelectedUserForEdit(null)}>
+                {selectedUserForEdit && (
+                     <DialogContent className="p-0 sm:max-w-lg md:max-w-xl">
+                        <DialogHeader className="p-4 sr-only">
+                            <DialogTitle>Editar Perfil do Usuário</DialogTitle>
+                        </DialogHeader>
+                        <UserProfile 
+                            user={selectedUserForEdit} 
+                            onBack={() => setSelectedUserForEdit(null)} 
+                            onContact={() => { /* Not needed here */ }} 
+                            isModal={true} 
+                            onUserUpdate={() => {
+                                fetchUsers();
+                                setSelectedUserForEdit(null);
+                            }}
+                        />
+                     </DialogContent>
+                )}
+            </Dialog>
+      </>
     );
   }
