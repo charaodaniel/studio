@@ -171,7 +171,7 @@ export default function PassengerDashboard() {
     }
   }, [activeRide, toast, playNotification]);
 
-  const handleRequestRide = async (rideId: string) => {
+  const onRideRequest = async (rideId: string) => {
     setRideStatus('searching');
     try {
         const ride = await pb.collection('rides').getOne<RideRecord>(rideId, { expand: 'driver' });
@@ -222,7 +222,7 @@ export default function PassengerDashboard() {
       <div className="w-full lg:max-w-md mx-auto">
         {rideStatus === 'idle' || rideStatus === 'searching' ? (
           <RideRequestForm
-            onRideRequest={handleRequestRide}
+            onRideRequest={onRideRequest}
             isSearching={rideStatus === 'searching'}
             anonymousUserName={null}
             origin={origin}
@@ -305,3 +305,4 @@ export default function PassengerDashboard() {
     </div>
   );
 }
+
