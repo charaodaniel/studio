@@ -19,13 +19,17 @@ import pb from "@/lib/pocketbase";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
 import { cn } from "@/lib/utils";
+import DriverStatusLogModal from "./DriverStatusLogModal";
   
   export default function UserManagementTable() {
     const { toast } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
+
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -63,7 +67,7 @@ import { cn } from "@/lib/utils";
     }
     
     return (
-        <div>
+        <Dialog open={!!selectedUserForLog} onOpenChange={(isOpen) => !isOpen && setSelectedUserForLog(null)}>
             <div className="flex justify-end mb-4">
                 <Button><UserPlus className="mr-2 h-4 w-4"/> Adicionar Usuário</Button>
             </div>
@@ -123,7 +127,11 @@ import { cn } from "@/lib/utils";
                                 <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4"/>Alterar Senha</DropdownMenuItem>
                                 {user.role === 'Motorista' && (
                                     <>
-                                        <DropdownMenuItem><ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status</DropdownMenuItem>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
+                                                <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
                                         <DropdownMenuSub>
                                             <DropdownMenuSubTrigger>
                                                 <FileDown className="mr-2 h-4 w-4" />
@@ -169,6 +177,11 @@ import { cn } from "@/lib/utils";
                     </TableBody>
                 </Table>
             </div>
-      </div>
+            {selectedUserForLog && (
+                <DialogContent>
+                    <DriverStatusLogModal user={selectedUserForLog} />
+                </DialogContent>
+            )}
+      </Dialog>
     );
   }
