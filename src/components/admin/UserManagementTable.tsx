@@ -139,13 +139,58 @@ const appData = {
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.text("Relatório de Corridas", pageWidth / 2, 22, { align: 'center' });
+        const drawHeader = (data: any) => {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(22);
+            doc.setTextColor(41, 121, 255);
+            doc.text("CEOLIN", 14, 22);
+            
+            doc.setFontSize(18);
+            doc.setTextColor(40);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Relatório de Corridas", pageWidth - 14, 22, { align: 'right' });
+            doc.setDrawColor(200);
+            doc.line(14, 30, pageWidth - 14, 30);
+        };
+
+        const drawFooter = (data: any) => {
+            const pageCount = doc.internal.pages.length;
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+                doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+            }
+        };
 
         doc.setFontSize(10);
-        doc.text(`Motorista: ${driver.name}`, 14, 40);
-        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 14, 40, { align: 'right' });
+        doc.setTextColor(100);
+        doc.text("INFORMAÇÕES DO MOTORISTA", 14, 40);
+        doc.setFontSize(9);
+        doc.text(`Nome: ${driver.name || 'N/A'}`, 14, 45);
+        doc.text(`CNPJ: ${driver.driver_cnpj || 'N/A'}`, 14, 50);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text("INFORMAÇÕES DA PLATAFORMA", pageWidth - 14, 40, { align: 'right' });
+        doc.setFontSize(9);
+        doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
+        doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
+
+        const summary = {
+            totalRides: rides.filter(r => r.status === 'completed').length,
+            totalValue: rides.filter(r => r.status === 'completed').reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
+        };
+
+        doc.setFontSize(12);
+        doc.setTextColor(40);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Resumo do Período", 14, 65);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(`Total de Corridas Concluídas: ${summary.totalRides}`, 14, 70);
+        doc.text(`Valor Total Arrecadado: R$ ${summary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
@@ -159,10 +204,15 @@ const appData = {
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 50,
+            startY: 75,
             theme: 'grid',
+            headStyles: { fillColor: [41, 121, 255], textColor: 255, fontStyle: 'bold' },
+            styles: { cellPadding: 3, fontSize: 9 },
+            columnStyles: { 3: { halign: 'right' } },
+            didDrawPage: drawHeader,
         });
 
+        drawFooter(doc);
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 

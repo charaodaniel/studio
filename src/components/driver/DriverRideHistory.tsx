@@ -1,5 +1,4 @@
 
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -13,15 +12,14 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import type { jsPDF as jsPDFType } from 'jspdf';
+import type { User as UserData } from '../admin/UserList';
+import type { RecordModel } from "pocketbase";
+import pb from "@/lib/pocketbase";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import pb from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
-import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from "../ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -37,7 +35,7 @@ interface RideRecord extends RecordModel {
     updated: string;
     expand?: {
         driver?: RecordModel;
-        passenger?: RecordModel; // Passenger can be expanded now
+        passenger?: RecordModel;
     }
 }
 
@@ -128,16 +126,15 @@ export function DriverRideHistory() {
 
     const summary = calculateSummary();
 
-    const handleExportPDF = async () => {
+    const handleExportPDF = () => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         
-        const drawHeader = () => {
-            // Draw a styled logo with text
+        const drawHeader = (data: any) => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
-            doc.setTextColor(41, 121, 255); // Primary color
+            doc.setTextColor(41, 121, 255);
             doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
@@ -148,37 +145,17 @@ export function DriverRideHistory() {
             doc.line(14, 30, pageWidth - 14, 30);
         };
 
-        const drawFooter = () => {
-            const pageCount = (doc as any).internal.getNumberOfPages();
+        const drawFooter = (data: any) => {
+            const pageCount = doc.internal.pages.length;
+            doc.setFontSize(8);
+            doc.setTextColor(150);
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
-                doc.setFontSize(8);
-                doc.setTextColor(150);
-                doc.text(
-                    `Página ${i} de ${pageCount}`,
-                    pageWidth / 2,
-                    pageHeight - 10,
-                    { align: 'center' }
-                );
-                doc.text(
-                    `Emitido em: ${new Date().toLocaleString('pt-BR')}`,
-                    pageWidth - 14,
-                    pageHeight - 10,
-                    { align: 'right' }
-                );
+                doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+                doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
             }
         };
 
-        const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
-        const tableRows: (string | null)[][] = rides.map(ride => [
-            new Date(ride.updated).toLocaleDateString('pt-BR'),
-            ride.expand?.passenger?.name || 'Passageiro Manual',
-            `${ride.origin_address} -> ${ride.destination_address}`,
-            `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
-            ride.status,
-        ]);
-        
-        // Driver and Company Info
         doc.setFontSize(10);
         doc.setTextColor(100);
         doc.text("INFORMAÇÕES DO MOTORISTA", 14, 40);
@@ -193,7 +170,6 @@ export function DriverRideHistory() {
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
 
-        // Summary Section
         doc.setFontSize(12);
         doc.setTextColor(40);
         doc.setFont('helvetica', 'bold');
@@ -203,13 +179,22 @@ export function DriverRideHistory() {
         doc.text(`Total de Corridas Concluídas: ${summary.totalRides}`, 14, 70);
         doc.text(`Valor Total Arrecadado: R$ ${summary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
 
+        const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
+        const tableRows: (string | null)[][] = rides.map(ride => [
+            new Date(ride.updated).toLocaleDateString('pt-BR'),
+            ride.expand?.passenger?.name || 'Passageiro Manual',
+            `${ride.origin_address} -> ${ride.destination_address}`,
+            `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+            ride.status,
+        ]);
+
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
             startY: 75,
             theme: 'grid',
             headStyles: {
-                fillColor: [41, 121, 255], // Primary color
+                fillColor: [41, 121, 255],
                 textColor: 255,
                 fontStyle: 'bold',
             },
@@ -220,12 +205,10 @@ export function DriverRideHistory() {
             columnStyles: {
                 3: { halign: 'right' }
             },
-            didDrawPage: (data: any) => {
-                drawHeader();
-            }
+            didDrawPage: drawHeader,
         });
 
-        drawFooter();
+        drawFooter(doc);
         doc.save("relatorio_corridas_ceolin.pdf");
     };
 
@@ -425,7 +408,7 @@ export function DriverRideHistory() {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Valor Total Arrecadado:</span>
-                                <span className="font-bold text-lg text-primary">R$ ${summary.totalValue}</span>
+                                <span className="font-bold text-lg text-primary">R$ {summary.totalValue}</span>
                             </div>
                         </div>
                         <AlertDialogFooter>
