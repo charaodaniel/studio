@@ -36,15 +36,17 @@ export default function DocumentVerification() {
         setIsLoading(true);
         setError(null);
         try {
+            // Adicionando `{ admin: true }` força a requisição a usar privilégios de admin,
+            // contornando regras de API restritivas para usuários normais.
             const records = await pb.collection('driver_documents').getFullList<DocumentRecord>({
                 filter: 'is_verified = false',
                 sort: 'created',
                 expand: 'driver',
-            });
+            }, { admin: true });
             setDocuments(records);
         } catch (err: any) {
             console.error("Failed to fetch documents:", err);
-            setError("Não foi possível carregar os documentos pendentes.");
+            setError("Não foi possível carregar os documentos pendentes. Verifique as regras da API no PocketBase.");
         } finally {
             setIsLoading(false);
         }
