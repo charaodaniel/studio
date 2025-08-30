@@ -2,172 +2,92 @@
 
 Este documento detalha as **coleções** e **regras de API** necessárias para o funcionamento correto do aplicativo. Use este guia para configurar seu backend no painel de administrador do PocketBase.
 
-**URL do Admin (Exemplo):** `https://mobmv.shop/_/`
+**URL do Admin (Exemplo):** `https://seu-servidor-pocketbase.com/_/`
 
 ---
 
 ## 1. Coleção: `users` (Auth)
 
-Acesse na  a coleção `users` e clique em **"Edit collection"**. Vá para a aba **"API Rules"** e aplique as seguintes regras. Os campos desta coleção já são criados por padrão pelo PocketBase, mas adicione os campos personalizados do arquivo `pocketbase_schema.json`.
+Acesse a coleção `users` e clique em **"Edit collection"**. Na aba "Schema", adicione todos os campos personalizados que estão no arquivo `pocketbase_schema.json` do projeto.
+
+Depois, vá para a aba **"API Rules"** e aplique as seguintes regras.
 
 #### **Regras de API**
 
-*   **List rule:**
-    ```js
-    role = "Motorista"
-    ```
-    *Permite que qualquer pessoa (logada ou não) possa listar os usuários que têm o perfil de "Motorista", essencial para o mapa e a seleção de motoristas.*
+*   **List rule:** `role = "Motorista"`
+    *   **Motivo:** Permite que qualquer pessoa (logada ou não) possa listar os usuários que têm o perfil de "Motorista", essencial para o mapa e a seleção de motoristas na tela do passageiro.
 
-*   **View rule:**
-    ```js
-    id = @request.auth.id || role != ""
-    ```
-    *Permite que o nome e avatar de um usuário sejam vistos por outros, o que é necessário para o histórico de corridas, chats e para exibir os motoristas no mapa.*
+*   **View rule:** `id = @request.auth.id || role != ""`
+    *   **Motivo:** Permite que os dados públicos de um usuário (nome, avatar) sejam vistos por outros, necessário para o histórico de corridas, chats e para exibir os motoristas.
 
-*   **Update rule:**
-    ```js
-    id = @request.auth.id || @request.auth.role = "Admin"
-    ```
-    *Permite que um usuário edite seu próprio perfil, ou que um admin edite qualquer perfil.*
+*   **Update rule:** `id = @request.auth.id || @request.auth.role = "Admin"`
+    *   **Motivo:** Permite que um usuário edite seu próprio perfil, ou que um admin edite qualquer perfil.
 
 ---
 
 ## 2. Coleção: `rides`
 
-Acesse a coleção `rides` e clique em **"Edit collection"**. Adicione os seguintes campos ao schema para garantir a ordenação correta do histórico:
+Crie uma **nova coleção** chamada `rides`. Na aba "Schema", adicione todos os campos para esta coleção conforme o arquivo `pocketbase_schema.json`.
 
-1.  **`created`**:
-    *   Tipo: `Date`
-    *   **Como configurar:** No painel do PocketBase, marque a opção para preencher este campo automaticamente **apenas na criação** do registro. Não é necessário marcar como "Required" (Não vazio).
-
-2.  **`updated`**:
-    *   Tipo: `Date`
-    *   **Como configurar:** No painel do PocketBase, marque a opção para preencher este campo automaticamente **na criação e na atualização** do registro. Não é necessário marcar como "Required" (Não vazio).
+É **muito importante** configurar os campos `created` e `updated`:
+1.  **`created`**: Marque a opção para preencher este campo automaticamente **apenas na criação** do registro.
+2.  **`updated`**: Marque a opção para preencher este campo automaticamente **na criação e na atualização** do registro.
 
 Vá para a aba **"API Rules"** e aplique as seguintes regras.
 
 #### **Regras de API**
 
-*   **List rule:**
-    ```js
-    @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
-    ```
-    *Permite que um usuário liste apenas as corridas nas quais ele é passageiro ou motorista, ou se for Admin/Atendente.*
+*   **List rule:** `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
+    *   **Motivo:** Permite que um usuário liste apenas as corridas nas quais ele é passageiro ou motorista, ou se for Admin/Atendente.
 
-*   **View rule:**
-    ```js
-    @request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")
-    ```
-    *Permite a visualização dos detalhes de uma corrida sob as mesmas condições da `List rule`.*
+*   **View rule:** `@request.auth.id != "" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente")`
+    *   **Motivo:** Permite a visualização dos detalhes de uma corrida sob as mesmas condições da `List rule`.
 
-* **Create rule:**
-  ```js
-  @request.auth.id != "" || passenger_anonymous_name != ""
-  ```
-  *Permite que um usuário logado ou um usuário anônimo (corrida rápida) crie uma corrida.*
+*   **Create rule:** `@request.auth.id != "" || passenger_anonymous_name != ""`
+    *   **Motivo:** Permite que um usuário logado ou um usuário anônimo (corrida rápida) crie uma corrida.
+
+*   **Update rule:** `@request.auth.id != "" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = "Admin")`
+    *   **Motivo:** Permite que motorista ou passageiro atualizem o status da corrida (ex: aceitar, finalizar), e também que um admin possa editar.
 
 ---
 
-## 3. Coleção: `chats` (Nova)
+## 3. Coleção: `chats`
 
-Crie uma **nova coleção** chamada `chats` (tipo "Base"). Adicione os campos abaixo e depois aplique as regras de API.
-
-#### **Campos (Schema)**
-1.  **`participants`**:
-    *   Tipo: `Relation`
-    *   Coleção Relacionada: `users`
-    *   Max Select: `2`
-    *   Required: `Não`
-2.  **`ride`**:
-    *   Tipo: `Relation`
-    *   Coleção Relacionada: `rides`
-    *   Required: `Não`
-3.  **`last_message`**:
-    *   Tipo: `Text`
-    *   Required: `Não`
+Crie uma **nova coleção** chamada `chats`. Na aba "Schema", adicione os campos conforme o `pocketbase_schema.json`.
 
 #### **Regras de API**
-*   **List rule:**
-    ```js
-    participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
-    ```
-    *Permite listar apenas os chats dos quais o usuário atual é participante, ou se for Admin/Atendente.*
+*   **List rule:** `participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"`
+    *   **Motivo:** Permite listar apenas os chats dos quais o usuário atual é participante, ou se for Admin/Atendente.
 
-*   **View rule:**
-    ```js
-    participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
-    ```
-    *Permite ver os detalhes de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
+*   **View rule:** `participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"`
+    *   **Motivo:** Permite ver os detalhes de um chat se o usuário atual for um participante, ou se for Admin/Atendente.
 
-*   **Create rule:**
-    ```js
-    participants.id ?= @request.auth.id
-    ```
-    *Permite que um usuário crie um chat apenas se ele mesmo for um dos participantes.*
+*   **Create rule:** `participants.id ?= @request.auth.id`
+    *   **Motivo:** Permite que um usuário crie um chat apenas se ele mesmo for um dos participantes.
 
-*   **Update rule:**
-    ```js
-    participants.id ?= @request.auth.id || @request.auth.role = "Admin"
-    ```
-    *Permite que um participante ou um admin atualize um chat (ex: última mensagem).*
-
-*   **Delete rule:**
-    ```js
-    @request.auth.role = "Admin"
-    ```
-    *Permite que apenas admins deletem chats.*
+*   **Update rule:** `participants.id ?= @request.auth.id || @request.auth.role = "Admin"`
+    *   **Motivo:** Permite que um participante ou um admin atualize um chat (ex: última mensagem).
 
 ---
 
 ## 4. Coleção: `messages`
 
-Crie uma **nova coleção** chamada `messages` (tipo "Base"). Adicione os campos abaixo e depois aplique as regras de API.
-
-#### **Campos (Schema)**
-1.  **`chat`**:
-    *   Tipo: `Relation`
-    *   Coleção Relacionada: `chats`
-    *   Cascade Delete: `Sim` (para apagar as mensagens se o chat for deletado)
-    *   Required: `Não`
-2.  **`sender`**:
-    *   Tipo: `Relation`
-    *   Coleção Relacionada: `users`
-    *   Required: `Não`
-3.  **`text`**:
-    *   Tipo: `Text`
-    *   Required: `Não`
+Crie uma **nova coleção** chamada `messages`. Na aba "Schema", adicione os campos conforme o `pocketbase_schema.json`. Ao criar o campo `chat` (relação), marque a opção **Cascade Delete** para apagar as mensagens se o chat for deletado.
 
 #### **Regras de API**
-*   **List rule:**
-    ```js
-    chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"
-    ```
-    *Permite listar mensagens de um chat se o usuário atual for um participante, ou se for Admin/Atendente.*
+*   **List rule:** `chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin" || @request.auth.role = "Atendente"`
+    *   **Motivo:** Permite listar mensagens de um chat se o usuário atual for um participante, ou se for Admin/Atendente.
 
-*   **View rule:**
-    ```js
-    chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin"
-    ```
-    *Permite ver uma mensagem individual se o usuário for um participante do chat ou um Admin.*
+*   **View rule:** `chat.participants.id ?= @request.auth.id || @request.auth.role = "Admin"`
+    *   **Motivo:** Permite ver uma mensagem individual se o usuário for um participante do chat ou um Admin.
 
-*   **Create rule:**
-    ```js
-    chat.participants.id ?= @request.auth.id
-    ```
-    *Permite que um usuário crie uma mensagem apenas se for um participante do chat.*
-
-*   **Update rule:**
-    ```js
-    @request.auth.role = "Admin"
-    ```
-    *Permite que apenas admins editem mensagens (para moderação).*
-
-*   **Delete rule:**
-    ```js
-    @request.auth.role = "Admin"
-    ```
-    *Permite que apenas admins deletem mensagens.*
+*   **Create rule:** `chat.participants.id ?= @request.auth.id`
+    *   **Motivo:** Permite que um usuário crie uma mensagem apenas se for um participante do chat.
 
 ---
 
-Após salvar essas coleções e regras, os problemas de permissão e carregamento do histórico e do chat serão resolvidos.
+## 5. Outras Coleções
+
+As coleções `driver_documents` e `driver_status_logs` também são necessárias. Importe o arquivo `pocketbase_schema.json` inteiro no painel do PocketBase (**Settings > Import collections**) para criar todas as coleções e campos de uma só vez, e depois apenas confira as regras de API acima.
+
+Após salvar essas coleções e regras, o aplicativo estará pronto para funcionar corretamente.

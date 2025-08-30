@@ -2,7 +2,7 @@
 
 Para gerenciar sua aplicação, você precisa de uma conta de administrador. No PocketBase, por motivos de segurança, a criação do **primeiro administrador** é um processo manual feito diretamente no painel de controle do seu backend.
 
-Este guia mostra como fazer isso.
+Este guia mostra como fazer isso de forma simples.
 
 ---
 
@@ -12,20 +12,20 @@ Este guia mostra como fazer isso.
 
 Abra o endereço do seu painel administrativo no navegador. Ele geralmente fica no caminho `/_/` do seu domínio.
 
-Para o seu caso, a URL é:
-**[https://mobmv.shop/_/](https://mobmv.shop/_/)**
+Exemplo de URL:
+**`https://seu-servidor-pocketbase.com/_/`**
 
 ### 2. Vá para a Seção de Administradores
 
 No menu lateral esquerdo, clique em **Admins**.
 
-![Menu Admins](https://placehold.co/300x200.png?text=Menu+Admins)
+![Menu Admins](https://placehold.co/300x200/E3F2FD/1E3A8A?text=Menu+Admins)
 
 ### 3. Crie o Novo Administrador
 
 Clique no botão **+ New Admin** (ou "+ Novo Administrador") no canto superior direito.
 
-![Botão New Admin](https://placehold.co/400x150.png?text=Botão+New+Admin)
+![Botão New Admin](https://placehold.co/400x150/E3F2FD/1E3A8A?text=Botão+New+Admin)
 
 ### 4. Preencha os Dados
 

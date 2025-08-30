@@ -6,14 +6,14 @@ Para que seu aplicativo frontend (hospedado na Vercel, Netlify, etc.) possa se c
 
 Se o aplicativo mostra um erro de conexão ("Falha ao conectar na API", "Erro de rede", ou "CORS") quando você o acessa por um link online (Vercel), o problema é quase sempre a configuração de CORS no seu PocketBase.
 
-O navegador bloqueia requisições de um domínio (ex: `seu-app.vercel.app`) para outro (ex: `https://mobmv.shop`) por segurança, a menos que o servidor da API permita explicitamente.
+O navegador bloqueia requisições de um domínio (ex: `seu-app.vercel.app`) para outro (ex: `https://seu-servidor-pocketbase.com`) por segurança, a menos que o servidor da API permita explicitamente.
 
 ### Solução: Adicionar Domínios à Lista de Permissões (CORS)
 
 Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas dos domínios onde o aplicativo está hospedado.
 
 1.  **Acesse o Admin UI do seu PocketBase:**
-    Abra o endereço do seu PocketBase (ex: `https://mobmv.shop/_/`) no seu navegador.
+    Abra o endereço do seu PocketBase (ex: `https://seu-servidor-pocketbase.com/_/`) no seu navegador.
 
 2.  **Vá para as Configurações:**
     No menu lateral, clique em **Settings** e depois em **Application**.
@@ -28,12 +28,7 @@ Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas
     https://seu-projeto-as8df9ad8-sua-conta.vercel.app
     ```
 
-    **Dica:** A Vercel gera várias URLs (produção, preview, etc.). Uma forma fácil de permitir todas é usar um wildcard, se você se sentir confortável com isso:
-    ```
-    https://seu-projeto-*.vercel.app
-    ```
-    
-    Se você também acessa o app localmente durante o desenvolvimento, adicione a URL local também (geralmente `http://localhost:9002`).
+    **Dica:** Se você também acessa o app localmente durante o desenvolvimento, adicione a URL local também (geralmente `http://localhost:9002`).
 
 4.  **Salve as alterações.**
 
@@ -43,7 +38,7 @@ Você precisa dizer ao seu servidor PocketBase para aceitar requisições vindas
 
 Se você usa um proxy reverso na frente do seu PocketBase (o que é comum em produção), certifique-se de que ele está encaminhando **todo** o tráfego que chega em `/api/` para o seu servidor PocketBase.
 
-Alguns erros, como `404 Not Found` em rotas de login de administrador (`/api/admins/...`), podem ocorrer se o proxy estiver configurado para encaminhar apenas `/api/collections/`.
+Alguns erros, como `404 Not Found` em rotas de login de administrador (`/api/admins/auth-with-password`), podem ocorrer se o proxy estiver configurado para encaminhar apenas `/api/collections/`.
 
 **Exemplo para Nginx:**
 
