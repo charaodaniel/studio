@@ -84,8 +84,8 @@ export default function PassengerDashboard() {
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   
   // State for the form
-  const [origin, setOrigin] = useState('Rua Principal, 123');
-  const [destination, setDestination] = useState('Shopping da Cidade');
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
 
   useEffect(() => {
     // Ask for location permission on component mount
@@ -131,7 +131,7 @@ export default function PassengerDashboard() {
 
     const subscribeToRideUpdates = async () => {
         try {
-            await pb.collection('rides').subscribe(activeRide.id, (e) => {
+            const unsubscribe = await pb.collection('rides').subscribe(activeRide.id, (e) => {
                 if (e.action === 'update') {
                     const updatedRide = e.record as RideRecord;
                     
@@ -169,6 +169,10 @@ export default function PassengerDashboard() {
                     });
                 }
             });
+            
+             return () => {
+                pb.collection('rides').unsubscribe(activeRide.id);
+            };
         } catch (error) {
             console.error("Failed to subscribe to ride updates:", error);
         }
@@ -313,4 +317,3 @@ export default function PassengerDashboard() {
     </div>
   );
 }
-

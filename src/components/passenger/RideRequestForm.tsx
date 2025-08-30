@@ -118,14 +118,14 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
              <div className="space-y-2">
               <Label htmlFor="pickup-intercity">Origem</Label>
               <div className="flex items-center gap-2">
-                <Input id="pickup-intercity" placeholder="Cidade de partida" value={origin} onChange={(e) => setOrigin(e.target.value)} />
+                <Input id="pickup-intercity" placeholder="Insira seu local de partida" value={origin} onChange={(e) => setOrigin(e.target.value)} />
               </div>
               <p className="text-xs text-muted-foreground pl-2">Formato: Rua, Número, Bairro, Cidade</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="destination-intercity">Destino</Label>
               <div className="flex items-center gap-2">
-                <Input id="destination-intercity" placeholder="Cidade de destino" value={destination} onChange={(e) => setDestination(e.target.value)} />
+                <Input id="destination-intercity" placeholder="Insira seu destino" value={destination} onChange={(e) => setDestination(e.target.value)} />
               </div>
               <p className="text-xs text-muted-foreground pl-2">Formato: Rua, Número, Bairro, Cidade</p>
             </div>
