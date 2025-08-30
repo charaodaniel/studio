@@ -100,7 +100,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
                   {isLocating ? <Loader2 className="animate-spin" /> : <Locate />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground pl-2">Formato: Rua, Número, Bairro, Cidade</p>
+              <p className="text-xs text-muted-foreground pl-8">Formato: Rua, Número, Bairro, Cidade</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="destination-local">Destino</Label>
@@ -108,7 +108,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
                 <MapPin className="text-muted-foreground" />
                 <Input id="destination-local" placeholder="Insira seu destino" value={destination} onChange={(e) => setDestination(e.target.value)} disabled={isSearching}/>
               </div>
-              <p className="text-xs text-muted-foreground pl-2">Formato: Rua, Número, Bairro, Cidade</p>
+              <p className="text-xs text-muted-foreground pl-8">Formato: Rua, Número, Bairro, Cidade</p>
             </div>
              <div className="space-y-2">
                  <p className="text-sm text-muted-foreground text-center">Para corridas locais, escolha um motorista na lista abaixo.</p>
