@@ -48,17 +48,38 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
 
         setIsLocating(true);
         navigator.geolocation.getCurrentPosition(
-            (position) => {
+            async (position) => {
                 const { latitude, longitude } = position.coords;
-                // Em um app real, você usaria estas coordenadas para chamar uma API de geocodificação reversa.
-                // Para este protótipo, exibimos as coordenadas diretamente.
-                const locationString = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                setOrigin(locationString);
-                toast({
-                    title: 'Localização Capturada!',
-                    description: 'Seu local de partida foi preenchido com as coordenadas.',
-                });
-                setIsLocating(false);
+                
+                // Reverse Geocoding using Nominatim (free, no API key needed)
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                    const data = await response.json();
+
+                    if (data && data.address) {
+                        const { road, suburb, city, town, village } = data.address;
+                        const formattedAddress = [road, suburb, city || town || village].filter(Boolean).join(', ');
+                        setOrigin(formattedAddress);
+                        toast({
+                            title: 'Localização Encontrada!',
+                            description: `Seu endereço foi preenchido: ${formattedAddress}`,
+                        });
+                    } else {
+                        throw new Error('Endereço não encontrado.');
+                    }
+
+                } catch (error) {
+                    console.error("Reverse geocoding failed:", error);
+                    // Fallback to coordinates if API fails
+                    const locationString = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                    setOrigin(locationString);
+                    toast({
+                        title: 'Coordenadas Capturadas!',
+                        description: 'Não foi possível encontrar o nome da rua, mas as coordenadas foram preenchidas.',
+                    });
+                } finally {
+                     setIsLocating(false);
+                }
             },
             (error) => {
                 let description = 'Não foi possível obter sua localização.';
