@@ -90,17 +90,19 @@ O aplicativo estará disponível em `http://localhost:9002` (ou outra porta, se 
 
 ---
 
-## ✨ Funcionalidades do Protótipo
+## ✨ Funcionalidades Implementadas
 
-O protótipo atual possui a interface completa e a lógica visual e funcional para as seguintes funcionalidades.
+O protótipo atual é um MVP (Produto Mínimo Viável) robusto, com a interface completa e a lógica funcional para as seguintes funcionalidades:
 
 ### Para o Passageiro
 
 -   **Interface de Solicitação de Corrida** (Urbana e Interior).
--   **Visualização de Motoristas** disponíveis em cartões.
+-   **Visualização de Motoristas** disponíveis em cartões com status em tempo real.
 -   **Formulários de Login e Cadastro**.
 -   **Recuperação de Senha** via e-mail.
--   **Painel de Perfil** com abas para Histórico, Conversas e Segurança (alteração de senha e avatar).
+-   **Painel de Perfil** com abas para Histórico de Corridas, Conversas e Segurança (alteração de senha e avatar).
+-   **Acompanhamento do Status da Corrida** (Aceita, A Caminho, Finalizada).
+-   **Comunicação via Chat** com o motorista.
 
 ### Para o Motorista
 
@@ -114,6 +116,7 @@ O protótipo atual possui a interface completa e a lógica visual e funcional pa
 -   **Exportação de Relatórios** em PDF e CSV.
 -   **Upload de Documentos** (CNH, CRLV) e fotos (perfil, veículo) via câmera ou arquivo.
 -   **Navegação via Waze** para buscar o passageiro e levá-lo ao destino.
+-   **Chat de Negociação** para corridas de interior.
 
 ### Para o Administrador e Atendente
 
@@ -127,11 +130,24 @@ O protótipo atual possui a interface completa e a lógica visual e funcional pa
 
 ---
 
-## ➡️ Próximos Passos
+## ➡️ Próximos Passos para Produção
 
-Embora o protótipo seja robusto, futuras melhorias podem incluir:
+Embora o protótipo seja robusto, algumas funcionalidades são essenciais para que o aplicativo seja lançado em um ambiente de produção real.
 
--   Implementação de um sistema de avaliações (estrelas) para passageiros e motoristas.
--   Integração com um gateway de pagamento.
--   Aprimoramento do mapa com rotas em tempo real.
--   Notificações push para diferentes eventos do aplicativo.
+1.  **Integração com Gateway de Pagamento (Crítico):**
+    -   Implementar um sistema de pagamento (ex: Stripe, Mercado Pago) para processar as transações das corridas.
+    -   Isso envolve a criação de uma lógica para cobrança do passageiro e repasse para o motorista.
+
+2.  **Integração com API de Mapas Real:**
+    -   Substituir o mapa de placeholder por uma solução como Google Maps API ou Mapbox.
+    -   **Funcionalidades:** Mostrar a localização dos motoristas em tempo real, traçar rotas, calcular distância e tempo de chegada (ETA) com precisão.
+
+3.  **Sistema de Avaliação (Estrelas):**
+    -   Criar uma funcionalidade para que passageiros e motoristas possam se avaliar mutuamente após cada corrida. Isso é fundamental para a confiança e segurança da plataforma.
+
+4.  **Notificações Push:**
+    -   Implementar um serviço de notificações push (ex: Firebase Cloud Messaging) para alertar usuários sobre eventos importantes (corrida aceita, nova mensagem no chat, etc.), mesmo quando o aplicativo está fechado.
+
+5.  **Testes Abrangentes e Segurança:**
+    -   Realizar testes de ponta a ponta (end-to-end) para garantir que todos os fluxos funcionem sem falhas.
+    -   Revisar e fortalecer a segurança, especialmente em relação à validação de dados de entrada e proteção de rotas de API.
