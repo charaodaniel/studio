@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Sua conexão para viagens tranquilas.",
     start_url: "/",
     display: "standalone",
-    background_color: "#E3F2FD",
+    background_color: "#000000",
     theme_color: "#2979FF",
     icons: [
       {
