@@ -49,13 +49,14 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
         setIsLocating(true);
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                // Em um app real, você usaria position.coords.latitude e position.coords.longitude
-                // para chamar uma API de geocodificação reversa e obter o endereço.
-                // Aqui, vamos apenas simular o resultado.
-                setOrigin('Minha Localização Atual');
+                const { latitude, longitude } = position.coords;
+                // Em um app real, você usaria estas coordenadas para chamar uma API de geocodificação reversa.
+                // Para este protótipo, exibimos as coordenadas diretamente.
+                const locationString = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                setOrigin(locationString);
                 toast({
                     title: 'Localização Capturada!',
-                    description: 'Seu local de partida foi atualizado.',
+                    description: 'Seu local de partida foi preenchido com as coordenadas.',
                 });
                 setIsLocating(false);
             },
@@ -111,7 +112,20 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
               <p className="text-xs text-muted-foreground pl-8">Formato: Rua, Número, Bairro, Cidade</p>
             </div>
              <div className="space-y-2">
-                 <p className="text-sm text-muted-foreground text-center">Para corridas locais, escolha um motorista na lista abaixo.</p>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Button className="w-full" size="lg" disabled={isSearching || !canRequest}>Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/></Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                    <DriverListModal 
+                        origin={origin} 
+                        destination={destination}
+                        isNegotiated={false}
+                        onRideRequest={onRideRequest}
+                        passengerAnonymousName={anonymousUserName}
+                    />
+                    </DialogContent>
+                </Dialog>
              </div>
           </TabsContent>
           <TabsContent value="intercity" className="pt-6 space-y-6">
