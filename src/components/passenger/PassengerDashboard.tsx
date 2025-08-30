@@ -77,8 +77,7 @@ export default function PassengerDashboard() {
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
-  const [mapRefreshKey, setMapRefreshKey] = useState(0);
-
+  
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
@@ -130,47 +129,56 @@ export default function PassengerDashboard() {
   useEffect(() => {
     if (!activeRide) return;
 
-    const unsubscribe = pb.collection('rides').subscribe(activeRide.id, (e) => {
-        if (e.action === 'update') {
-            const updatedRide = e.record as RideRecord;
-            
-            pb.collection('rides').getOne<RideRecord>(updatedRide.id, { expand: 'driver' }).then(fullRecord => {
-              setActiveRide(fullRecord);
-
-              if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
-                  const driver = fullRecord.expand.driver;
-                  setRideDetails({
-                      driverName: driver.name,
-                      driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
-                      driverPhone: driver.phone,
-                      vehicleModel: driver.driver_vehicle_model,
-                      licensePlate: driver.driver_vehicle_plate,
-                      eta: '5 minutos' // ETA can be calculated in a real app
-                  });
-                  setRideStatus('accepted');
-                  playNotification();
-                  toast({
-                    title: 'Corrida Aceita!',
-                    description: `${driver.name} está a caminho.`,
-                  });
-              } else if (fullRecord.status === 'in_progress') {
-                  setRideStatus('in_progress');
-              } else if (fullRecord.status === 'completed') {
-                  handleCompleteRide();
-              } else if (fullRecord.status === 'canceled') {
-                  handleCancelRide(false); // Do not update DB again
-                  toast({
-                      title: 'Corrida Cancelada',
-                      description: 'O motorista cancelou a corrida.',
-                      variant: 'destructive',
-                  });
-              }
+    const subscribeToRideUpdates = async () => {
+        try {
+            await pb.collection('rides').subscribe(activeRide.id, (e) => {
+                if (e.action === 'update') {
+                    const updatedRide = e.record as RideRecord;
+                    
+                    pb.collection('rides').getOne<RideRecord>(updatedRide.id, { expand: 'driver' }).then(fullRecord => {
+                      setActiveRide(fullRecord);
+        
+                      if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
+                          const driver = fullRecord.expand.driver;
+                          setRideDetails({
+                              driverName: driver.name,
+                              driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
+                              driverPhone: driver.phone,
+                              vehicleModel: driver.driver_vehicle_model,
+                              licensePlate: driver.driver_vehicle_plate,
+                              eta: '5 minutos' // ETA can be calculated in a real app
+                          });
+                          setRideStatus('accepted');
+                          playNotification();
+                          toast({
+                            title: 'Corrida Aceita!',
+                            description: `${driver.name} está a caminho.`,
+                          });
+                      } else if (fullRecord.status === 'in_progress') {
+                          setRideStatus('in_progress');
+                      } else if (fullRecord.status === 'completed') {
+                          handleCompleteRide();
+                      } else if (fullRecord.status === 'canceled') {
+                          handleCancelRide(false); // Do not update DB again
+                          toast({
+                              title: 'Corrida Cancelada',
+                              description: 'O motorista cancelou a corrida.',
+                              variant: 'destructive',
+                          });
+                      }
+                    });
+                }
             });
+        } catch (error) {
+            console.error("Failed to subscribe to ride updates:", error);
         }
-    });
+    };
+
+    subscribeToRideUpdates();
 
     return () => {
-        unsubscribe();
+        // Correct way to unsubscribe from all subscriptions on a collection
+        pb.collection('rides').unsubscribe('*');
     }
   }, [activeRide, toast, playNotification]);
 
@@ -305,3 +313,4 @@ export default function PassengerDashboard() {
     </div>
   );
 }
+
