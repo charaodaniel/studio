@@ -79,6 +79,27 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     }
   };
 
+  const handleCall = () => {
+    if (user.phone) {
+      window.location.href = `tel:${user.phone}`;
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Sem Telefone',
+        description: 'Este usuário não possui um número de telefone cadastrado.',
+      });
+    }
+  };
+
+  const handleSearch = () => {
+    // For now, this is a placeholder. A more advanced implementation
+    // would involve a global state or search provider to filter the main table.
+     toast({
+        title: 'Busca de Histórico',
+        description: `Para ver o histórico de ${user.name}, vá para a aba "Gerenciar" e use a busca.`,
+      });
+      onBack(); // Close the modal to allow navigation
+  }
 
   const avatarUrl = user.avatar ? pb.getFileUrl(user, user.avatar) : '';
 
@@ -147,7 +168,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
               <p className="text-muted-foreground">{isEditing ? formData.role : user.role}</p>
           </div>
           <div className="flex items-center gap-4">
-              <Button variant="ghost" className="flex-col h-auto p-3">
+              <Button variant="ghost" className="flex-col h-auto p-3" onClick={handleCall}>
                   <Phone />
                   <span className="text-xs mt-1">Ligar</span>
               </Button>
@@ -155,7 +176,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
                   <MessageSquare />
                   <span className="text-xs mt-1">Conversar</span>
               </Button>
-              <Button variant="ghost" className="flex-col h-auto p-3">
+              <Button variant="ghost" className="flex-col h-auto p-3" onClick={handleSearch}>
                   <Search />
                   <span className="text-xs mt-1">Buscar</span>
               </Button>
