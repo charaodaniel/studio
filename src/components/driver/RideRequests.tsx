@@ -192,10 +192,10 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     };
     
     const handleReject = async (rideId: string) => {
-        
         try {
             await pb.collection('rides').update(rideId, { status: 'canceled' });
             toast({ variant: "destructive", title: "Corrida Rejeitada" });
+            // Remove the request from the local state to update the UI immediately
             setRequests(prev => prev.filter(r => r.ride.id !== rideId));
         } catch (error) {
             console.error("Failed to update ride to canceled:", error);
@@ -236,7 +236,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
             setAcceptedRide(null);
             setPassengerOnBoard(false);
             setDriverStatus('online');
-            fetchRequests();
+            fetchRequests(); // Re-fetch to clear the slate
         } catch (error) {
              toast({ variant: "destructive", title: "Erro", description: "Não foi possível cancelar a corrida."});
         }
@@ -245,7 +245,10 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     const handleNavigate = () => {
         if (!acceptedRide) return;
 
-        const destination = acceptedRide.destination_address;
+        // If passenger is not yet on board, navigate to the pickup location
+        const destination = passengerOnBoard 
+            ? acceptedRide.destination_address 
+            : acceptedRide.origin_address;
         
         const encodedAddress = encodeURIComponent(destination);
         const wazeUrl = `https://waze.com/ul?q=${encodedAddress}`;
@@ -274,10 +277,16 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
                     {!passengerOnBoard ? (
-                        <Button className="w-full" onClick={handlePassengerOnBoard}>
-                            <UserCheck className="mr-2 h-4 w-4" />
-                            Passageiro a Bordo
-                        </Button>
+                         <div className="grid grid-cols-2 gap-2 w-full">
+                             <Button className="w-full" onClick={handleNavigate}>
+                                <Navigation className="mr-2 h-4 w-4" />
+                                Ir até Passageiro
+                            </Button>
+                            <Button className="w-full" onClick={handlePassengerOnBoard}>
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Passageiro a Bordo
+                            </Button>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-2 w-full">
                              <Button variant="destructive" className="w-full" onClick={handleEndRide}>
