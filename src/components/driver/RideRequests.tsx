@@ -5,7 +5,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2 } from 'lucide-react';
+import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2, Navigation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RideChat } from './NegotiationChat';
 import { useState, useEffect, useCallback } from 'react';
@@ -243,6 +243,19 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         }
     }
 
+    const handleNavigate = () => {
+        if (!acceptedRide) return;
+
+        const destination = passengerOnBoard 
+            ? acceptedRide.destination_address 
+            : acceptedRide.origin_address;
+        
+        const encodedAddress = encodeURIComponent(destination);
+        const wazeUrl = `https://waze.com/ul?q=${encodedAddress}`;
+        
+        window.open(wazeUrl, '_blank');
+    };
+
     if (acceptedRide) {
          return (
              <Card className="shadow-lg border-primary">
@@ -250,7 +263,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                     <CardTitle className="font-headline">Corrida em Andamento</CardTitle>
                     <CardDescription>Comunique-se com seu passageiro e gerencie o progresso da viagem.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                     <div className="flex flex-row items-center gap-4 space-y-0 pb-4">
                         <Avatar>
                              <AvatarImage src={acceptedRide.expand.passenger.avatar ? pb.getFileUrl(acceptedRide.expand.passenger, acceptedRide.expand.passenger.avatar) : ''} data-ai-hint="person face" />
@@ -261,12 +274,10 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
-                    <RideChat rideId={acceptedRide.id} chatId={null} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
-                        <Button className="w-full">
-                            <MessageSquareQuote className="mr-2 h-4 w-4" />
-                            Abrir Chat com {acceptedRide.expand.passenger.name}
-                        </Button>
-                    </RideChat>
+                     <Button className="w-full" onClick={handleNavigate}>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Abrir no Waze
+                    </Button>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
                     {!passengerOnBoard ? (
@@ -280,26 +291,34 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             Finalizar Viagem
                         </Button>
                      )}
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700 mt-2">
-                                <AlertTriangle className="mr-2 h-4 w-4" />
-                                Informar Imprevisto
+                     <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                        <RideChat rideId={acceptedRide.id} chatId={null} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
+                            <Button variant="outline" className="w-full">
+                                <MessageSquareQuote className="mr-2 h-4 w-4" />
+                                Chat
                             </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Cancelar a Corrida?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Isso notificará o passageiro que você teve um problema e cancelará a viagem. Use esta opção apenas em caso de real necessidade.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleCancelByDriver}>Sim, Cancelar Corrida</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                        </RideChat>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" className="w-full text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700">
+                                    <AlertTriangle className="mr-2 h-4 w-4" />
+                                    Imprevisto
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancelar a Corrida?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Isso notificará o passageiro que você teve um problema e cancelará a viagem. Use esta opção apenas em caso de real necessidade.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                    <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleCancelByDriver}>Sim, Cancelar Corrida</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                     </div>
                 </CardFooter>
             </Card>
          )
