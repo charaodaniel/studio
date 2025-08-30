@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -246,9 +245,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     const handleNavigate = () => {
         if (!acceptedRide) return;
 
-        const destination = passengerOnBoard 
-            ? acceptedRide.destination_address 
-            : acceptedRide.origin_address;
+        const destination = acceptedRide.destination_address;
         
         const encodedAddress = encodeURIComponent(destination);
         const wazeUrl = `https://waze.com/ul?q=${encodedAddress}`;
@@ -274,10 +271,6 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
-                     <Button className="w-full" onClick={handleNavigate}>
-                        <Navigation className="mr-2 h-4 w-4" />
-                        Abrir no Waze
-                    </Button>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
                     {!passengerOnBoard ? (
@@ -286,10 +279,16 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                             Passageiro a Bordo
                         </Button>
                     ) : (
-                        <Button variant="destructive" className="w-full" onClick={handleEndRide}>
-                            <CheckSquare className="mr-2 h-4 w-4" />
-                            Finalizar Viagem
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2 w-full">
+                             <Button variant="destructive" className="w-full" onClick={handleEndRide}>
+                                <CheckSquare className="mr-2 h-4 w-4" />
+                                Finalizar Viagem
+                            </Button>
+                             <Button className="w-full" onClick={handleNavigate}>
+                                <Navigation className="mr-2 h-4 w-4" />
+                                Waze
+                            </Button>
+                        </div>
                      )}
                      <div className="grid grid-cols-2 gap-2 w-full mt-2">
                         <RideChat rideId={acceptedRide.id} chatId={null} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
