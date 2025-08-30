@@ -1,16 +1,78 @@
 
 
-import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { type User } from './UserList';
 import pb from '@/lib/pocketbase';
 import { Separator } from '../ui/separator';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import Image from 'next/image';
+import type { RecordModel } from 'pocketbase';
+
+interface DocumentRecord extends RecordModel {
+    driver: string;
+    document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
+    file: string;
+    is_verified: boolean;
+}
+
+const ViewDocumentsModal = ({ user, children }: { user: User, children: React.ReactNode }) => {
+    const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+
+    useEffect(() => {
+        const fetchDocs = async () => {
+            if (!user) return;
+            try {
+                const records = await pb.collection('driver_documents').getFullList<DocumentRecord>({
+                    filter: `driver="${user.id}" && is_verified=true`
+                }, { admin: true });
+                setDocuments(records);
+            } catch (error) {
+                console.error("Failed to fetch verified documents:", error);
+            }
+        };
+        fetchDocs();
+    }, [user]);
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Documentos Verificados de {user.name}</DialogTitle>
+                    <DialogDescription>
+                        Visualize os documentos que já foram aprovados para este motorista.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    {documents.length > 0 ? documents.map(doc => (
+                        <div key={doc.id} className="flex items-center justify-between p-2 border rounded-lg">
+                           <div>
+                             <p className="font-semibold">{doc.document_type}</p>
+                             <p className="text-xs text-muted-foreground">Verificado</p>
+                           </div>
+                           <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4"/>Ver Imagem</Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl">
+                                <Image src={pb.getFileUrl(doc, doc.file)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
+                            </DialogContent>
+                           </Dialog>
+                        </div>
+                    )) : <p className="text-muted-foreground text-center">Nenhum documento verificado encontrado.</p>}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+};
+
 
 interface UserProfileProps {
   user: User;
@@ -108,32 +170,31 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     primary: string, 
     secondary: string | null | undefined, 
     fieldId?: keyof User, 
-    isEditable = true
+    isEditable = true,
+    onClick?: () => void
   ) => (
-    <>
-      <div className="flex items-center gap-4 p-4">
+    <div className={`flex items-center gap-4 p-4 ${onClick ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={onClick}>
         <div className="text-muted-foreground">{icon}</div>
         <div className="flex-1">
-          {isEditing && isEditable && fieldId ? (
+        {isEditing && isEditable && fieldId ? (
             <>
-              <Label htmlFor={fieldId} className="text-xs">{secondary}</Label>
-              <Input
+            <Label htmlFor={fieldId} className="text-xs">{secondary}</Label>
+            <Input
                 id={fieldId}
                 value={formData[fieldId] as string || ''}
                 onChange={handleInputChange}
                 className="h-8"
-              />
+            />
             </>
-          ) : (
-             <>
-              <p className="text-sm">{primary || 'Não informado'}</p>
-              {secondary && <p className="text-xs text-muted-foreground">{secondary}</p>}
+        ) : (
+            <>
+            <p className="text-sm">{primary || 'Não informado'}</p>
+            {secondary && <p className="text-xs text-muted-foreground">{secondary}</p>}
             </>
-          )}
+        )}
         </div>
-      </div>
-      <Separator className="ml-14" />
-    </>
+        {onClick && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+    </div>
   );
 
   return (
@@ -185,7 +246,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
         <div className="p-4 space-y-4">
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 divide-y">
                {renderListItem(<Mail className="w-5 h-5" />, formData.email || '', "Email", "email", false)}
                {renderListItem(<Phone className="w-5 h-5" />, formData.phone || 'Não informado', "Telefone", "phone")}
             </CardContent>
@@ -194,22 +255,24 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
           {user.role === 'Motorista' && (
             <>
               <Card>
-                <CardContent className="p-0">
+                <CardContent className="p-0 divide-y">
                   {renderListItem(<Car className="w-5 h-5" />, formData.driver_vehicle_model || 'Não informado', "Veículo", "driver_vehicle_model")}
                   {renderListItem(<Key className="w-5 h-5" />, formData.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent className="p-0">
+                <CardContent className="p-0 divide-y">
                   {renderListItem(<Briefcase className="w-5 h-5" />, formData.driver_cnpj || 'Não informado', "CNPJ", "driver_cnpj")}
                   {renderListItem(<Wallet className="w-5 h-5" />, formData.driver_pix_key || 'Não informado', "Chave PIX", "driver_pix_key")}
                 </CardContent>
               </Card>
-
+              
               <Card>
                  <CardContent className="p-0">
-                   {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "CNH, CRLV, etc.", undefined, false)}
+                    <ViewDocumentsModal user={user}>
+                        {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "CNH, CRLV, etc.", undefined, false, () => {})}
+                    </ViewDocumentsModal>
                 </CardContent>
               </Card>
             </>
@@ -217,8 +280,8 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
           {user.role === 'Passageiro' && (
              <Card>
-                 <CardContent className="p-0">
-                   {renderListItem(<FileText className="w-5 h-5" />, "Ver Histórico de Corridas", "Nenhuma corrida recente", undefined, false)}
+                 <CardContent className="p-0 divide-y">
+                   {renderListItem(<FileText className="w-5 h-5" />, "Ver Histórico de Corridas", "Nenhuma corrida recente", undefined, false, handleSearch)}
                 </CardContent>
               </Card>
           )}

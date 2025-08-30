@@ -31,6 +31,7 @@ interface RideRecord extends RecordModel {
 interface DriverRecord extends RecordModel {
     name: string;
     avatar: string;
+    phone: string;
     driver_vehicle_model: string;
     driver_vehicle_plate: string;
 }
@@ -40,6 +41,7 @@ type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled
 export interface RideDetails {
   driverName: string;
   driverAvatar: string;
+  driverPhone: string;
   vehicleModel: string;
   licensePlate: string;
   eta: string;
@@ -140,6 +142,7 @@ export default function PassengerDashboard() {
                   setRideDetails({
                       driverName: driver.name,
                       driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
+                      driverPhone: driver.phone,
                       vehicleModel: driver.driver_vehicle_model,
                       licensePlate: driver.driver_vehicle_plate,
                       eta: '5 minutos' // ETA can be calculated in a real app
@@ -295,14 +298,10 @@ export default function PassengerDashboard() {
                 origin={origin}
                 destination={destination}
                 isNegotiated={false} // This view logic defaults to non-negotiated. The form handles negotiation.
-                onConfirm={(rideId) => {
-                    setIsConfirmationOpen(false);
-                    onRideRequest(rideId);
-                }}
+                onConfirm={onRideRequest}
                 passengerAnonymousName={null}
             />
         )}
     </div>
   );
 }
-

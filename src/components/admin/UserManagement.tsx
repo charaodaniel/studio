@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -50,6 +51,9 @@ interface MessageRecord extends RecordModel {
     chat: string;
     sender: string;
     text: string;
+    expand: {
+        sender: User
+    }
 }
 
 interface UserManagementProps {
@@ -112,7 +116,8 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         try {
             const result = await pb.collection('messages').getFullList<MessageRecord>({
                 filter: `chat = "${chatId}"`,
-                sort: 'id'
+                sort: 'id',
+                expand: 'sender'
             });
             setMessages(result);
         } catch (error) {
@@ -126,7 +131,9 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             fetchMessages(selectedChat.id);
             const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', e => {
                 if (e.action === 'create' && e.record.chat === selectedChat.id) {
-                    setMessages(prev => [...prev, e.record]);
+                    pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender'}).then(fullRecord => {
+                        setMessages(prev => [...prev, fullRecord]);
+                    });
                 }
             });
             return () => pb.collection('messages').unsubscribe('*');
@@ -199,6 +206,32 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             console.error("Failed to send message:", error);
         }
     };
+    
+    const handleGenerateReport = () => {
+        if (!selectedUser || messages.length === 0) {
+            return;
+        }
+
+        const reportHeader = `Histórico de Conversa com ${selectedUser.name}\n`;
+        const reportContent = messages.map(msg => {
+            const senderName = msg.expand?.sender?.name || 'Desconhecido';
+            const timestamp = new Date(msg.created).toLocaleString('pt-BR');
+            return `[${timestamp}] ${senderName}: ${msg.text}`;
+        }).join('\n');
+        
+        const fullReport = reportHeader + '-'.repeat(20) + '\n' + reportContent;
+        
+        const blob = new Blob([fullReport], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `conversa_${selectedUser.name.replace(/\s+/g, '_')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
 
     if (!isClient) {
         return <div className="flex-1 flex items-center justify-center bg-muted/40 h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>; 
@@ -307,11 +340,9 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                     <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
                       <User className="mr-2 h-4 w-4"/> Ver Perfil
                     </DropdownMenuItem>
-                    {selectedUser.role === 'Motorista' && (
-                        <DropdownMenuItem>
-                            <FileText className="mr-2 h-4 w-4"/> Gerar Relatório
-                        </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem onClick={handleGenerateReport}>
+                        <FileText className="mr-2 h-4 w-4"/> Gerar Relatório
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -319,7 +350,11 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 <div className="flex flex-col gap-4">
                   {messages.map((msg) => (
                      <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === pb.authStore.model?.id ? 'flex-row-reverse' : ''}`}>
+                       <Avatar className="w-8 h-8 border">
+                          <AvatarFallback>{msg.expand.sender?.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
+                       </Avatar>
                       <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === pb.authStore.model?.id ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
+                           <p className="font-bold">{msg.expand.sender.name === pb.authStore.model?.name ? 'Você' : msg.expand.sender.name}</p>
                           <p>{msg.text}</p>
                       </div>
                   </div>

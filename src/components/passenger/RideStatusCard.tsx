@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
 import pb from '@/lib/pocketbase';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { useToast } from '@/hooks/use-toast';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -29,6 +30,7 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
     const [progress, setProgress] = useState(10);
     const [chatId, setChatId] = useState<string | null>(null);
     const { playNotification } = useNotificationSound();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (rideStatus === 'completed') {
@@ -63,6 +65,18 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
       }
       findChat();
     }, [rideId]);
+    
+    const handleCall = () => {
+        if (rideDetails.driverPhone) {
+            window.location.href = `tel:${rideDetails.driverPhone}`;
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Sem Telefone',
+                description: 'Este motorista não possui um número de telefone cadastrado para chamadas.',
+            });
+        }
+    };
 
 
   if (rideStatus === 'completed') {
@@ -119,7 +133,7 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
         </div>
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-2">
-        <Button variant="outline"><Phone className="mr-2"/> Ligar</Button>
+        <Button variant="outline" onClick={handleCall}><Phone className="mr-2"/> Ligar</Button>
         <RideChat 
             rideId={rideId} 
             chatId={chatId} 
