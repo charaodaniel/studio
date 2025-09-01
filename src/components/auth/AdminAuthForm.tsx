@@ -26,18 +26,19 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      // Authenticate against the 'users' collection and check for the 'Admin' role.
-      // This is more compatible across PocketBase versions.
+      // Authenticate against the 'users' collection
       const authData = await pb.collection('users').authWithPassword(email, password);
       
       // After successful authentication, check if the user has the 'Admin' role.
-      if (authData.record.role !== 'Admin') {
+      // With multi-select, `role` is an array.
+      if (!authData.record.role.includes('Admin')) {
         pb.authStore.clear(); // Important: clear the auth store if the role is wrong
         toast({
             title: "Acesso Negado",
-            description: "As credenciais são válidas, mas o usuário não tem permissão de Administrador.",
+            description: "Você não tem permissão de Administrador.",
             variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 

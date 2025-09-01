@@ -65,7 +65,7 @@
         "presentable": false,
         "unique": false,
         "options": {
-          "maxSelect": 1,
+          "maxSelect": 4,
           "values": [
             "Passageiro",
             "Motorista",
