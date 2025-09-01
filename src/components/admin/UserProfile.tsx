@@ -1,6 +1,6 @@
 
 
-import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X, Eye } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X, Eye, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
