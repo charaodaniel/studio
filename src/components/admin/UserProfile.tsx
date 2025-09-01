@@ -85,17 +85,21 @@ interface UserProfileProps {
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<Partial<User>>({
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-    driver_vehicle_model: user.driver_vehicle_model,
-    driver_vehicle_plate: user.driver_vehicle_plate,
-    driver_cnpj: user.driver_cnpj,
-    driver_pix_key: user.driver_pix_key,
-  });
+  const [formData, setFormData] = useState<Partial<User>>({});
   const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
+  
+  useEffect(() => {
+    setFormData({
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        driver_vehicle_model: user.driver_vehicle_model,
+        driver_vehicle_plate: user.driver_vehicle_plate,
+        driver_cnpj: user.driver_cnpj,
+        driver_pix_key: user.driver_pix_key,
+    });
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -181,7 +185,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             <Label htmlFor={fieldId} className="text-xs">{secondary}</Label>
             <Input
                 id={fieldId}
-                value={formData[fieldId] as string || ''}
+                value={formData[fieldId as keyof typeof formData] as string || ''}
                 onChange={handleInputChange}
                 className="h-8"
             />
