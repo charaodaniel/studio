@@ -287,9 +287,9 @@ const appData = {
                         <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                         <TableCell className="hidden sm:table-cell">
                             <Badge variant={
-                                user.role === 'Admin' ? 'destructive' : 
-                                user.role === 'Motorista' ? 'default' : 'secondary'
-                            }>{user.role}</Badge>
+                                user.role.includes('Admin') ? 'destructive' : 
+                                user.role.includes('Motorista') ? 'default' : 'secondary'
+                            }>{user.role.join(', ')}</Badge>
                         </TableCell>
                         <TableCell>
                             <Badge variant={!user.disabled ? 'outline' : 'secondary'} className={!user.disabled ? "border-green-500 text-green-600" : ""}>{user.disabled ? 'Inativo' : 'Ativo'}</Badge>
@@ -307,7 +307,7 @@ const appData = {
                                 <DropdownMenuItem onSelect={() => setSelectedUserForEdit(user)}>
                                     <Edit className="mr-2 h-4 w-4"/>Editar / Ver Perfil
                                 </DropdownMenuItem>
-                                {user.role === 'Motorista' && (
+                                {user.role.includes('Motorista') && (
                                     <>
                                         <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
                                             <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
@@ -329,16 +329,16 @@ const appData = {
                                     <AlertDialogTrigger asChild>
                                         <DropdownMenuItem
                                             onSelect={(e) => e.preventDefault()}
-                                            className={cn("text-red-600 focus:bg-red-100 focus:text-red-700", user.disabled && "text-green-600 focus:bg-green-100 focus:text-green-700")}
+                                            className={cn("focus:bg-red-100", user.disabled ? "text-green-600 focus:text-green-700 focus:bg-green-100" : "text-red-600 focus:text-red-700")}
                                         >
-                                            <Trash2 className="mr-2 h-4 w-4"/>{user.disabled ? "Ativar" : "Desativar"}
+                                            <Trash2 className="mr-2 h-4 w-4"/>{user.disabled ? "Ativar Usuário" : "Desativar Usuário"}
                                         </DropdownMenuItem>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta ação vai {user.disabled ? "reativar" : "desativar"} o acesso do usuário ${user.name} à plataforma.
+                                                Esta ação vai {user.disabled ? "reativar" : "desativar temporariamente"} o acesso do usuário {user.name} à plataforma.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -388,3 +388,4 @@ const appData = {
       </>
     );
   }
+
