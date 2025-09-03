@@ -40,7 +40,7 @@ export default function DriverAuthForm() {
     try {
       const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
 
-      if (authData.record.role !== 'Motorista') {
+      if (!authData.record.role.includes('Motorista')) {
         pb.authStore.clear();
         toast({
           variant: 'destructive',
@@ -76,7 +76,7 @@ export default function DriverAuthForm() {
         "password": registerPassword,
         "passwordConfirm": registerPassword,
         "name": registerName,
-        "role": "Motorista"
+        "role": ["Motorista"]
     };
 
     try {

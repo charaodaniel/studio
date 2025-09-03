@@ -26,7 +26,7 @@ export default function OperatorAuthForm() {
     try {
       const authData = await pb.collection('users').authWithPassword(email, password);
 
-      if (authData.record.role !== 'Atendente') {
+      if (!authData.record.role.includes('Atendente')) {
         pb.authStore.clear();
         toast({
           variant: 'destructive',

@@ -23,7 +23,7 @@ export interface User extends RecordModel {
     email: string;
     avatar: string;
     phone: string;
-    role: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
+    role: string[];
 
     driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
     driver_vehicle_model?: string;
@@ -53,7 +53,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setIsLoading(true);
         setError(null);
         try {
-            const filter = roleFilter ? `role = "${roleFilter}"` : '';
+            const filter = roleFilter ? `role ?= "${roleFilter}"` : ''; // Use ?= for array contains
             const records = await pb.collection('users').getFullList<User>({
                 sort: '-created',
                 filter: filter,

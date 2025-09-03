@@ -58,7 +58,7 @@ export default function PassengerAuthForm() {
     try {
       const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
 
-      if (authData.record.role !== 'Passageiro') {
+      if (!authData.record.role.includes('Passageiro')) {
         pb.authStore.clear(); 
         toast({
           variant: 'destructive',
@@ -92,7 +92,7 @@ export default function PassengerAuthForm() {
         "password": registerPassword,
         "passwordConfirm": registerPassword,
         "name": registerName,
-        "role": "Passageiro"
+        "role": ["Passageiro"]
     };
 
     try {
