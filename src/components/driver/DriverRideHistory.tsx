@@ -170,14 +170,19 @@ export function DriverRideHistory() {
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
 
+        const pdfSummary = {
+            totalRides: rides.filter(r => r.status === 'completed').length,
+            totalValue: rides.filter(r => r.status === 'completed').reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
+        };
+
         doc.setFontSize(12);
         doc.setTextColor(40);
         doc.setFont('helvetica', 'bold');
         doc.text("Resumo do Período", 14, 65);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.text(`Total de Corridas Concluídas: ${summary.totalRides}`, 14, 70);
-        doc.text(`Valor Total Arrecadado: R$ ${summary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
+        doc.text(`Total de Corridas Concluídas: ${pdfSummary.totalRides}`, 14, 70);
+        doc.text(`Valor Total Arrecadado: R$ ${pdfSummary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
