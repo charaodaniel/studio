@@ -20,6 +20,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -45,12 +46,13 @@ const appData = {
 }
 
 export function DriverRideHistory() {
-    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
     const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '' });
     const { toast } = useToast();
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     
     const currentUser = pb.authStore.model as UserData | null;
 
@@ -88,9 +90,33 @@ export function DriverRideHistory() {
         fetchRides();
     }, [fetchRides]);
 
-    const handleExportCSV = () => {
+    const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange) => {
+        if (!currentUser) return;
+        const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
+        const endDate = dateRange.to.toISOString().split('T')[0] + ' 23:59:59';
+
+        const filteredRides = await pb.collection('rides').getFullList<RideRecord>({
+            filter: `driver = "${currentUser.id}" && created >= "${startDate}" && created <= "${endDate}"`,
+            sort: '-created',
+            expand: 'passenger',
+        });
+
+        if (filteredRides.length === 0) {
+            toast({ title: "Nenhuma corrida encontrada", description: "Não há corridas neste período para gerar um relatório." });
+            return;
+        }
+
+        if (type === 'csv') {
+            handleExportCSV(filteredRides);
+        } else {
+            handleExportPDF(filteredRides, dateRange);
+        }
+    };
+
+
+    const handleExportCSV = (ridesToExport: RideRecord[]) => {
         const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status", "Iniciada Por"];
-        const rows = rides.map(ride => 
+        const rows = ridesToExport.map(ride => 
             [
                 ride.id, 
                 new Date(ride.updated).toLocaleDateString('pt-BR'), 
@@ -115,23 +141,12 @@ export function DriverRideHistory() {
         document.body.removeChild(link);
     };
 
-    const calculateSummary = () => {
-        const completedRides = rides.filter(r => r.status === 'completed');
-        const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
-        return {
-            totalRides: completedRides.length,
-            totalValue: totalValue.toFixed(2).replace('.', ','),
-        }
-    };
-
-    const summary = calculateSummary();
-
-    const handleExportPDF = () => {
+    const handleExportPDF = (ridesToExport: RideRecord[], dateRange: DateRange) => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         
-        const drawHeader = (data: any) => {
+        const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
             doc.setTextColor(220, 38, 38); // Red color for CEOLIN
@@ -141,11 +156,17 @@ export function DriverRideHistory() {
             doc.setTextColor(40);
             doc.setFont('helvetica', 'bold');
             doc.text("Relatório de Corridas", pageWidth - 14, 22, { align: 'right' });
+
+            doc.setFontSize(9);
+            doc.setTextColor(100);
+            const periodText = `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
+            doc.text(periodText, pageWidth - 14, 27, { align: 'right' });
+
             doc.setDrawColor(200);
             doc.line(14, 30, pageWidth - 14, 30);
         };
 
-        const drawFooter = (data: any) => {
+        const drawFooter = () => {
             const pageCount = doc.internal.pages.length;
             doc.setFontSize(8);
             doc.setTextColor(150);
@@ -170,7 +191,7 @@ export function DriverRideHistory() {
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
 
-        const completedRides = rides.filter(r => r.status === 'completed');
+        const completedRides = ridesToExport.filter(r => r.status === 'completed');
         const pdfSummary = {
             totalRides: completedRides.length,
             totalValue: completedRides.reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
@@ -186,7 +207,7 @@ export function DriverRideHistory() {
         doc.text(`Valor Total Arrecadado: R$ ${pdfSummary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
-        const tableRows: (string | null)[][] = rides.map(ride => [
+        const tableRows: (string | null)[][] = ridesToExport.map(ride => [
             new Date(ride.updated).toLocaleDateString('pt-BR'),
             ride.expand?.passenger?.name || 'Passageiro Manual',
             `${ride.origin_address} -> ${ride.destination_address}`,
@@ -214,7 +235,7 @@ export function DriverRideHistory() {
             didDrawPage: drawHeader,
         });
 
-        drawFooter(doc);
+        drawFooter();
         doc.save("relatorio_corridas_ceolin.pdf");
     };
 
@@ -329,6 +350,7 @@ export function DriverRideHistory() {
     }
     
   return (
+    <>
     <div className="bg-card p-4 rounded-lg">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 mb-4">
             <div>
@@ -376,52 +398,24 @@ export function DriverRideHistory() {
                         </form>
                     </DialogContent>
                 </Dialog>
-                <AlertDialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button className="w-full sm:w-auto">
-                                <Download className="mr-2 h-4 w-4" />
-                                Exportar
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleExportPDF}>
-                                <FileType className="mr-2 h-4 w-4" />
-                                Exportar Relatório (PDF)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportCSV}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                Exportar Histórico (CSV)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setIsSummaryOpen(true)}>
-                                <BarChart2 className="mr-2 h-4 w-4" />
-                               Ver Resumo de Ganhos
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle className="font-headline">Resumo de Ganhos</AlertDialogTitle>
-                        <AlertDialogDescription>
-                           Este é um resumo dos seus ganhos com base nas corridas concluídas no seu histórico.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <div className="bg-muted p-4 rounded-lg space-y-2">
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Total de Corridas Concluídas:</span>
-                                <span className="font-bold text-lg">{summary.totalRides}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Valor Total Arrecadado:</span>
-                                <span className="font-bold text-lg text-primary">R$ {summary.totalValue}</span>
-                            </div>
-                        </div>
-                        <AlertDialogFooter>
-                        <AlertDialogAction>Fechar</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button className="w-full sm:w-auto">
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => { setReportType('pdf'); setIsReportModalOpen(true); }}>
+                            <FileType className="mr-2 h-4 w-4" />
+                            Relatório (PDF)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => { setReportType('csv'); setIsReportModalOpen(true); }}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Histórico (CSV)
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
         <ScrollArea className="h-[60vh] sm:h-96 w-full">
@@ -437,6 +431,18 @@ export function DriverRideHistory() {
             </Table>
         </ScrollArea>
     </div>
+    {currentUser && reportType && (
+        <ReportFilterModal
+            isOpen={isReportModalOpen}
+            onOpenChange={setIsReportModalOpen}
+            onGenerateReport={(dateRange) => {
+                handleGenerateReport(reportType, dateRange);
+            }}
+            userName={currentUser.name}
+        />
+    )}
+    </>
   );
 }
+
 

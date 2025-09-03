@@ -27,6 +27,7 @@ import UserProfile from "./UserProfile";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { RecordModel } from "pocketbase";
+import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -58,6 +59,9 @@ const appData = {
     const [error, setError] = useState<string | null>(null);
     const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [selectedUserForReport, setSelectedUserForReport] = useState<User | null>(null);
+    const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
 
 
     const fetchUsers = async () => {
@@ -77,10 +81,13 @@ const appData = {
         fetchUsers();
     }, []);
 
-    const fetchRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
+    const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
+            const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
+            const endDate = dateRange.to.toISOString().split('T')[0] + ' 23:59:59';
+
             const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}"`,
+                filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
                 sort: '-created',
                 expand: 'passenger',
             });
@@ -95,14 +102,21 @@ const appData = {
             return [];
         }
     }
-
-    const handleGenerateCSV = async (driver: User) => {
-        const rides = await fetchRidesForDriver(driver.id);
+    
+    const handleGenerateReport = async (driver: User, type: 'pdf' | 'csv', dateRange: DateRange) => {
+        const rides = await fetchRidesForDriver(driver.id, dateRange);
         if (rides.length === 0) {
-            toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no histórico.` });
+            toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no período selecionado.` });
             return;
         }
-        
+        if (type === 'csv') {
+            handleGenerateCSV(driver, rides);
+        } else {
+            handleGeneratePDF(driver, rides, dateRange);
+        }
+    };
+
+    const handleGenerateCSV = (driver: User, rides: RideRecord[]) => {
         const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status"];
         const rows = rides.map(ride => 
             [
@@ -128,18 +142,12 @@ const appData = {
         document.body.removeChild(link);
     };
 
-    const handleGeneratePDF = async (driver: User) => {
-        const rides = await fetchRidesForDriver(driver.id);
-         if (rides.length === 0) {
-            toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no histórico.` });
-            return;
-        }
-
+    const handleGeneratePDF = (driver: User, rides: RideRecord[], dateRange: DateRange) => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         
-        const drawHeader = (data: any) => {
+        const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
             doc.setTextColor(220, 38, 38); // Red color for CEOLIN
@@ -149,11 +157,17 @@ const appData = {
             doc.setTextColor(40);
             doc.setFont('helvetica', 'bold');
             doc.text("Relatório de Corridas", pageWidth - 14, 22, { align: 'right' });
+
+            doc.setFontSize(9);
+            doc.setTextColor(100);
+            const periodText = `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
+            doc.text(periodText, pageWidth - 14, 27, { align: 'right' });
+            
             doc.setDrawColor(200);
             doc.line(14, 30, pageWidth - 14, 30);
         };
 
-        const drawFooter = (data: any) => {
+        const drawFooter = () => {
             const pageCount = doc.internal.pages.length;
             doc.setFontSize(8);
             doc.setTextColor(150);
@@ -213,7 +227,7 @@ const appData = {
             didDrawPage: drawHeader,
         });
 
-        drawFooter(doc);
+        drawFooter();
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 
@@ -301,7 +315,7 @@ const appData = {
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                         <TableCell className="hidden sm:table-cell">
-                            <Badge variant={
+                             <Badge variant={
                                 hasRole(user.role, 'Admin') ? 'destructive' : 
                                 hasRole(user.role, 'Motorista') ? 'default' : 'secondary'
                             }>{getRoleForDisplay(user.role)}</Badge>
@@ -332,9 +346,13 @@ const appData = {
                                                 <FileDown className="mr-2 h-4 w-4" />
                                                 Gerar Relatório
                                             </DropdownMenuSubTrigger>
-                                            <DropdownMenuSubContent>
-                                                <DropdownMenuItem onSelect={() => handleGeneratePDF(user)}><FileText className="mr-2 h-4 w-4" /> PDF</DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => handleGenerateCSV(user)}><FileText className="mr-2 h-4 w-4" /> CSV</DropdownMenuItem>
+                                             <DropdownMenuSubContent>
+                                                <DropdownMenuItem onSelect={() => { setSelectedUserForReport(user); setReportType('pdf'); setIsReportModalOpen(true); }}>
+                                                    <FileText className="mr-2 h-4 w-4" /> PDF
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => { setSelectedUserForReport(user); setReportType('csv'); setIsReportModalOpen(true); }}>
+                                                    <FileText className="mr-2 h-4 w-4" /> CSV
+                                                </DropdownMenuItem>
                                             </DropdownMenuSubContent>
                                         </DropdownMenuSub>
                                     </>
@@ -400,7 +418,18 @@ const appData = {
                      </DialogContent>
                 )}
             </Dialog>
+             {selectedUserForReport && reportType && (
+                <ReportFilterModal
+                    isOpen={isReportModalOpen}
+                    onOpenChange={setIsReportModalOpen}
+                    onGenerateReport={(dateRange) => {
+                        handleGenerateReport(selectedUserForReport, reportType, dateRange);
+                    }}
+                    userName={selectedUserForReport.name}
+                />
+            )}
       </>
     );
   }
+
 
