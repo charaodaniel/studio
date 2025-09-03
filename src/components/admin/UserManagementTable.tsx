@@ -178,9 +178,10 @@ const appData = {
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
 
+        const completedRides = rides.filter(r => r.status === 'completed');
         const summary = {
-            totalRides: rides.filter(r => r.status === 'completed').length,
-            totalValue: rides.filter(r => r.status === 'completed').reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
+            totalRides: completedRides.length,
+            totalValue: completedRides.reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
         };
 
         doc.setFontSize(12);
@@ -402,3 +403,4 @@ const appData = {
       </>
     );
   }
+
