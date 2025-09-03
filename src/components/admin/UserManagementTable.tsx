@@ -234,6 +234,20 @@ const appData = {
       }
     }
     
+    const getRoleForDisplay = (role: string | string[]): string => {
+        if (Array.isArray(role)) {
+            return role.join(', ');
+        }
+        return role || 'N/A';
+    };
+
+    const hasRole = (userRole: string | string[], roleToCheck: string): boolean => {
+        if (Array.isArray(userRole)) {
+            return userRole.includes(roleToCheck);
+        }
+        return userRole === roleToCheck;
+    };
+    
     return (
         <>
              <div className="flex justify-end mb-4">
@@ -287,9 +301,9 @@ const appData = {
                         <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                         <TableCell className="hidden sm:table-cell">
                             <Badge variant={
-                                user.role.includes('Admin') ? 'destructive' : 
-                                user.role.includes('Motorista') ? 'default' : 'secondary'
-                            }>{user.role.join(', ')}</Badge>
+                                hasRole(user.role, 'Admin') ? 'destructive' : 
+                                hasRole(user.role, 'Motorista') ? 'default' : 'secondary'
+                            }>{getRoleForDisplay(user.role)}</Badge>
                         </TableCell>
                         <TableCell>
                             <Badge variant={!user.disabled ? 'outline' : 'secondary'} className={!user.disabled ? "border-green-500 text-green-600" : ""}>{user.disabled ? 'Inativo' : 'Ativo'}</Badge>
@@ -307,7 +321,7 @@ const appData = {
                                 <DropdownMenuItem onSelect={() => setSelectedUserForEdit(user)}>
                                     <Edit className="mr-2 h-4 w-4"/>Editar / Ver Perfil
                                 </DropdownMenuItem>
-                                {user.role.includes('Motorista') && (
+                                {hasRole(user.role, 'Motorista') && (
                                     <>
                                         <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
                                             <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
@@ -388,4 +402,3 @@ const appData = {
       </>
     );
   }
-

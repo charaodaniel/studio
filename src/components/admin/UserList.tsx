@@ -53,7 +53,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setIsLoading(true);
         setError(null);
         try {
-            const filter = roleFilter ? `role ?= "${roleFilter}"` : ''; // Use ?= for array contains
+            const filter = roleFilter ? `role ~ "${roleFilter}"` : '';
             const records = await pb.collection('users').getFullList<User>({
                 sort: '-created',
                 filter: filter,

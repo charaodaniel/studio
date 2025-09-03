@@ -52,13 +52,20 @@ export default function PassengerAuthForm() {
     };
   }, []);
 
+  const hasRole = (userRole: string | string[], roleToCheck: string): boolean => {
+    if (Array.isArray(userRole)) {
+        return userRole.includes(roleToCheck);
+    }
+    return userRole === roleToCheck;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
 
-      if (!authData.record.role.includes('Passageiro')) {
+      if (!hasRole(authData.record.role, 'Passageiro')) {
         pb.authStore.clear(); 
         toast({
           variant: 'destructive',

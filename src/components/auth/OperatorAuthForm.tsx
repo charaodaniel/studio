@@ -20,13 +20,20 @@ export default function OperatorAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const hasRole = (userRole: string | string[], roleToCheck: string): boolean => {
+    if (Array.isArray(userRole)) {
+        return userRole.includes(roleToCheck);
+    }
+    return userRole === roleToCheck;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const authData = await pb.collection('users').authWithPassword(email, password);
 
-      if (!authData.record.role.includes('Atendente')) {
+      if (!hasRole(authData.record.role, 'Atendente')) {
         pb.authStore.clear();
         toast({
           variant: 'destructive',
