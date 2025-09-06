@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
+    passenger_anonymous_name?: string;
     expand: {
         passenger: RecordModel;
     }
@@ -92,7 +94,7 @@ interface FullRideRequest {
     chatId: string | null;
 }
 
-export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: string) => void }) {
+export function RideRequests({ setDriverStatus, manualRideOverride, onManualRideEnd }: { setDriverStatus: (status: string) => void, manualRideOverride: RideRecord | null, onManualRideEnd: () => void }) {
     const { toast } = useToast();
     const { playNotification } = useNotificationSound();
     const [requests, setRequests] = useState<FullRideRequest[]>([]);
@@ -100,6 +102,13 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [passengerOnBoard, setPassengerOnBoard] = useState(false);
+
+    useEffect(() => {
+        if (manualRideOverride) {
+            setAcceptedRide(manualRideOverride);
+            setIsLoading(false);
+        }
+    }, [manualRideOverride]);
 
     const fetchRequests = useCallback(async () => {
         if (!pb.authStore.isValid || !pb.authStore.model?.id) return;
@@ -109,6 +118,18 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         
         try {
             const driverId = pb.authStore.model.id;
+            // Check for already accepted rides first
+            const acceptedFilter = `status = "accepted" && driver = "${driverId}"`;
+            try {
+                const alreadyAccepted = await pb.collection('rides').getFirstListItem<RideRecord>(acceptedFilter, { expand: 'passenger' });
+                setAcceptedRide(alreadyAccepted);
+                setIsLoading(false);
+                return; // Stop here if we already have an accepted ride
+            } catch (err: any) {
+                if (err.status !== 404) throw err; // Re-throw if it's not a 'not found' error
+            }
+
+            // If no accepted ride, fetch requested rides
             const rideFilter = `status = "requested" && driver = "${driverId}"`;
             const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
                 filter: rideFilter,
@@ -122,7 +143,6 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                         const chatRecord = await pb.collection('chats').getFirstListItem(`ride="${ride.id}"`);
                         chatId = chatRecord.id;
                     } catch (e) {
-                       // Chat might not exist, handle gracefully
                        console.warn(`Could not find chat for negotiated ride ${ride.id}`);
                     }
                 }
@@ -140,6 +160,8 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     }, []);
 
     useEffect(() => {
+        if (manualRideOverride) return; // Don't fetch if a manual ride is active
+
         fetchRequests();
 
         const unsubscribe = pb.collection('rides').subscribe<RideRecord>('*', (e) => {
@@ -150,13 +172,10 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                  fetchRequests();
                  playNotification();
             }
-             // When a ride is updated, check if it's one of ours
-            if (e.action === 'update' && e.record.driver === driverId) {
-                // If the ride is no longer 'requested', remove it from the request list
+             if (e.action === 'update' && e.record.driver === driverId) {
                 if (e.record.status !== 'requested') {
                     setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
                 }
-                // If the updated ride is the one we've accepted, but it got canceled by the passenger, for example.
                 if (acceptedRide?.id === e.record.id && (e.record.status === 'canceled' || e.record.status === 'completed')) {
                     setAcceptedRide(null);
                 }
@@ -167,7 +186,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
             pb.collection('rides').unsubscribe('*');
         };
 
-    }, [fetchRequests, acceptedRide, playNotification]);
+    }, [fetchRequests, acceptedRide, playNotification, manualRideOverride]);
 
 
     const handleAccept = async (ride: RideRecord) => {
@@ -187,7 +206,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         } catch (error) {
             console.error("Failed to accept ride:", error);
             toast({ variant: "destructive", title: "Erro", description: "Esta corrida já foi aceita por outro motorista."});
-            fetchRequests(); // Re-sync
+            fetchRequests();
         }
     };
     
@@ -195,7 +214,6 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
         try {
             await pb.collection('rides').update(rideId, { status: 'canceled' });
             toast({ variant: "destructive", title: "Corrida Rejeitada" });
-            // Remove the request from the local state to update the UI immediately
             setRequests(prev => prev.filter(r => r.ride.id !== rideId));
         } catch (error) {
             console.error("Failed to update ride to canceled:", error);
@@ -216,13 +234,19 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
 
     const handleEndRide = async () => {
         if (!acceptedRide) return;
+        const isManual = acceptedRide.started_by === 'driver';
         try {
             await pb.collection('rides').update(acceptedRide.id, { status: 'completed' });
-            toast({ title: "Viagem Finalizada!", description: `A corrida com ${acceptedRide.expand.passenger.name} foi concluída.` });
+            toast({ title: "Viagem Finalizada!", description: `A corrida foi concluída com sucesso.` });
             setAcceptedRide(null);
             setPassengerOnBoard(false);
-            setDriverStatus('online');
-            fetchRequests(); // Check for new requests
+            
+            if (isManual && onManualRideEnd) {
+                onManualRideEnd();
+            } else {
+                setDriverStatus('online');
+                fetchRequests();
+            }
         } catch (error) {
             toast({ variant: "destructive", title: "Erro", description: "Não foi possível finalizar a viagem."});
         }
@@ -230,13 +254,19 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     
     const handleCancelByDriver = async () => {
         if (!acceptedRide) return;
+        const isManual = acceptedRide.started_by === 'driver';
         try {
             await pb.collection('rides').update(acceptedRide.id, { status: 'canceled' });
-            toast({ variant: "destructive", title: "Corrida Cancelada", description: "A corrida foi cancelada e o passageiro notificado." });
+            toast({ variant: "destructive", title: "Corrida Cancelada", description: "A corrida foi cancelada." });
             setAcceptedRide(null);
             setPassengerOnBoard(false);
-            setDriverStatus('online');
-            fetchRequests(); // Re-fetch to clear the slate
+            
+            if (isManual && onManualRideEnd) {
+                onManualRideEnd();
+            } else {
+                setDriverStatus('online');
+                fetchRequests();
+            }
         } catch (error) {
              toast({ variant: "destructive", title: "Erro", description: "Não foi possível cancelar a corrida."});
         }
@@ -245,7 +275,6 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     const handleNavigate = () => {
         if (!acceptedRide) return;
 
-        // If passenger is not yet on board, navigate to the pickup location
         const destination = passengerOnBoard 
             ? acceptedRide.destination_address 
             : acceptedRide.origin_address;
@@ -257,6 +286,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
     };
 
     if (acceptedRide) {
+         const passengerName = acceptedRide.expand?.passenger?.name || acceptedRide.passenger_anonymous_name || "Passageiro";
          return (
              <Card className="shadow-lg border-primary">
                  <CardHeader>
@@ -266,11 +296,11 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                 <CardContent className="space-y-4">
                     <div className="flex flex-row items-center gap-4 space-y-0 pb-4">
                         <Avatar>
-                             <AvatarImage src={acceptedRide.expand.passenger.avatar ? pb.getFileUrl(acceptedRide.expand.passenger, acceptedRide.expand.passenger.avatar) : ''} data-ai-hint="person face" />
-                            <AvatarFallback>{acceptedRide.expand.passenger.name.charAt(0)}</AvatarFallback>
+                             <AvatarImage src={acceptedRide.expand?.passenger?.avatar ? pb.getFileUrl(acceptedRide.expand.passenger, acceptedRide.expand.passenger.avatar) : ''} data-ai-hint="person face" />
+                            <AvatarFallback>{passengerName.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <p className="font-semibold">{acceptedRide.expand.passenger.name}</p>
+                            <p className="font-semibold">{passengerName}</p>
                             <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
@@ -300,12 +330,14 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                         </div>
                      )}
                      <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                        <RideChat rideId={acceptedRide.id} chatId={null} passengerName={acceptedRide.expand.passenger.name} isNegotiation={false}>
-                            <Button variant="outline" className="w-full">
-                                <MessageSquareQuote className="mr-2 h-4 w-4" />
-                                Chat
-                            </Button>
-                        </RideChat>
+                        {acceptedRide.started_by === 'passenger' ? (
+                            <RideChat rideId={acceptedRide.id} chatId={null} passengerName={passengerName} isNegotiation={false}>
+                                <Button variant="outline" className="w-full">
+                                    <MessageSquareQuote className="mr-2 h-4 w-4" />
+                                    Chat
+                                </Button>
+                            </RideChat>
+                        ) : (<div/>) /* Placeholder for grid */}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="outline" className="w-full text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700">
@@ -317,7 +349,7 @@ export function RideRequests({ setDriverStatus }: { setDriverStatus: (status: st
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Cancelar a Corrida?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Isso notificará o passageiro que você teve um problema e cancelará a viagem. Use esta opção apenas em caso de real necessidade.
+                                        Isso notificará o passageiro (se aplicável) que você teve um problema e cancelará a viagem. Use esta opção apenas em caso de real necessidade.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

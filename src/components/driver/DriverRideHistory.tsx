@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -40,12 +41,16 @@ interface RideRecord extends RecordModel {
     }
 }
 
+interface DriverRideHistoryProps {
+    onManualRideStart: (ride: RideRecord) => void;
+}
+
 const appData = {
     name: "CEOLIN Mobilidade Urbana",
     cnpj: "52.905.738/0001-00"
 }
 
-export function DriverRideHistory() {
+export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps) {
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
@@ -53,6 +58,7 @@ export function DriverRideHistory() {
     const { toast } = useToast();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     const currentUser = pb.authStore.model as UserData | null;
 
@@ -120,7 +126,7 @@ export function DriverRideHistory() {
             [
                 ride.id, 
                 new Date(ride.updated).toLocaleDateString('pt-BR'), 
-                ride.expand?.passenger?.name || 'Passageiro Manual', 
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Passageiro Manual', 
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -149,7 +155,7 @@ export function DriverRideHistory() {
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
-            doc.setTextColor(220, 38, 38); // Red color for CEOLIN
+            doc.setTextColor(220, 38, 38);
             doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
@@ -209,7 +215,7 @@ export function DriverRideHistory() {
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = ridesToExport.map(ride => [
             new Date(ride.updated).toLocaleDateString('pt-BR'),
-            ride.expand?.passenger?.name || 'Passageiro Manual',
+            ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Passageiro Manual',
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
             ride.status,
@@ -221,7 +227,7 @@ export function DriverRideHistory() {
             startY: 75,
             theme: 'grid',
             headStyles: {
-                fillColor: [220, 38, 38], // Red header
+                fillColor: [220, 38, 38],
                 textColor: 255,
                 fontStyle: 'bold',
             },
@@ -240,38 +246,42 @@ export function DriverRideHistory() {
     };
 
 
-    const handleAddNewRide = async (e: React.FormEvent) => {
+    const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!pb.authStore.model) return;
-
+    
         if (!newRide.origin || !newRide.destination || !newRide.value) {
             toast({ variant: 'destructive', title: 'Campos obrigatórios' });
             return;
         }
-
+    
+        setIsSubmitting(true);
         try {
-            const now = new Date().toISOString();
             const data = {
                 driver: pb.authStore.model.id,
                 passenger: null,
+                passenger_anonymous_name: "Passageiro Manual",
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
-                status: 'completed',
+                status: 'accepted', // Start as accepted to begin flow
                 started_by: 'driver',
                 is_negotiated: false,
-                created: now,
-                updated: now,
             };
-            await pb.collection('rides').create(data);
+            const createdRide = await pb.collection('rides').create<RideRecord>(data, { expand: 'passenger' }); // expand passenger even if null
+    
+            toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
+            
+            onManualRideStart(createdRide);
 
-            toast({ title: 'Corrida Registrada!', description: 'A nova corrida foi adicionada ao seu histórico.' });
-            fetchRides(); // Re-fetch the list
             setNewRide({ origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
+            fetchRides();
         } catch (error) {
             console.error("Failed to create manual ride:", error);
-            toast({ variant: 'destructive', title: 'Erro ao Registrar', description: 'Não foi possível registrar a corrida.'});
+            toast({ variant: 'destructive', title: 'Erro ao Registrar', description: 'Não foi possível registrar a corrida.' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
     
@@ -322,7 +332,7 @@ export function DriverRideHistory() {
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.expand?.passenger?.name || 'Passageiro Manual'}
+                           {ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Passageiro'}
                            {ride.started_by === 'driver' && (
                                <TooltipProvider>
                                    <Tooltip>
@@ -366,9 +376,9 @@ export function DriverRideHistory() {
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
-                        <form onSubmit={handleAddNewRide}>
+                        <form onSubmit={handleStartManualRide}>
                             <DialogHeader>
-                                <DialogTitle>Registrar Nova Corrida</DialogTitle>
+                                <DialogTitle>Iniciar Nova Corrida Manual</DialogTitle>
                                 <DialogDescription>
                                     Preencha os dados para uma corrida iniciada presencialmente.
                                 </DialogDescription>
@@ -391,9 +401,12 @@ export function DriverRideHistory() {
                             </div>
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button type="button" variant="secondary" id="close-new-ride-dialog">Cancelar</Button>
+                                    <Button type="button" variant="secondary" id="close-new-ride-dialog" disabled={isSubmitting}>Cancelar</Button>
                                 </DialogClose>
-                                <Button type="submit">Registrar Corrida</Button>
+                                <Button type="submit" disabled={isSubmitting}>
+                                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Iniciar Corrida
+                                </Button>
                             </DialogFooter>
                         </form>
                     </DialogContent>
@@ -444,6 +457,3 @@ export function DriverRideHistory() {
     </>
   );
 }
-
-
-

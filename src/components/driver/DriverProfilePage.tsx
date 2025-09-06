@@ -18,6 +18,22 @@ import { DriverChatHistory } from './DriverChatHistory';
 import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
 import { type User } from '../admin/UserList';
+import type { RecordModel } from 'pocketbase';
+
+interface RideRecord extends RecordModel {
+    passenger: string;
+    driver: string;
+    origin_address: string;
+    destination_address: string;
+    status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
+    fare: number;
+    is_negotiated: boolean;
+    started_by: 'passenger' | 'driver';
+    expand: {
+        passenger: RecordModel;
+    }
+}
+
 
 export function DriverProfilePage() {
   const { toast } = useToast();
@@ -25,6 +41,8 @@ export function DriverProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [completedRidesCount, setCompletedRidesCount] = useState<number | null>(null);
+  const [activeManualRide, setActiveManualRide] = useState<RideRecord | null>(null);
+  const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
     const fetchUserAndRides = async () => {
@@ -33,14 +51,13 @@ export function DriverProfilePage() {
 
       if (currentUser) {
         try {
-          // Fetch only the count of completed rides for performance
           const result = await pb.collection('rides').getList(1, 1, {
             filter: `driver = "${currentUser.id}" && status = "completed"`,
           });
           setCompletedRidesCount(result.totalItems);
         } catch (error) {
           console.error("Failed to fetch rides count:", error);
-          setCompletedRidesCount(0); // Set to 0 on error
+          setCompletedRidesCount(0);
         }
       }
       
@@ -56,17 +73,13 @@ export function DriverProfilePage() {
     };
   }, []);
 
-  const avatarUrl = user?.avatar ? pb.getFileUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
-
   const handleStatusChange = async (newStatus: string) => {
     if (!user) return;
     
     try {
-        // First, update the user's status.
         const updatedUser = await pb.collection('users').update<User>(user.id, { 'driver_status': newStatus });
         setUser(updatedUser);
 
-        // The user object in authStore will be updated automatically, triggering a re-render.
         toast({
           title: 'Status Atualizado',
           description: `Seu status foi alterado para ${
@@ -77,8 +90,6 @@ export function DriverProfilePage() {
           }.`,
         });
 
-        // After successful status update, try to log the event.
-        // This is a secondary action, if it fails, it shouldn't block the main feature.
         try {
             await pb.collection('driver_status_logs').create({
                 driver: user.id,
@@ -94,24 +105,19 @@ export function DriverProfilePage() {
     }
   };
 
-  const handleAvatarSave = async (newImage: string) => {
-    if (!user) return;
-    try {
-        const formData = new FormData();
-        const blob = await (await fetch(newImage)).blob();
-        formData.append('avatar', blob);
-        
-        const updatedRecord = await pb.collection('users').update(user.id, formData);
-        
-        // This will trigger the authStore change and update the UI
-        pb.authStore.save(pb.authStore.token, updatedRecord as any);
-        
-        toast({ title: 'Avatar atualizado com sucesso!' });
-    } catch (error) {
-        console.error("Failed to update avatar:", error);
-        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
-    }
+  const handleManualRideStarted = (ride: RideRecord) => {
+    setActiveManualRide(ride);
+    setActiveTab("requests"); // Switch to the requests tab to show the in-progress UI
+    handleStatusChange('urban-trip'); // Or determine based on ride type
   }
+
+  const handleManualRideEnded = () => {
+    setActiveManualRide(null);
+    handleStatusChange('online');
+  }
+
+  const avatarUrl = user?.avatar ? pb.getFileUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
+
 
   if (isLoading || !user) {
     return (
@@ -149,7 +155,20 @@ export function DriverProfilePage() {
             <ImageEditorDialog 
                 isOpen={isCameraDialogOpen}
                 currentImage={avatarUrl}
-                onImageSave={handleAvatarSave} 
+                onImageSave={async (newImage) => {
+                    if (!user) return;
+                    try {
+                        const formData = new FormData();
+                        const blob = await (await fetch(newImage)).blob();
+                        formData.append('avatar', blob);
+                        const updatedRecord = await pb.collection('users').update(user.id, formData);
+                        pb.authStore.save(pb.authStore.token, updatedRecord as any);
+                        toast({ title: 'Avatar atualizado com sucesso!' });
+                    } catch (error) {
+                        console.error("Failed to update avatar:", error);
+                        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
+                    }
+                }}
                 onDialogClose={() => setIsCameraDialogOpen(false)}
             />
         </Dialog>
@@ -178,7 +197,7 @@ export function DriverProfilePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="requests" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="requests">Solicitações</TabsTrigger>
           <TabsTrigger value="chats">Conversas</TabsTrigger>
@@ -187,13 +206,17 @@ export function DriverProfilePage() {
         </TabsList>
         <div className="p-4 md:p-6 lg:p-8">
             <TabsContent value="requests">
-                <RideRequests setDriverStatus={handleStatusChange} />
+                <RideRequests 
+                    setDriverStatus={handleStatusChange} 
+                    manualRideOverride={activeManualRide}
+                    onManualRideEnd={handleManualRideEnded}
+                />
             </TabsContent>
             <TabsContent value="chats">
                 <DriverChatHistory />
             </TabsContent>
             <TabsContent value="history">
-                <DriverRideHistory />
+                <DriverRideHistory onManualRideStart={handleManualRideStarted} />
             </TabsContent>
             <TabsContent value="profile">
                 {user && <ProfileForm user={user} onUpdate={setUser} />}
