@@ -1,4 +1,3 @@
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +94,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
-             if (userModel) {
+            if (userModel) {
                 fetchRides();
                 // Set default passenger name for manual rides
                 setNewRide(prev => ({...prev, passengerName: userModel.name}));
@@ -121,7 +120,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         return () => {
             unsubscribeAuth();
-            pb.collection('rides').unsubscribe('*');
+            pb.collection('rides').unsubscribe();
         };
     }, [fetchRides]);
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -9,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { addDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { addDays, format, startOfMonth, endOfMonth, subMonths, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileText } from 'lucide-react';
 import { DateRange as ReactDateRange } from 'react-day-picker';
@@ -58,7 +57,8 @@ export default function ReportFilterModal({ isOpen, onOpenChange, onGenerateRepo
             const endDate = endOfMonth(new Date(year, month - 1));
             finalDateRange = { from: startDate, to: endDate };
         } else if (date?.from && date?.to) {
-            finalDateRange = { from: date.from, to: date.to };
+             // Ensure the 'to' date includes the entire day
+            finalDateRange = { from: date.from, to: endOfDay(date.to) };
         }
 
         if (finalDateRange) {
