@@ -64,7 +64,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         try {
             // The API rule now allows anyone to list users with the role "Motorista"
             const allDrivers = await pb.collection('users').getFullList<Driver>({
-                filter: 'role = "Motorista"',
+                filter: 'role = "Motorista" && disabled = false && driver_status = "online"',
             });
             setDrivers(allDrivers);
         } catch (err: any) {
@@ -133,7 +133,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
             );
         }
         if (drivers.length === 0) {
-            return <p className="text-center text-muted-foreground p-4">Nenhum motorista cadastrado no momento.</p>
+            return <p className="text-center text-muted-foreground p-4">Nenhum motorista disponível no momento.</p>
         }
         return (
              <div className="space-y-2">

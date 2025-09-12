@@ -112,7 +112,7 @@ export default function PassengerDashboard() {
         setIsLoadingDrivers(true);
         try {
             const driverRecords = await pb.collection('users').getFullList<Driver>({
-                filter: 'role = "Motorista"',
+                filter: 'role = "Motorista" && disabled = false && driver_status = "online"',
             });
             setDrivers(driverRecords);
         } catch (error) {
@@ -124,62 +124,60 @@ export default function PassengerDashboard() {
     };
     fetchDrivers();
 
-  }, [toast]);
+    const unsubscribe = pb.collection('rides').subscribe('*', (e) => {
+        if (e.record.passenger === pb.authStore.model?.id) {
+            handleRideUpdate(e);
+        }
+    });
 
-  useEffect(() => {
-    // This effect handles real-time updates for the active ride.
-    if (!activeRide?.id) return;
+    return () => {
+        pb.collection('rides').unsubscribe();
+    }
+
+  }, [toast]);
   
-    const handleRideUpdate = (e: { record: RideRecord }) => {
-      // We only care about updates to the currently active ride.
-      if (e.record.id !== activeRide.id) return;
-  
-      const updatedRide = e.record;
-  
-      pb.collection('rides')
-        .getOne<RideRecord>(updatedRide.id, { expand: 'driver' })
-        .then(fullRecord => {
-          setActiveRide(fullRecord);
-  
-          if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
-            const driver = fullRecord.expand.driver;
-            setRideDetails({
-              driverName: driver.name,
-              driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
-              driverPhone: driver.phone,
-              vehicleModel: driver.driver_vehicle_model,
-              licensePlate: driver.driver_vehicle_plate,
-              eta: '5 minutos'
-            });
-            setRideStatus('accepted');
-            playNotification();
-            toast({
-              title: 'Corrida Aceita!',
-              description: `${driver.name} está a caminho.`,
-            });
-          } else if (fullRecord.status === 'in_progress') {
+  const handleRideUpdate = (e: { record: RideRecord, action: string }) => {
+    if (activeRide && e.record.id !== activeRide.id && e.action !== 'create') return;
+
+    const updatedRide = e.record;
+
+    pb.collection('rides')
+    .getOne<RideRecord>(updatedRide.id, { expand: 'driver' })
+    .then(fullRecord => {
+        if (fullRecord.status !== 'requested') {
+            setActiveRide(fullRecord);
+        }
+
+        if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
+        const driver = fullRecord.expand.driver;
+        setRideDetails({
+            driverName: driver.name,
+            driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
+            driverPhone: driver.phone,
+            vehicleModel: driver.driver_vehicle_model,
+            licensePlate: driver.driver_vehicle_plate,
+            eta: '5 minutos'
+        });
+        setRideStatus('accepted');
+        playNotification();
+        toast({
+            title: 'Corrida Aceita!',
+            description: `${driver.name} está a caminho.`,
+        });
+        } else if (fullRecord.status === 'in_progress') {
             setRideStatus('in_progress');
-          } else if (fullRecord.status === 'completed') {
+        } else if (fullRecord.status === 'completed') {
             handleCompleteRide();
-          } else if (fullRecord.status === 'canceled') {
+        } else if (fullRecord.status === 'canceled') {
             handleCancelRide(false); // Do not update DB again
             toast({
-              title: 'Corrida Cancelada',
-              description: 'O motorista cancelou a corrida.',
-              variant: 'destructive',
+                title: 'Corrida Cancelada',
+                description: 'O motorista cancelou a corrida.',
+                variant: 'destructive',
             });
-          }
-        });
-    };
-  
-    // Subscribe to updates for the specific ride ID.
-    pb.collection('rides').subscribe(activeRide.id, handleRideUpdate);
-  
-    // Cleanup function: Unsubscribe when the component unmounts or activeRide changes.
-    return () => {
-      pb.collection('rides').unsubscribe(activeRide.id);
-    };
-  }, [activeRide?.id]); // Dependency array ensures this runs only when activeRide.id changes.
+        }
+    });
+};
   
   const onRideRequest = async (rideId: string) => {
     setRideStatus('searching');
