@@ -25,7 +25,7 @@ interface RideRecord extends RecordModel {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
-    expand: {
+    expand?: {
         passenger: RecordModel;
     }
 }
@@ -35,11 +35,11 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
         <Card className={ride.is_negotiated ? 'border-primary' : ''}>
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
                 <Avatar>
-                    <AvatarImage src={ride.expand.passenger.avatar ? pb.getFileUrl(ride.expand.passenger, ride.expand.passenger.avatar) : ''} data-ai-hint="person face" />
-                    <AvatarFallback>{ride.expand.passenger.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={ride.expand?.passenger?.avatar ? pb.getFileUrl(ride.expand.passenger, ride.expand.passenger.avatar) : ''} data-ai-hint="person face" />
+                    <AvatarFallback>{ride.expand?.passenger?.name.charAt(0) || 'P'}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="font-semibold">{ride.expand.passenger.name}</p>
+                    <p className="font-semibold">{ride.expand?.passenger?.name || 'Passageiro'}</p>
                     <p className="text-xs text-muted-foreground">★ 4.8</p>
                 </div>
             </CardHeader>
@@ -62,7 +62,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                      <RideChat 
                         rideId={ride.id}
                         chatId={chatId}
-                        passengerName={ride.expand.passenger.name} 
+                        passengerName={ride.expand?.passenger.name || 'Passageiro'} 
                         isNegotiation={true}
                         onAcceptRide={() => onAccept(ride)}
                      >
@@ -123,6 +123,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             try {
                 const alreadyAccepted = await pb.collection('rides').getFirstListItem<RideRecord>(acceptedFilter, { expand: 'passenger' });
                 setAcceptedRide(alreadyAccepted);
+                setRequests([]); // Clear pending requests if one is accepted
                 setIsLoading(false);
                 return; // Stop here if we already have an accepted ride
             } catch (err: any) {
@@ -161,38 +162,26 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
     useEffect(() => {
         if (manualRideOverride) return;
-
         fetchRequests();
 
-        const handleUpdate = (e: { record: RideRecord, action: string }) => {
+        // Subscribe to changes in the 'rides' collection
+        pb.collection('rides').subscribe('*', (e) => {
+            // If a ride is created or updated and relevant to this driver, refetch all requests.
+            // This is a simple and robust way to keep the UI in sync.
             const driverId = pb.authStore.model?.id;
-            if (!driverId) return;
-
-            // A new ride was created for this driver
-            if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
+            if (driverId && e.record.driver === driverId) {
+                // Play sound for new requests
+                if(e.action === 'create' && e.record.status === 'requested') {
+                    playNotification();
+                }
                 fetchRequests();
-                playNotification();
             }
-
-            // An existing ride for this driver was updated
-            if (e.action === 'update' && e.record.driver === driverId) {
-                // If it's a ride from the request list that's no longer 'requested', remove it
-                if (e.record.status !== 'requested') {
-                    setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
-                }
-                // If the currently accepted ride is now canceled or completed, clear it
-                if (acceptedRide?.id === e.record.id && (e.record.status === 'canceled' || e.record.status === 'completed')) {
-                    setAcceptedRide(null);
-                }
-            }
-        };
-
-        pb.collection('rides').subscribe('*', handleUpdate);
+        });
 
         return () => {
             pb.realtime.unsubscribe();
         };
-    }, [fetchRequests, acceptedRide, playNotification, manualRideOverride]);
+    }, [fetchRequests, manualRideOverride, playNotification]);
 
 
     const handleAccept = async (ride: RideRecord) => {
@@ -203,8 +192,9 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                 status: 'accepted'
             }, { expand: 'passenger' });
 
-            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${ride.expand.passenger.name}.` });
+            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${ride.expand?.passenger.name}.` });
             setAcceptedRide(updatedRide);
+            setRequests([]); // Clear pending requests
             setPassengerOnBoard(false);
             
             const newStatus = ride.is_negotiated ? 'rural-trip' : 'urban-trip';
