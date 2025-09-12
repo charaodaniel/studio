@@ -122,7 +122,7 @@ const appData = {
             [
                 ride.id, 
                 new Date(ride.updated).toLocaleDateString('pt-BR'), 
-                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'N/A', 
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -146,11 +146,12 @@ const appData = {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+        let finalY = 0;
         
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
-            doc.setTextColor(220, 38, 38); // Red color for CEOLIN
+            doc.setTextColor(41, 121, 255);
             doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
@@ -178,6 +179,8 @@ const appData = {
             }
         };
 
+        drawHeader();
+
         doc.setFontSize(10);
         doc.setTextColor(100);
         doc.text("INFORMAÇÕES DO MOTORISTA", 14, 40);
@@ -192,25 +195,10 @@ const appData = {
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
 
-        const completedRides = rides.filter(r => r.status === 'completed');
-        const summary = {
-            totalRides: completedRides.length,
-            totalValue: completedRides.reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
-        };
-
-        doc.setFontSize(12);
-        doc.setTextColor(40);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Resumo do Período", 14, 65);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(`Total de Corridas Concluídas: ${summary.totalRides}`, 14, 70);
-        doc.text(`Valor Total Arrecadado: R$ ${summary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
-
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
             new Date(ride.updated).toLocaleDateString('pt-BR'),
-            ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'N/A',
+            ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
             ride.status,
@@ -219,12 +207,56 @@ const appData = {
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 75,
+            startY: 55,
             theme: 'grid',
-            headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' }, // Red header
+            headStyles: { fillColor: [41, 121, 255], textColor: 255, fontStyle: 'bold' },
             styles: { cellPadding: 3, fontSize: 9 },
             columnStyles: { 3: { halign: 'right' } },
-            didDrawPage: drawHeader,
+            didDrawPage: (data: any) => {
+                 if(data.pageNumber === 1) { // Only draw header on first page before table
+                    // Header is drawn before autoTable now
+                }
+            },
+            didParseCell: (data: any) => {
+                // Color rows based on status
+                if (data.column.dataKey === 4) { // Status column
+                    if (data.cell.raw === 'completed') {
+                        data.cell.styles.textColor = '#16a34a'; // green
+                    } else if (data.cell.raw === 'canceled') {
+                        data.cell.styles.textColor = '#dc2626'; // red
+                    }
+                }
+            },
+        });
+
+        finalY = (doc as any).lastAutoTable.finalY || 75;
+
+        // Performance Summary
+        const completedRides = rides.filter(r => r.status === 'completed');
+        const canceledRides = rides.filter(r => r.status === 'canceled');
+        const totalRides = rides.length;
+        const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
+
+        doc.setFontSize(12);
+        doc.setTextColor(40);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Resumo de Desempenho", 14, finalY + 10);
+        
+        (doc as any).autoTable({
+            startY: finalY + 15,
+            head: [['Métrica', 'Total', 'Valor']],
+            body: [
+                ['Corridas Concluídas', completedRides.length.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
+                ['Corridas Canceladas', canceledRides.length.toString(), 'R$ 0,00'],
+                ['Total de Corridas', totalRides.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [241, 245, 249] , textColor: 20 },
+            bodyStyles: { fontStyle: 'bold' },
+             columnStyles: { 
+                0: { fontStyle: 'normal' },
+                2: { halign: 'right' } 
+            },
         });
 
         drawFooter();
@@ -433,3 +465,5 @@ const appData = {
   }
 
 
+
+    

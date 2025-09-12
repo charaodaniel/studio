@@ -1,3 +1,4 @@
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +53,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
-    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '' });
+    const [newRide, setNewRide] = useState({ passengerName: '', origin: '', destination: '', value: '' });
     const { toast } = useToast();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
@@ -92,9 +93,12 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
     useEffect(() => {
         const handleAuthChange = (token: string, model: RecordModel | null) => {
-            setCurrentUser(model as UserData | null);
-            if (model) {
+            const userModel = model as UserData | null;
+            setCurrentUser(userModel);
+             if (userModel) {
                 fetchRides();
+                // Set default passenger name for manual rides
+                setNewRide(prev => ({...prev, passengerName: userModel.name}));
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -117,7 +121,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         return () => {
             unsubscribeAuth();
-            pb.collection('rides').unsubscribe();
+            pb.collection('rides').unsubscribe('*');
         };
     }, [fetchRides]);
 
@@ -151,7 +155,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             [
                 ride.id, 
                 new Date(ride.updated).toLocaleDateString('pt-BR'), 
-                ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Passageiro Manual', 
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -176,11 +180,12 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+        let finalY = 0;
         
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
-            doc.setTextColor(220, 38, 38);
+            doc.setTextColor(41, 121, 255);
             doc.text("CEOLIN", 14, 22);
             
             doc.setFontSize(18);
@@ -208,6 +213,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             }
         };
 
+        drawHeader();
+
         doc.setFontSize(10);
         doc.setTextColor(100);
         doc.text("INFORMAÇÕES DO MOTORISTA", 14, 40);
@@ -222,25 +229,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
 
-        const completedRides = ridesToExport.filter(r => r.status === 'completed');
-        const pdfSummary = {
-            totalRides: completedRides.length,
-            totalValue: completedRides.reduce((acc, ride) => acc + ride.fare, 0).toFixed(2).replace('.', ','),
-        };
-
-        doc.setFontSize(12);
-        doc.setTextColor(40);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Resumo do Período", 14, 65);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(`Total de Corridas Concluídas: ${pdfSummary.totalRides}`, 14, 70);
-        doc.text(`Valor Total Arrecadado: R$ ${pdfSummary.totalValue}`, pageWidth - 14, 70, { align: 'right' });
-
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = ridesToExport.map(ride => [
             new Date(ride.updated).toLocaleDateString('pt-BR'),
-            ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Passageiro Manual',
+            ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
             ride.status,
@@ -249,10 +241,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 75,
+            startY: 55,
             theme: 'grid',
             headStyles: {
-                fillColor: [220, 38, 38],
+                fillColor: [41, 121, 255],
                 textColor: 255,
                 fontStyle: 'bold',
             },
@@ -263,7 +255,47 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             columnStyles: {
                 3: { halign: 'right' }
             },
-            didDrawPage: drawHeader,
+            didDrawPage: (data: any) => {},
+            didParseCell: (data: any) => {
+                // Color rows based on status
+                if (data.column.dataKey === 4) { // Status column
+                    if (data.cell.raw === 'completed') {
+                        data.cell.styles.textColor = '#16a34a'; // green
+                    } else if (data.cell.raw === 'canceled') {
+                        data.cell.styles.textColor = '#dc2626'; // red
+                    }
+                }
+            },
+        });
+        
+        finalY = (doc as any).lastAutoTable.finalY || 75;
+
+        // Performance Summary
+        const completedRides = ridesToExport.filter(r => r.status === 'completed');
+        const canceledRides = ridesToExport.filter(r => r.status === 'canceled');
+        const totalRides = ridesToExport.length;
+        const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
+
+        doc.setFontSize(12);
+        doc.setTextColor(40);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Resumo de Desempenho", 14, finalY + 10);
+        
+        (doc as any).autoTable({
+            startY: finalY + 15,
+            head: [['Métrica', 'Total', 'Valor']],
+            body: [
+                ['Corridas Concluídas', completedRides.length.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
+                ['Corridas Canceladas', canceledRides.length.toString(), 'R$ 0,00'],
+                ['Total de Corridas', totalRides.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [241, 245, 249] , textColor: 20 },
+            bodyStyles: { fontStyle: 'bold' },
+             columnStyles: { 
+                0: { fontStyle: 'normal' },
+                2: { halign: 'right' } 
+            },
         });
 
         drawFooter();
@@ -285,7 +317,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             const data = {
                 driver: pb.authStore.model.id,
                 passenger: null,
-                passenger_anonymous_name: pb.authStore.model.name, // Use driver's name
+                passenger_anonymous_name: newRide.passengerName || pb.authStore.model.name,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -299,9 +331,9 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             
             onManualRideStart(createdRide);
 
-            setNewRide({ origin: '', destination: '', value: '' });
+            setNewRide({ passengerName: pb.authStore.model.name, origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
-            // fetchRides() is not needed here as the subscription will trigger it.
+            // fetchRides() is called via subscription
         } catch (error) {
             console.error("Failed to create manual ride:", error);
             toast({ variant: 'destructive', title: 'Erro ao Registrar', description: 'Não foi possível registrar a corrida.' });
@@ -357,7 +389,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                            <User className="h-3 w-3" />
-                           {ride.expand?.passenger?.name || ride.passenger_anonymous_name || 'Passageiro'}
+                           {ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A')}
                            {ride.started_by === 'driver' && (
                                <TooltipProvider>
                                    <Tooltip>
@@ -409,6 +441,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
+                               <div className="space-y-1">
+                                    <Label htmlFor="passenger-name">Nome do Passageiro</Label>
+                                    <Input id="passenger-name" value={newRide.passengerName} onChange={(e) => setNewRide(prev => ({ ...prev, passengerName: e.target.value }))} required placeholder="Nome do passageiro" />
+                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <Label htmlFor="origin-location">Local de Partida</Label>
@@ -482,3 +518,5 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     </>
   );
 }
+
+    
