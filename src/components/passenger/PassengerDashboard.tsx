@@ -167,18 +167,13 @@ export default function PassengerDashboard() {
     };
     fetchDrivers();
 
-    let unsubscribeFunc: () => void = () => {};
-
     if (activeRide) {
-        pb.collection('rides').subscribe(activeRide.id, handleRideUpdate).then(unsubscribe => {
-            unsubscribeFunc = unsubscribe;
-        }).catch(err => {
-            console.error("Failed to subscribe to active ride:", err);
-        });
+        pb.collection('rides').subscribe(activeRide.id, handleRideUpdate)
+            .catch(err => console.error("Failed to subscribe to active ride:", err));
     }
 
     return () => {
-       pb.unsubscribe();
+        pb.collection('rides').unsubscribe(activeRide?.id);
     }
 
   }, [toast, activeRide, playNotification]);

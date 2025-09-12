@@ -59,7 +59,7 @@ export function PassengerChatHistory() {
     pb.collection('chats').subscribe('*', handleUpdate);
 
     return () => {
-        pb.unsubscribe('chats');
+        pb.collection('chats').unsubscribe();
     };
   }, [fetchChats]);
 

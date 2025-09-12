@@ -126,7 +126,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     pb.collection('messages').subscribe('*', handleNewMessage);
 
     return () => {
-        pb.unsubscribe('messages');
+        pb.collection('messages').unsubscribe();
     };
   }, [currentChatId, playNotification]);
 
