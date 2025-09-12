@@ -194,6 +194,13 @@ const appData = {
         doc.setFontSize(9);
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
+        
+        const hasManualRides = rides.some(ride => ride.started_by === 'driver');
+        if (hasManualRides) {
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text("Aviso: Este relatório pode conter corridas registradas manualmente, que possuem dados limitados sobre o passageiro.", 14, 58);
+        }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
@@ -207,7 +214,7 @@ const appData = {
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 55,
+            startY: 62,
             theme: 'grid',
             headStyles: { fillColor: [41, 121, 255], textColor: 255, fontStyle: 'bold' },
             styles: { cellPadding: 3, fontSize: 9 },

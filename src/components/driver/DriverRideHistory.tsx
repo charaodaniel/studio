@@ -107,6 +107,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     }, []);
 
     useEffect(() => {
+        let unsubscribe: () => void = () => {};
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
@@ -127,15 +128,17 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
-                fetchRides(1);
+                 fetchRides(1);
             }
         };
 
-        pb.collection('rides').subscribe('*', handleRidesUpdate);
+        pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
+            unsubscribe = unsub;
+        });
 
         return () => {
-            pb.realtime.unsubscribe();
             unsubscribeAuth();
+            unsubscribe();
         };
     }, [fetchRides]);
 
@@ -242,6 +245,13 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.setFontSize(9);
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
+        
+        const hasManualRides = ridesToExport.some(ride => ride.started_by === 'driver');
+        if (hasManualRides) {
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text("Aviso: Este relatório pode conter corridas registradas manualmente, que possuem dados limitados sobre o passageiro.", 14, 58);
+        }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = ridesToExport.map(ride => [
@@ -255,7 +265,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 55,
+            startY: 62,
             theme: 'grid',
             headStyles: {
                 fillColor: [41, 121, 255],
@@ -330,7 +340,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         try {
             const data = {
                 driver: pb.authStore.model.id,
-                passenger: null, // Manual ride has no registered passenger
+                passenger: null,
                 passenger_anonymous_name: newRide.passengerName || pb.authStore.model.name,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
@@ -347,7 +357,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
             setNewRide({ passengerName: pb.authStore.model.name, origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
-            // fetchRides() is called via subscription
         } catch (error) {
             console.error("Failed to create manual ride:", error);
             toast({ variant: 'destructive', title: 'Erro ao Registrar', description: 'Não foi possível registrar a corrida.' });
