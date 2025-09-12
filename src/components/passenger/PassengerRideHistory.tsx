@@ -75,8 +75,6 @@ export function PassengerRideHistory() {
     }, []);
 
     useEffect(() => {
-        let unsubscribe: () => void = () => {};
-
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             if (model) {
                 fetchRides(1);
@@ -96,13 +94,11 @@ export function PassengerRideHistory() {
             }
         };
 
-        pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
-            unsubscribe = unsub;
-        });
+        pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
             unsubscribeAuth();
-            unsubscribe();
+            pb.realtime.unsubscribe();
         };
     }, [fetchRides]);
     
@@ -155,7 +151,7 @@ export function PassengerRideHistory() {
                             <Car className="h-3 w-3" />
                             {ride.expand?.driver?.name || "Motorista não definido"}
                             </div>
-                            <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleDateString('pt-BR')}</div>
+                            <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleString('pt-BR')}</div>
                         </TableCell>
                         <TableCell>
                             <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>

@@ -107,7 +107,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     }, []);
 
     useEffect(() => {
-        let unsubscribe: () => void = () => {};
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
@@ -132,13 +131,11 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             }
         };
 
-        pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
-            unsubscribe = unsub;
-        });
+        pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
             unsubscribeAuth();
-            unsubscribe();
+            pb.realtime.unsubscribe();
         };
     }, [fetchRides]);
 
@@ -171,7 +168,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         const rows = ridesToExport.map(ride => 
             [
                 ride.id, 
-                new Date(ride.updated).toLocaleDateString('pt-BR'), 
+                new Date(ride.updated).toLocaleString('pt-BR'), 
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -255,7 +252,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = ridesToExport.map(ride => [
-            new Date(ride.updated).toLocaleDateString('pt-BR'),
+            new Date(ride.updated).toLocaleString('pt-BR'),
             ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
@@ -355,7 +352,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             
             onManualRideStart(createdRide);
 
-            setNewRide({ passengerName: pb.authStore.model.name, origin: '', destination: '', value: '' });
+            setNewRide({ passengerName: pb.authStore.model.name || '', origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
         } catch (error) {
             console.error("Failed to create manual ride:", error);
@@ -426,7 +423,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                                </TooltipProvider>
                            )}
                         </div>
-                        <div className="text-sm text-muted-foreground">{new Date(ride.updated).toLocaleDateString('pt-BR')}</div>
+                        <div className="text-sm text-muted-foreground">{new Date(ride.updated).toLocaleString('pt-BR')}</div>
                     </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>

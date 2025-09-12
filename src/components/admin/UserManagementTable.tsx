@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -121,7 +120,7 @@ const appData = {
         const rows = rides.map(ride => 
             [
                 ride.id, 
-                new Date(ride.updated).toLocaleDateString('pt-BR'), 
+                new Date(ride.updated).toLocaleString('pt-BR'), 
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -204,7 +203,7 @@ const appData = {
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
         const tableRows: (string | null)[][] = rides.map(ride => [
-            new Date(ride.updated).toLocaleDateString('pt-BR'),
+            new Date(ride.updated).toLocaleString('pt-BR'),
             ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
             `${ride.origin_address} -> ${ride.destination_address}`,
             `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
