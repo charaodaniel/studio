@@ -75,6 +75,8 @@ export function PassengerRideHistory() {
     }, []);
 
     useEffect(() => {
+        let unsubscribeRides = () => {};
+
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             if (model) {
                 fetchRides(1);
@@ -90,15 +92,13 @@ export function PassengerRideHistory() {
 
         const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.passenger === pb.authStore.model.id) {
-                 if (e.action === 'create') {
-                     fetchRides(1);
-                } else {
-                    setRides(prevRides => prevRides.map(r => r.id === e.record.id ? {...r, ...e.record} : r));
-                }
+                 fetchRides(1);
             }
         };
 
-        const unsubscribeRides = pb.collection('rides').subscribe('*', handleRidesUpdate);
+        pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
+            unsubscribeRides = unsub;
+        });
 
         return () => {
             unsubscribeAuth();

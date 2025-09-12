@@ -107,6 +107,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     }, []);
 
     useEffect(() => {
+        let unsubscribeRides = () => {};
+
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
@@ -127,16 +129,13 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
-                if (e.action === 'create') {
-                     // Refetch to see the new ride at the top
-                     fetchRides(1);
-                } else {
-                    setRides(prevRides => prevRides.map(r => r.id === e.record.id ? {...r, ...e.record} : r));
-                }
+                fetchRides(1);
             }
         };
 
-        const unsubscribeRides = pb.collection('rides').subscribe('*', handleRidesUpdate);
+        pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
+            unsubscribeRides = unsub;
+        });
 
 
         return () => {
