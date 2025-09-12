@@ -1,5 +1,3 @@
-
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -60,16 +58,16 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const currentUser = pb.authStore.model as UserData | null;
+    const [currentUser, setCurrentUser] = useState<UserData | null>(pb.authStore.model as UserData | null);
 
     const fetchRides = useCallback(async () => {
-        if (!pb.authStore.isValid || !pb.authStore.model?.id) return;
+        if (!pb.authStore.isValid) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
-            const driverId = pb.authStore.model.id;
+            const driverId = pb.authStore.model!.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
@@ -93,7 +91,26 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     }, []);
 
     useEffect(() => {
-        fetchRides();
+        const handleAuthChange = (token: string, model: RecordModel | null) => {
+            setCurrentUser(model as UserData | null);
+            if (model) {
+                fetchRides();
+            } else {
+                setRides([]);
+                setIsLoading(false);
+            }
+        }
+        
+        // Fetch immediately if auth is already valid
+        if (pb.authStore.isValid) {
+            fetchRides();
+        }
+
+        const unsubscribe = pb.authStore.onChange(handleAuthChange, true);
+
+        return () => {
+            unsubscribe();
+        };
     }, [fetchRides]);
 
     const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange) => {

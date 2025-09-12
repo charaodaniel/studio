@@ -1,4 +1,3 @@
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,13 +32,13 @@ export function PassengerRideHistory() {
     const { toast } = useToast();
     
     const fetchRides = useCallback(async () => {
-        if (!pb.authStore.model) return;
+        if (!pb.authStore.isValid) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
-            const passengerId = pb.authStore.model.id;
+            const passengerId = pb.authStore.model!.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `passenger = "${passengerId}"`,
                 sort: '-created',
@@ -60,10 +59,27 @@ export function PassengerRideHistory() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [toast]);
 
     useEffect(() => {
-        fetchRides();
+        // Fetch immediately if auth is already valid
+        if (pb.authStore.isValid) {
+            fetchRides();
+        }
+
+        // Also subscribe to changes to catch login events
+        const unsubscribe = pb.authStore.onChange((token, model) => {
+            if (model) {
+                fetchRides();
+            } else {
+                setRides([]); // Clear data on logout
+                setIsLoading(false);
+            }
+        }, true); // Call immediately with current state
+
+        return () => {
+            unsubscribe();
+        };
     }, [fetchRides]);
     
     const renderContent = () => {
