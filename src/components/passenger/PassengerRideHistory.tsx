@@ -1,12 +1,13 @@
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Car, MapPin, WifiOff } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { History, Car, MapPin, WifiOff, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import pb from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
+import type { RecordModel, ListResult } from "pocketbase";
 import { Skeleton } from "../ui/skeleton";
+import { Button } from "../ui/button";
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -29,22 +30,32 @@ export function PassengerRideHistory() {
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
-    const { toast } = useToast();
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const isFetching = useRef(false);
     
-    const fetchRides = useCallback(async () => {
-        if (!pb.authStore.isValid) return;
+    const fetchRides = useCallback(async (pageNum = 1) => {
+        if (!pb.authStore.isValid || isFetching.current) return;
+
+        isFetching.current = true;
+        if (pageNum === 1) setIsLoading(true);
+        else setIsLoadingMore(true);
         
-        setIsLoading(true);
         setError(null);
         
         try {
             const passengerId = pb.authStore.model!.id;
-            const result = await pb.collection('rides').getFullList<RideRecord>({
+            const result: ListResult<RideRecord> = await pb.collection('rides').getList(pageNum, 50, {
                 filter: `passenger = "${passengerId}"`,
                 sort: '-created',
                 expand: 'driver',
             });
-            setRides(result);
+            
+            setRides(prev => pageNum === 1 ? result.items : [...prev, ...result.items]);
+            setPage(result.page);
+            setTotalPages(result.totalPages);
+
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
             let errorMessage = "Não foi possível carregar seu histórico de corridas.";
@@ -57,14 +68,16 @@ export function PassengerRideHistory() {
             }
             setError(errorMessage);
         } finally {
-            setIsLoading(false);
+            if (pageNum === 1) setIsLoading(false);
+            else setIsLoadingMore(false);
+            isFetching.current = false;
         }
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             if (model) {
-                fetchRides();
+                fetchRides(1);
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -75,17 +88,21 @@ export function PassengerRideHistory() {
 
         const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
 
-        const handleRidesUpdate = (e: { record: RideRecord }) => {
+        const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.passenger === pb.authStore.model.id) {
-                fetchRides();
+                 if (e.action === 'create') {
+                     fetchRides(1);
+                } else {
+                    setRides(prevRides => prevRides.map(r => r.id === e.record.id ? {...r, ...e.record} : r));
+                }
             }
         };
 
-        pb.collection('rides').subscribe('*', handleRidesUpdate);
+        const unsubscribeRides = pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
             unsubscribeAuth();
-            pb.collection('rides').unsubscribe();
+            unsubscribeRides();
         };
     }, [fetchRides]);
     
@@ -93,7 +110,7 @@ export function PassengerRideHistory() {
         if (isLoading) {
             return (
                 <TableBody>
-                    {[...Array(3)].map((_, i) => (
+                    {[...Array(5)].map((_, i) => (
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-48" /></TableCell>
@@ -165,6 +182,14 @@ export function PassengerRideHistory() {
                 {renderContent()}
             </Table>
         </ScrollArea>
+        {page < totalPages && (
+            <div className="mt-4 text-center">
+                <Button onClick={() => fetchRides(page + 1)} disabled={isLoadingMore}>
+                    {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Carregar Mais
+                </Button>
+            </div>
+        )}
     </div>
   );
 }

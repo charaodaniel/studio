@@ -8,11 +8,11 @@ import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { User as UserData } from '../admin/UserList';
-import type { RecordModel } from "pocketbase";
+import type { RecordModel, ListResult } from "pocketbase";
 import pb from "@/lib/pocketbase";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "../ui/input";
@@ -59,21 +59,35 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+    
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const isFetching = useRef(false);
 
-    const fetchRides = useCallback(async () => {
-        if (!pb.authStore.model?.id) return;
+    const fetchRides = useCallback(async (pageNum = 1) => {
+        if (!pb.authStore.model?.id || isFetching.current) return;
         
-        setIsLoading(true);
+        isFetching.current = true;
+        if (pageNum === 1) {
+            setIsLoading(true);
+        } else {
+            setIsLoadingMore(true);
+        }
         setError(null);
         
         try {
             const driverId = pb.authStore.model.id;
-            const result = await pb.collection('rides').getFullList<RideRecord>({
+            const result: ListResult<RideRecord> = await pb.collection('rides').getList(pageNum, 50, { // Fetch 50 items per page
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
                 expand: 'passenger',
             });
-            setRides(result);
+            
+            setRides(prev => pageNum === 1 ? result.items : [...prev, ...result.items]);
+            setPage(result.page);
+            setTotalPages(result.totalPages);
+
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
              let errorMessage = "Não foi possível carregar seu histórico de corridas.";
@@ -86,7 +100,9 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             }
             setError(errorMessage);
         } finally {
-            setIsLoading(false);
+            if (pageNum === 1) setIsLoading(false);
+            else setIsLoadingMore(false);
+            isFetching.current = false;
         }
     }, []);
 
@@ -95,9 +111,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
             if (userModel) {
-                fetchRides();
-                // Set default passenger name for manual rides
-                setNewRide(prev => ({...prev, passengerName: userModel.name}));
+                fetchRides(1); // Fetch first page on login
+                if (!newRide.passengerName && userModel.name) {
+                    setNewRide(prev => ({...prev, passengerName: userModel.name}));
+                }
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -108,19 +125,23 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
 
-        const handleRidesUpdate = (e: { record: RideRecord }) => {
-            // Check if the update is relevant to the current driver
+        const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
-                fetchRides();
+                if (e.action === 'create') {
+                     // Refetch to see the new ride at the top
+                     fetchRides(1);
+                } else {
+                    setRides(prevRides => prevRides.map(r => r.id === e.record.id ? {...r, ...e.record} : r));
+                }
             }
         };
 
-        pb.collection('rides').subscribe('*', handleRidesUpdate);
+        const unsubscribeRides = pb.collection('rides').subscribe('*', handleRidesUpdate);
 
 
         return () => {
             unsubscribeAuth();
-            pb.collection('rides').unsubscribe();
+            unsubscribeRides();
         };
     }, [fetchRides]);
 
@@ -196,7 +217,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             doc.setTextColor(100);
             const periodText = `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
             doc.text(periodText, pageWidth - 14, 27, { align: 'right' });
-
+            
             doc.setDrawColor(200);
             doc.line(14, 30, pageWidth - 14, 30);
         };
@@ -345,7 +366,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         if (isLoading) {
             return (
                 <TableBody>
-                    {[...Array(3)].map((_, i) => (
+                    {[...Array(5)].map((_, i) => (
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-48" /></TableCell>
@@ -503,6 +524,14 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                 {renderContent()}
             </Table>
         </ScrollArea>
+        {page < totalPages && (
+            <div className="mt-4 text-center">
+                <Button onClick={() => fetchRides(page + 1)} disabled={isLoadingMore}>
+                    {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Carregar Mais Corridas
+                </Button>
+            </div>
+        )}
     </div>
     {currentUser && reportType && (
         <ReportFilterModal
@@ -517,5 +546,3 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     </>
   );
 }
-
-    
