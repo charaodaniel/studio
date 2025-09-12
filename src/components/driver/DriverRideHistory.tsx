@@ -112,9 +112,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             setCurrentUser(userModel);
             if (userModel) {
                 fetchRides(1); // Fetch first page on login
-                if (!newRide.passengerName && userModel.name) {
-                    setNewRide(prev => ({...prev, passengerName: userModel.name}));
-                }
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -326,7 +323,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
     const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!pb.authStore.model) return;
+        const user = pb.authStore.model;
+        if (!user) return;
     
         if (!newRide.origin || !newRide.destination || !newRide.value) {
             toast({ variant: 'destructive', title: 'Campos obrigatórios' });
@@ -336,9 +334,9 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         setIsSubmitting(true);
         try {
             const data = {
-                driver: pb.authStore.model.id,
+                driver: user.id,
                 passenger: null,
-                passenger_anonymous_name: newRide.passengerName || pb.authStore.model.name,
+                passenger_anonymous_name: newRide.passengerName || user.name, // Fallback to driver's name
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -352,7 +350,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             
             onManualRideStart(createdRide);
 
-            setNewRide({ passengerName: pb.authStore.model.name || '', origin: '', destination: '', value: '' });
+            setNewRide({ passengerName: '', origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
         } catch (error) {
             console.error("Failed to create manual ride:", error);
@@ -462,8 +460,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                <div className="space-y-1">
-                                    <Label htmlFor="passenger-name">Nome do Passageiro</Label>
-                                    <Input id="passenger-name" value={newRide.passengerName} onChange={(e) => setNewRide(prev => ({ ...prev, passengerName: e.target.value }))} required placeholder="Nome do passageiro" />
+                                    <Label htmlFor="passenger-name">Nome do Passageiro (Opcional)</Label>
+                                    <Input id="passenger-name" value={newRide.passengerName} onChange={(e) => setNewRide(prev => ({ ...prev, passengerName: e.target.value }))} placeholder="Nome do passageiro" />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
