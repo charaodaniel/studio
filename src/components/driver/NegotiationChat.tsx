@@ -114,6 +114,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
 
   useEffect(() => {
     if (!currentChatId) return;
+
     const handleNewMessage = (e: { record: MessageRecord }) => {
         if (e.record.chat === currentChatId) {
             playNotification();
@@ -126,7 +127,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     pb.collection('messages').subscribe('*', handleNewMessage);
 
     return () => {
-        pb.collection('messages').unsubscribe();
+        pb.realtime.unsubscribe();
     };
   }, [currentChatId, playNotification]);
 

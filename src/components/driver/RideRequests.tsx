@@ -190,7 +190,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         pb.collection('rides').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('rides').unsubscribe();
+            pb.realtime.unsubscribe();
         };
     }, [fetchRequests, acceptedRide, playNotification, manualRideOverride]);
 

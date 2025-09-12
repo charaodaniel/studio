@@ -88,95 +88,96 @@ export default function PassengerDashboard() {
   const [destination, setDestination] = useState('');
 
   useEffect(() => {
-    const handleRideUpdate = (e: { record: RideRecord, action: string }) => {
-        if (!activeRide || (e.record.id !== activeRide.id && e.action !== 'create')) return;
-
-        const updatedRide = e.record;
-
-        pb.collection('rides')
-        .getOne<RideRecord>(updatedRide.id, { expand: 'driver' })
+    const handleRideUpdate = (e: { record: RideRecord }) => {
+      if (!activeRide || e.record.id !== activeRide.id) return;
+  
+      // Fetch the full record with expanded data
+      pb.collection('rides')
+        .getOne<RideRecord>(e.record.id, { expand: 'driver' })
         .then(fullRecord => {
-            if (fullRecord.status !== 'requested') {
-                setActiveRide(fullRecord);
-            }
-
-            if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
+          if (fullRecord.status !== 'requested') {
+            setActiveRide(fullRecord);
+          }
+  
+          if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
             const driver = fullRecord.expand.driver;
             setRideDetails({
-                driverName: driver.name,
-                driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
-                driverPhone: driver.phone,
-                vehicleModel: driver.driver_vehicle_model,
-                licensePlate: driver.driver_vehicle_plate,
-                eta: '5 minutos'
+              driverName: driver.name,
+              driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
+              driverPhone: driver.phone,
+              vehicleModel: driver.driver_vehicle_model,
+              licensePlate: driver.driver_vehicle_plate,
+              eta: '5 minutos'
             });
             setRideStatus('accepted');
             playNotification();
             toast({
-                title: 'Corrida Aceita!',
-                description: `${driver.name} está a caminho.`,
+              title: 'Corrida Aceita!',
+              description: `${driver.name} está a caminho.`,
             });
-            } else if (fullRecord.status === 'in_progress') {
-                setRideStatus('in_progress');
-            } else if (fullRecord.status === 'completed') {
-                handleCompleteRide();
-            } else if (fullRecord.status === 'canceled') {
-                handleCancelRide(false); // Do not update DB again
-                toast({
-                    title: 'Corrida Cancelada',
-                    description: 'O motorista cancelou a corrida.',
-                    variant: 'destructive',
-                });
-            }
+          } else if (fullRecord.status === 'in_progress') {
+            setRideStatus('in_progress');
+          } else if (fullRecord.status === 'completed') {
+            handleCompleteRide();
+          } else if (fullRecord.status === 'canceled') {
+            handleCancelRide(false); // Do not update DB again
+            toast({
+              title: 'Corrida Cancelada',
+              description: 'O motorista cancelou a corrida.',
+              variant: 'destructive',
+            });
+          }
+        }).catch(err => {
+          console.error("Failed to fetch full ride record on update:", err);
         });
     };
-
+  
     // Ask for location permission on component mount
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                // Permission granted. We don't need to use the coordinates for now.
-                console.log("Location permission granted.");
-            },
-            (error) => {
-                // Permission denied or other error.
-                if (error.code === error.PERMISSION_DENIED) {
-                    toast({
-                        title: 'Permissão de Localização Negada',
-                        description: 'Para uma melhor experiência, considere ativar a localização nas configurações do seu navegador.',
-                        variant: 'destructive',
-                        duration: 5000,
-                    });
-                }
-            }
-        );
-    }
-     const fetchDrivers = async () => {
-        setIsLoadingDrivers(true);
-        try {
-            const driverRecords = await pb.collection('users').getFullList<Driver>({
-                filter: 'role = "Motorista" && disabled = false && driver_status = "online"',
+      navigator.geolocation.getCurrentPosition(
+        () => console.log("Location permission granted."),
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            toast({
+              title: 'Permissão de Localização Negada',
+              description: 'Para uma melhor experiência, considere ativar a localização nas configurações do seu navegador.',
+              variant: 'destructive',
+              duration: 7000,
             });
-            setDrivers(driverRecords);
-        } catch (error) {
-            console.error("Failed to fetch drivers:", error);
-            toast({ variant: 'destructive', title: 'Erro ao buscar motoristas' });
-        } finally {
-            setIsLoadingDrivers(false);
+          }
         }
+      );
+    }
+  
+    const fetchDrivers = async () => {
+      setIsLoadingDrivers(true);
+      try {
+        const driverRecords = await pb.collection('users').getFullList<Driver>({
+          filter: 'role = "Motorista" && disabled = false && driver_status = "online"',
+        });
+        setDrivers(driverRecords);
+      } catch (error) {
+        console.error("Failed to fetch drivers:", error);
+        toast({ variant: 'destructive', title: 'Erro ao buscar motoristas' });
+      } finally {
+        setIsLoadingDrivers(false);
+      }
     };
     fetchDrivers();
-
+  
+    // Subscribe to ride updates if there's an active ride
     if (activeRide) {
-        pb.collection('rides').subscribe(activeRide.id, handleRideUpdate)
-            .catch(err => console.error("Failed to subscribe to active ride:", err));
+      pb.collection('rides').subscribe(activeRide.id, handleRideUpdate);
     }
-
+  
+    // Return cleanup function
     return () => {
-        pb.collection('rides').unsubscribe(activeRide?.id);
-    }
-
+      if (activeRide) {
+        pb.collection('rides').unsubscribe(activeRide.id);
+      }
+    };
   }, [toast, activeRide, playNotification]);
+  
   
   const onRideRequest = async (rideId: string) => {
     setRideStatus('searching');

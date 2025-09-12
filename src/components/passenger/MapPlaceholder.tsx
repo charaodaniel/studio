@@ -63,7 +63,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
     pb.collection('users').subscribe('*', handleUserUpdate);
 
     return () => {
-        pb.collection('users').unsubscribe();
+        pb.realtime.unsubscribe();
     };
   }, [fetchOnlineDrivers, refreshKey]);
 

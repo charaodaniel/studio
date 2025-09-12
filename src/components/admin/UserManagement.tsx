@@ -108,7 +108,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         pb.collection('chats').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('chats').unsubscribe();
+            pb.realtime.unsubscribe();
         };
 
     }, [fetchChats]);

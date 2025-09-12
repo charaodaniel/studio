@@ -51,7 +51,7 @@ export function DriverChatHistory() {
   useEffect(() => {
     fetchChats();
     const handleUpdate = (e: { record: ChatRecord }) => {
-        if (e.record.participants.includes(pb.authStore.model?.id)) {
+        if (pb.authStore.model && e.record.participants.includes(pb.authStore.model.id)) {
             fetchChats();
         }
     };
@@ -59,7 +59,7 @@ export function DriverChatHistory() {
     pb.collection('chats').subscribe('*', handleUpdate);
 
     return () => {
-        pb.collection('chats').unsubscribe();
+        pb.realtime.unsubscribe();
     };
   }, [fetchChats]);
 
