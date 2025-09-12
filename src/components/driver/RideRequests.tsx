@@ -164,22 +164,20 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (manualRideOverride) return;
         fetchRequests();
 
-        // Subscribe to changes in the 'rides' collection
-        pb.collection('rides').subscribe('*', (e) => {
-            // If a ride is created or updated and relevant to this driver, refetch all requests.
-            // This is a simple and robust way to keep the UI in sync.
+        const handleUpdate = (e: { record: RideRecord, action: string }) => {
             const driverId = pb.authStore.model?.id;
             if (driverId && e.record.driver === driverId) {
-                // Play sound for new requests
                 if(e.action === 'create' && e.record.status === 'requested') {
                     playNotification();
                 }
                 fetchRequests();
             }
-        });
+        };
+
+        pb.collection('rides').subscribe('*', handleUpdate);
 
         return () => {
-            pb.realtime.unsubscribe();
+            pb.realtime.unsubscribe('rides');
         };
     }, [fetchRequests, manualRideOverride, playNotification]);
 

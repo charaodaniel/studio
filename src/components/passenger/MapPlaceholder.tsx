@@ -53,8 +53,6 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
     });
     
     const handleUserUpdate = (e: { record: Partial<Driver> }) => {
-        // A simple check if the updated user might be a driver.
-        // A more robust check might be needed if roles are complex.
         if ('driver_status' in e.record) {
             fetchOnlineDrivers();
         }

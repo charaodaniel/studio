@@ -75,7 +75,7 @@ export function PassengerRideHistory() {
     }, []);
 
     useEffect(() => {
-        let unsubscribeRides = () => {};
+        let unsubscribe: () => void = () => {};
 
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             if (model) {
@@ -97,12 +97,12 @@ export function PassengerRideHistory() {
         };
 
         pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
-            unsubscribeRides = unsub;
+            unsubscribe = unsub;
         });
 
         return () => {
             unsubscribeAuth();
-            unsubscribeRides();
+            unsubscribe();
         };
     }, [fetchRides]);
     

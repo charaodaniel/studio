@@ -107,7 +107,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     }, []);
 
     useEffect(() => {
-        let unsubscribeRides = () => {};
+        let unsubscribe: () => void = () => {};
 
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             const userModel = model as UserData | null;
@@ -134,13 +134,12 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         };
 
         pb.collection('rides').subscribe('*', handleRidesUpdate).then(unsub => {
-            unsubscribeRides = unsub;
+            unsubscribe = unsub;
         });
-
 
         return () => {
             unsubscribeAuth();
-            unsubscribeRides();
+            unsubscribe();
         };
     }, [fetchRides]);
 

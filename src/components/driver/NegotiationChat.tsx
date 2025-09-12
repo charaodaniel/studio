@@ -132,7 +132,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     pb.collection('messages').subscribe('*', handleNewMessage);
 
     return () => {
-        pb.realtime.unsubscribe();
+        pb.realtime.unsubscribe('messages');
     };
   }, [currentChatId, playNotification]);
 

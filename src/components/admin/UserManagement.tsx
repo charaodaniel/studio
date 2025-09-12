@@ -142,7 +142,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         pb.collection('messages').subscribe('*', handleNewMessage);
         
         return () => {
-            pb.collection('messages').unsubscribe();
+            pb.realtime.unsubscribe('messages');
         }
     }, [selectedChat, fetchMessages]);
 
