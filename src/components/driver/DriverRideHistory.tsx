@@ -134,8 +134,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
+            pb.realtime.unsubscribe();
             unsubscribeAuth();
-            pb.realtime.unsubscribe('rides');
         };
     }, [fetchRides]);
 
@@ -330,7 +330,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         try {
             const data = {
                 driver: pb.authStore.model.id,
-                passenger: null,
+                passenger: null, // Manual ride has no registered passenger
                 passenger_anonymous_name: newRide.passengerName || pb.authStore.model.name,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
