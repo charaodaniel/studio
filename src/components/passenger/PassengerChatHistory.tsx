@@ -1,4 +1,5 @@
 
+
 'use client';
 import { ScrollArea } from "../ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -49,14 +50,16 @@ export function PassengerChatHistory() {
 
   useEffect(() => {
     fetchChats();
-    const unsubscribe = pb.collection('chats').subscribe<ChatRecord>('*', (e) => {
+    const handleUpdate = (e: { record: ChatRecord }) => {
         if (pb.authStore.model && e.record.participants.includes(pb.authStore.model.id)) {
             fetchChats();
         }
-    });
+    };
+    
+    pb.collection('chats').subscribe('*', handleUpdate);
 
     return () => {
-        pb.collection('chats').unsubscribe('*');
+        pb.collection('chats').unsubscribe();
     };
   }, [fetchChats]);
 

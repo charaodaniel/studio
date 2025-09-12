@@ -25,7 +25,7 @@ export interface User extends RecordModel {
     email: string;
     avatar: string;
     phone: string;
-    role: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
+    role: string[];
 
     driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
     driver_vehicle_model?: string;
@@ -99,15 +99,16 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         setIsClient(true);
         fetchChats();
         
-        // Subscribe to real-time updates
-        const unsubscribe = pb.collection('chats').subscribe<ChatRecord>('*', e => {
+        const handleUpdate = (e: { record: ChatRecord, action: string }) => {
             if (e.action === 'create' || e.action === 'update') {
                fetchChats();
             }
-        });
+        };
+
+        pb.collection('chats').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('chats').unsubscribe('*');
+            pb.collection('chats').unsubscribe();
         };
 
     }, [fetchChats]);
@@ -116,7 +117,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         try {
             const result = await pb.collection('messages').getFullList<MessageRecord>({
                 filter: `chat = "${chatId}"`,
-                sort: 'id',
+                sort: 'created',
                 expand: 'sender'
             });
             setMessages(result);
@@ -127,16 +128,21 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     }, []);
 
     useEffect(() => {
-        if (selectedChat) {
-            fetchMessages(selectedChat.id);
-            const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', e => {
-                if (e.action === 'create' && e.record.chat === selectedChat.id) {
-                    pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender'}).then(fullRecord => {
-                        setMessages(prev => [...prev, fullRecord]);
-                    });
-                }
-            });
-            return () => pb.collection('messages').unsubscribe('*');
+        if (!selectedChat) return;
+
+        const handleNewMessage = (e: { record: MessageRecord, action: string }) => {
+            if (e.action === 'create' && e.record.chat === selectedChat.id) {
+                pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender'}).then(fullRecord => {
+                    setMessages(prev => [...prev, fullRecord]);
+                });
+            }
+        };
+
+        fetchMessages(selectedChat.id);
+        pb.collection('messages').subscribe('*', handleNewMessage);
+        
+        return () => {
+            pb.collection('messages').unsubscribe();
         }
     }, [selectedChat, fetchMessages]);
 
@@ -329,7 +335,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 </Avatar>
                 <div className='flex-1'>
                   <p className="font-semibold">{selectedUser.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedUser.role}</p>
+                  <p className="text-sm text-muted-foreground">{Array.isArray(selectedUser.role) ? selectedUser.role.join(', ') : selectedUser.role}</p>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

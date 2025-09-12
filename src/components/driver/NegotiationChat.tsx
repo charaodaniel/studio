@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, type ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -47,7 +48,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   const [isPassenger, setIsPassenger] = useState(false);
 
   useEffect(() => {
-    if (pb.authStore.isValid && pb.authStore.model?.role === 'Passageiro') {
+    if (pb.authStore.isValid && pb.authStore.model?.role.includes('Passageiro')) {
       setIsPassenger(true);
     }
   }, [])
@@ -87,7 +88,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     try {
         const result = await pb.collection('messages').getFullList<MessageRecord>({
             filter: `chat = "${id}"`,
-            sort: 'id',
+            sort: 'created',
             expand: 'sender'
         });
         setMessages(result);
@@ -113,16 +114,20 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
 
   useEffect(() => {
     if (!currentChatId) return;
-    const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', e => {
-        if (e.action === 'create' && e.record.chat === currentChatId) {
+    const handleNewMessage = (e: { record: MessageRecord }) => {
+        if (e.record.chat === currentChatId) {
             playNotification();
             pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender' }).then(fullRecord => {
                 setMessages(prev => [...prev, fullRecord]);
             });
         }
-    });
+    };
+    
+    pb.collection('messages').subscribe('*', handleNewMessage);
 
-    return () => pb.collection('messages').unsubscribe('*');
+    return () => {
+        pb.collection('messages').unsubscribe();
+    };
   }, [currentChatId, playNotification]);
 
   useEffect(() => {

@@ -88,6 +88,49 @@ export default function PassengerDashboard() {
   const [destination, setDestination] = useState('');
 
   useEffect(() => {
+    const handleRideUpdate = (e: { record: RideRecord, action: string }) => {
+        if (activeRide && e.record.id !== activeRide.id && e.action !== 'create') return;
+
+        const updatedRide = e.record;
+
+        pb.collection('rides')
+        .getOne<RideRecord>(updatedRide.id, { expand: 'driver' })
+        .then(fullRecord => {
+            if (fullRecord.status !== 'requested') {
+                setActiveRide(fullRecord);
+            }
+
+            if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
+            const driver = fullRecord.expand.driver;
+            setRideDetails({
+                driverName: driver.name,
+                driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
+                driverPhone: driver.phone,
+                vehicleModel: driver.driver_vehicle_model,
+                licensePlate: driver.driver_vehicle_plate,
+                eta: '5 minutos'
+            });
+            setRideStatus('accepted');
+            playNotification();
+            toast({
+                title: 'Corrida Aceita!',
+                description: `${driver.name} está a caminho.`,
+            });
+            } else if (fullRecord.status === 'in_progress') {
+                setRideStatus('in_progress');
+            } else if (fullRecord.status === 'completed') {
+                handleCompleteRide();
+            } else if (fullRecord.status === 'canceled') {
+                handleCancelRide(false); // Do not update DB again
+                toast({
+                    title: 'Corrida Cancelada',
+                    description: 'O motorista cancelou a corrida.',
+                    variant: 'destructive',
+                });
+            }
+        });
+    };
+
     // Ask for location permission on component mount
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -124,7 +167,7 @@ export default function PassengerDashboard() {
     };
     fetchDrivers();
 
-    const unsubscribe = pb.collection('rides').subscribe('*', (e) => {
+    pb.collection('rides').subscribe('*', (e) => {
         if (e.record.passenger === pb.authStore.model?.id) {
             handleRideUpdate(e);
         }
@@ -134,50 +177,7 @@ export default function PassengerDashboard() {
         pb.collection('rides').unsubscribe();
     }
 
-  }, [toast]);
-  
-  const handleRideUpdate = (e: { record: RideRecord, action: string }) => {
-    if (activeRide && e.record.id !== activeRide.id && e.action !== 'create') return;
-
-    const updatedRide = e.record;
-
-    pb.collection('rides')
-    .getOne<RideRecord>(updatedRide.id, { expand: 'driver' })
-    .then(fullRecord => {
-        if (fullRecord.status !== 'requested') {
-            setActiveRide(fullRecord);
-        }
-
-        if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
-        const driver = fullRecord.expand.driver;
-        setRideDetails({
-            driverName: driver.name,
-            driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
-            driverPhone: driver.phone,
-            vehicleModel: driver.driver_vehicle_model,
-            licensePlate: driver.driver_vehicle_plate,
-            eta: '5 minutos'
-        });
-        setRideStatus('accepted');
-        playNotification();
-        toast({
-            title: 'Corrida Aceita!',
-            description: `${driver.name} está a caminho.`,
-        });
-        } else if (fullRecord.status === 'in_progress') {
-            setRideStatus('in_progress');
-        } else if (fullRecord.status === 'completed') {
-            handleCompleteRide();
-        } else if (fullRecord.status === 'canceled') {
-            handleCancelRide(false); // Do not update DB again
-            toast({
-                title: 'Corrida Cancelada',
-                description: 'O motorista cancelou a corrida.',
-                variant: 'destructive',
-            });
-        }
-    });
-};
+  }, [toast, activeRide, playNotification]);
   
   const onRideRequest = async (rideId: string) => {
     setRideStatus('searching');

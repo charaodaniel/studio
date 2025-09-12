@@ -164,15 +164,15 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
         fetchRequests();
 
-        const unsubscribe = pb.collection('rides').subscribe<RideRecord>('*', (e) => {
-             const driverId = pb.authStore.model?.id;
-             if (!driverId) return;
+        const handleUpdate = (e: { record: RideRecord, action: string }) => {
+            const driverId = pb.authStore.model?.id;
+            if (!driverId) return;
 
             if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
-                 fetchRequests();
-                 playNotification();
+                fetchRequests();
+                playNotification();
             }
-             if (e.action === 'update' && e.record.driver === driverId) {
+            if (e.action === 'update' && e.record.driver === driverId) {
                 if (e.record.status !== 'requested') {
                     setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
                 }
@@ -180,10 +180,12 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                     setAcceptedRide(null);
                 }
             }
-        });
+        };
+
+        pb.collection('rides').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('rides').unsubscribe('*');
+            pb.collection('rides').unsubscribe();
         };
 
     }, [fetchRequests, acceptedRide, playNotification, manualRideOverride]);

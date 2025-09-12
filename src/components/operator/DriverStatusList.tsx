@@ -84,17 +84,16 @@ import { Skeleton } from "../ui/skeleton";
     useEffect(() => {
         fetchDrivers();
 
-        // Subscribe to real-time updates on the 'users' collection
-        const unsubscribe = pb.collection('users').subscribe('*', (e) => {
-            // When an update occurs, re-fetch the driver list
-            if (e.record.role === 'Motorista') {
+        const handleUpdate = (e: any) => {
+            if (e.record.role === 'Motorista' || (Array.isArray(e.record.role) && e.record.role.includes('Motorista'))) {
                 fetchDrivers();
             }
-        });
+        };
+        
+        pb.collection('users').subscribe('*', handleUpdate);
 
-        // Cleanup subscription on component unmount
         return () => {
-            pb.collection('users').unsubscribe('*');
+            pb.collection('users').unsubscribe();
         };
     }, [fetchDrivers]);
     

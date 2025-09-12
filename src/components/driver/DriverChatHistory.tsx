@@ -1,4 +1,5 @@
 
+
 'use client';
 import { ScrollArea } from "../ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -49,14 +50,16 @@ export function DriverChatHistory() {
 
   useEffect(() => {
     fetchChats();
-    const unsubscribe = pb.collection('chats').subscribe<ChatRecord>('*', (e) => {
+    const handleUpdate = (e: { record: ChatRecord }) => {
         if (e.record.participants.includes(pb.authStore.model?.id)) {
             fetchChats();
         }
-    });
+    };
+    
+    pb.collection('chats').subscribe('*', handleUpdate);
 
     return () => {
-        pb.collection('chats').unsubscribe('*');
+        pb.collection('chats').unsubscribe();
     };
   }, [fetchChats]);
 
@@ -96,6 +99,7 @@ export function DriverChatHistory() {
                             chatId={chat.id}
                             passengerName={otherUser.name}
                             isNegotiation={false}
+                            rideId={chat.ride}
                         >
                             <button className="w-full text-left py-4">
                                 <div className="flex items-center gap-4">
