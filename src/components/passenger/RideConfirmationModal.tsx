@@ -69,7 +69,6 @@ export default function RideConfirmationModal({
         }
 
         try {
-            const now = new Date().toISOString();
             // 1. Create the ride record
             const rideData = {
                 passenger: currentUser?.id || null, // Can be null for anonymous
@@ -81,8 +80,6 @@ export default function RideConfirmationModal({
                 started_by: "passenger",
                 fare: isNegotiated ? 0 : (calculatedFare || 0),
                 passenger_anonymous_name: passengerAnonymousName,
-                created: now,
-                updated: now,
             };
             const rideRecord = await pb.collection('rides').create(rideData);
 
@@ -166,3 +163,4 @@ export default function RideConfirmationModal({
         </Dialog>
     );
 }
+
