@@ -83,7 +83,11 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     }
   }, [rideId, toast]);
 
-  const fetchMessages = useCallback(async (id: string) => {
+  const fetchMessages = useCallback(async (id: string | null) => {
+    if (!id) {
+        setMessages([]);
+        return;
+    }
     setIsLoading(true);
     try {
         const result = await pb.collection('messages').getFullList<MessageRecord>({
@@ -127,7 +131,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     pb.collection('messages').subscribe('*', handleNewMessage);
 
     return () => {
-        pb.realtime.unsubscribe();
+        pb.realtime.unsubscribe('messages');
     };
   }, [currentChatId, playNotification]);
 
