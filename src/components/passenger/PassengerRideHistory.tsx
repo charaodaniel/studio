@@ -62,23 +62,30 @@ export function PassengerRideHistory() {
     }, [toast]);
 
     useEffect(() => {
-        // Fetch immediately if auth is already valid
-        if (pb.authStore.isValid) {
-            fetchRides();
-        }
-
-        // Also subscribe to changes to catch login events
-        const unsubscribe = pb.authStore.onChange((token, model) => {
+        const handleAuthChange = (token: string, model: RecordModel | null) => {
             if (model) {
                 fetchRides();
             } else {
-                setRides([]); // Clear data on logout
+                setRides([]);
                 setIsLoading(false);
             }
-        }, true); // Call immediately with current state
+        };
+
+        handleAuthChange(pb.authStore.token, pb.authStore.model);
+
+        const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
+
+        const handleRidesUpdate = (e: { record: RideRecord }) => {
+            if (pb.authStore.model && e.record.passenger === pb.authStore.model.id) {
+                fetchRides();
+            }
+        };
+
+        pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
-            unsubscribe();
+            unsubscribeAuth();
+            pb.collection('rides').unsubscribe();
         };
     }, [fetchRides]);
     

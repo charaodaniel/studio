@@ -1,4 +1,3 @@
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -102,13 +101,23 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             }
         }
         
-        // Call immediately with current state
         handleAuthChange(pb.authStore.token, pb.authStore.model);
 
-        const unsubscribe = pb.authStore.onChange(handleAuthChange);
+        const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
+
+        const handleRidesUpdate = (e: { record: RideRecord }) => {
+            // Check if the update is relevant to the current driver
+            if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
+                fetchRides();
+            }
+        };
+
+        pb.collection('rides').subscribe('*', handleRidesUpdate);
+
 
         return () => {
-            unsubscribe();
+            unsubscribeAuth();
+            pb.collection('rides').unsubscribe();
         };
     }, [fetchRides]);
 
@@ -276,7 +285,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             const data = {
                 driver: pb.authStore.model.id,
                 passenger: null,
-                passenger_anonymous_name: pb.authStore.model.name,
+                passenger_anonymous_name: pb.authStore.model.name, // Use driver's name
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -292,7 +301,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
             setNewRide({ origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
-            fetchRides();
+            // fetchRides() is not needed here as the subscription will trigger it.
         } catch (error) {
             console.error("Failed to create manual ride:", error);
             toast({ variant: 'destructive', title: 'Erro ao Registrar', description: 'Não foi possível registrar a corrida.' });
