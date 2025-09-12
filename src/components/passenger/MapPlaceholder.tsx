@@ -52,14 +52,18 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
         left: `${Math.random() * 60 + 20}%`,
     });
     
-    const unsubscribe = pb.collection('users').subscribe('*', (e) => {
-        if (e.record.role === 'Motorista') {
+    const handleUserUpdate = (e: { record: Partial<Driver> }) => {
+        // A simple check if the updated user might be a driver.
+        // A more robust check might be needed if roles are complex.
+        if ('driver_status' in e.record) {
             fetchOnlineDrivers();
         }
-    });
+    };
+    
+    pb.collection('users').subscribe('*', handleUserUpdate);
 
     return () => {
-        pb.collection('users').unsubscribe('*');
+        pb.unsubscribe('users');
     };
   }, [fetchOnlineDrivers, refreshKey]);
 

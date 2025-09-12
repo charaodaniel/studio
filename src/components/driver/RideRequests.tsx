@@ -160,7 +160,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     }, []);
 
     useEffect(() => {
-        if (manualRideOverride) return; // Don't fetch if a manual ride is active
+        if (manualRideOverride) return;
 
         fetchRequests();
 
@@ -168,14 +168,19 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             const driverId = pb.authStore.model?.id;
             if (!driverId) return;
 
+            // A new ride was created for this driver
             if (e.action === 'create' && e.record.status === 'requested' && e.record.driver === driverId) {
                 fetchRequests();
                 playNotification();
             }
+
+            // An existing ride for this driver was updated
             if (e.action === 'update' && e.record.driver === driverId) {
+                // If it's a ride from the request list that's no longer 'requested', remove it
                 if (e.record.status !== 'requested') {
                     setRequests(prev => prev.filter(r => r.ride.id !== e.record.id));
                 }
+                // If the currently accepted ride is now canceled or completed, clear it
                 if (acceptedRide?.id === e.record.id && (e.record.status === 'canceled' || e.record.status === 'completed')) {
                     setAcceptedRide(null);
                 }
@@ -185,9 +190,8 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         pb.collection('rides').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('rides').unsubscribe();
+            pb.unsubscribe('rides');
         };
-
     }, [fetchRequests, acceptedRide, playNotification, manualRideOverride]);
 
 

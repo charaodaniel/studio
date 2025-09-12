@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import RideRequestForm from './RideRequestForm';
 import RideStatusCard from './RideStatusCard';
 import pb from '@/lib/pocketbase';
@@ -89,7 +89,7 @@ export default function PassengerDashboard() {
 
   useEffect(() => {
     const handleRideUpdate = (e: { record: RideRecord, action: string }) => {
-        if (activeRide && e.record.id !== activeRide.id && e.action !== 'create') return;
+        if (!activeRide || (e.record.id !== activeRide.id && e.action !== 'create')) return;
 
         const updatedRide = e.record;
 
@@ -167,14 +167,18 @@ export default function PassengerDashboard() {
     };
     fetchDrivers();
 
-    pb.collection('rides').subscribe('*', (e) => {
-        if (e.record.passenger === pb.authStore.model?.id) {
-            handleRideUpdate(e);
-        }
-    });
+    let unsubscribeFunc: () => void = () => {};
+
+    if (activeRide) {
+        pb.collection('rides').subscribe(activeRide.id, handleRideUpdate).then(unsubscribe => {
+            unsubscribeFunc = unsubscribe;
+        }).catch(err => {
+            console.error("Failed to subscribe to active ride:", err);
+        });
+    }
 
     return () => {
-        pb.collection('rides').unsubscribe();
+       pb.unsubscribe();
     }
 
   }, [toast, activeRide, playNotification]);

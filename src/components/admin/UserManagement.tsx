@@ -108,7 +108,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         pb.collection('chats').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('chats').unsubscribe();
+            pb.unsubscribe('chats');
         };
 
     }, [fetchChats]);
@@ -142,7 +142,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         pb.collection('messages').subscribe('*', handleNewMessage);
         
         return () => {
-            pb.collection('messages').unsubscribe();
+            pb.unsubscribe('messages');
         }
     }, [selectedChat, fetchMessages]);
 

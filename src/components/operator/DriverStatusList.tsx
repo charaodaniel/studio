@@ -85,15 +85,22 @@ import { Skeleton } from "../ui/skeleton";
         fetchDrivers();
 
         const handleUpdate = (e: any) => {
-            if (e.record.role === 'Motorista' || (Array.isArray(e.record.role) && e.record.role.includes('Motorista'))) {
-                fetchDrivers();
+             // A simple way to check if the update is relevant
+            if (e.record.collectionName === 'users') {
+                 // More specific check: does the updated user have a 'Motorista' role?
+                const roles = e.record.role;
+                if (Array.isArray(roles) && roles.includes('Motorista')) {
+                    fetchDrivers();
+                } else if (typeof roles === 'string' && roles === 'Motorista') {
+                    fetchDrivers();
+                }
             }
         };
         
         pb.collection('users').subscribe('*', handleUpdate);
 
         return () => {
-            pb.collection('users').unsubscribe();
+            pb.unsubscribe('users');
         };
     }, [fetchDrivers]);
     
