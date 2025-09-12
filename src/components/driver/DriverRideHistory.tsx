@@ -1,3 +1,4 @@
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -58,16 +59,16 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const [currentUser, setCurrentUser] = useState<UserData | null>(pb.authStore.model as UserData | null);
+    const [currentUser, setCurrentUser] = useState<UserData | null>(null);
 
     const fetchRides = useCallback(async () => {
-        if (!pb.authStore.isValid) return;
+        if (!pb.authStore.model?.id) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
-            const driverId = pb.authStore.model!.id;
+            const driverId = pb.authStore.model.id;
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}"`,
                 sort: '-created',
@@ -101,12 +102,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             }
         }
         
-        // Fetch immediately if auth is already valid
-        if (pb.authStore.isValid) {
-            fetchRides();
-        }
+        // Call immediately with current state
+        handleAuthChange(pb.authStore.token, pb.authStore.model);
 
-        const unsubscribe = pb.authStore.onChange(handleAuthChange, true);
+        const unsubscribe = pb.authStore.onChange(handleAuthChange);
 
         return () => {
             unsubscribe();
@@ -277,7 +276,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             const data = {
                 driver: pb.authStore.model.id,
                 passenger: null,
-                passenger_anonymous_name: "Passageiro Manual",
+                passenger_anonymous_name: pb.authStore.model.name,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
