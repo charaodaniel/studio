@@ -29,19 +29,25 @@ Depois, vá para a aba **"API Rules"** e aplique as seguintes regras.
 
 Crie uma **nova coleção** chamada `rides`. Na aba "Schema", adicione todos os campos para esta coleção conforme o arquivo `pocketbase_schema.json`.
 
-É **muito importante** configurar os campos `created` e `updated` para serem automáticos e evitar o erro "Invalid Date".
+**É crucial configurar os campos de data e agendamento:**
 
-#### **Como Configurar `created` e `updated` para Auto-Date**
+#### **Configurando Campos de Data e Agendamento**
 
 1.  **Acesse a coleção `rides`** e clique em **"Edit collection"**.
-2.  **Clique na engrenagem (⚙️)** ao lado do campo `created`. As opções do campo irão se expandir.
-    ![Clique na Engrenagem](https://placehold.co/400x100/E3F2FD/1E3A8A?text=Clique+na+engrenagem+⚙️)
-3.  No campo **"Type"**, mude de `Date` para `Auto-Date`.
-    ![Mude para Auto-Date](https://placehold.co/400x150/E3F2FD/1E3A8A?text=Selecione+Auto-Date)
-4.  Marque a opção **"On Create"**. Salve a coleção.
-5.  Repita o processo para o campo `updated`: clique na engrenagem, mude o tipo para `Auto-Date`, e marque **ambas as opções**: **"On Create"** e **"On Update"**. Salve a coleção.
 
-Após essa mudança, o servidor preencherá as datas automaticamente.
+2.  **Campo `created`**:
+    *   Clique na engrenagem (⚙️) ao lado do campo `created`.
+    *   No seletor **"Type"**, mude de `Date` para `Auto-Date`.
+    *   Marque a opção **"On Create"**.
+
+3.  **Campo `updated`**:
+    *   Repita o processo: clique na engrenagem, mude o tipo para `Auto-Date`.
+    *   Marque **ambas** as opções: **"On Create"** e **"On Update"**.
+
+4.  **Campo `scheduled_for`**:
+    *   Este campo é do tipo `Date` normal. Ele será preenchido pelo aplicativo ao agendar uma viagem. Nenhuma ação extra é necessária aqui.
+
+5.  **Salve a coleção**. Após salvar, o servidor preencherá `created` e `updated` automaticamente.
 
 Vá para a aba **"API Rules"** e aplique as seguintes regras.
 

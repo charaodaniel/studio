@@ -5,7 +5,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2, Navigation } from 'lucide-react';
+import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2, Navigation, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RideChat } from './NegotiationChat';
 import { useState, useEffect, useCallback } from 'react';
@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -25,12 +27,16 @@ interface RideRecord extends RecordModel {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
+    scheduled_for?: string;
+    ride_description?: string;
     expand?: {
         passenger: RecordModel;
     }
 }
 
 const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecord, onAccept: (ride: RideRecord) => void, onReject: (rideId: string) => void, chatId: string | null }) => {
+    const isScheduled = !!ride.scheduled_for;
+
     return (
         <Card className={ride.is_negotiated ? 'border-primary' : ''}>
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
@@ -44,6 +50,14 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                 </div>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+                {isScheduled && (
+                     <div className="flex items-center gap-2 p-2 rounded-md bg-blue-50 border-blue-200">
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <span className="font-semibold text-blue-800">
+                           {format(new Date(ride.scheduled_for), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                    </div>
+                )}
                 <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" />
                     <span className="font-semibold">De:</span> {ride.origin_address}
@@ -52,10 +66,12 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                     <MapPin className="h-4 w-4 text-accent" />
                     <span className="font-semibold">Para:</span> {ride.destination_address}
                 </div>
-                <div className="flex items-center gap-2 pt-2">
-                    <DollarSign className="h-4 w-4 text-accent" />
-                    <span className="font-bold text-lg">{ride.is_negotiated ? 'A Negociar' : `R$ ${ride.fare.toFixed(2)}`}</span>
-                </div>
+                {!isScheduled && (
+                     <div className="flex items-center gap-2 pt-2">
+                        <DollarSign className="h-4 w-4 text-accent" />
+                        <span className="font-bold text-lg">{ride.is_negotiated ? 'A Negociar' : `R$ ${ride.fare.toFixed(2)}`}</span>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="grid grid-cols-2 gap-2">
                 {ride.is_negotiated ? (
@@ -118,23 +134,24 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         
         try {
             const driverId = pb.authStore.model.id;
-            // Check for already accepted rides first
+            // Verifica se já existe uma corrida aceita
             const acceptedFilter = `status = "accepted" && driver = "${driverId}"`;
             try {
                 const alreadyAccepted = await pb.collection('rides').getFirstListItem<RideRecord>(acceptedFilter, { expand: 'passenger' });
                 setAcceptedRide(alreadyAccepted);
-                setRequests([]); // Clear pending requests if one is accepted
+                setRequests([]); // Limpa as solicitações pendentes se uma for aceita
                 setIsLoading(false);
-                return; // Stop here if we already have an accepted ride
+                return; 
             } catch (err: any) {
-                if (err.status !== 404) throw err; // Re-throw if it's not a 'not found' error
+                if (err.status !== 404) throw err; 
             }
 
-            // If no accepted ride, fetch requested rides
+            // Se não houver corrida aceita, busca novas solicitações
             const rideFilter = `status = "requested" && driver = "${driverId}"`;
             const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
                 filter: rideFilter,
                 expand: 'passenger',
+                sort: 'scheduled_for,-created' // Prioriza agendadas
             });
 
             const fullRequests = await Promise.all(rideRecords.map(async (ride) => {
@@ -144,7 +161,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                         const chatRecord = await pb.collection('chats').getFirstListItem(`ride="${ride.id}"`);
                         chatId = chatRecord.id;
                     } catch (e) {
-                       console.warn(`Could not find chat for negotiated ride ${ride.id}`);
+                       console.warn(`Não foi possível encontrar chat para a corrida negociada ${ride.id}`);
                     }
                 }
                 return { ride, chatId };
@@ -192,7 +209,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
             toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${ride.expand?.passenger.name}.` });
             setAcceptedRide(updatedRide);
-            setRequests([]); // Clear pending requests
+            setRequests([]); 
             setPassengerOnBoard(false);
             
             const newStatus = ride.is_negotiated ? 'rural-trip' : 'urban-trip';
@@ -337,7 +354,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                                     Chat
                                 </Button>
                             </RideChat>
-                        ) : (<div/>) /* Placeholder for grid */}
+                        ) : (<div/>)}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="outline" className="w-full text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700">

@@ -24,6 +24,7 @@ interface DriverListModalProps {
     isNegotiated: boolean;
     onRideRequest: (rideId: string) => void;
     passengerAnonymousName: string | null;
+    scheduledFor?: Date;
 }
 
 const getStatusVariant = (status?: string) => {
@@ -50,7 +51,7 @@ const getStatusLabel = (status?: string) => {
 };
 
 
-export default function DriverListModal({ origin, destination, isNegotiated, onRideRequest, passengerAnonymousName }: DriverListModalProps) {
+export default function DriverListModal({ origin, destination, isNegotiated, onRideRequest, passengerAnonymousName, scheduledFor }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<string | null>(null);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -62,9 +63,14 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setIsLoading(true);
         setError(null);
         try {
-            // The API rule now allows anyone to list users with the role "Motorista"
+            // A API rule permite que qualquer um liste usuários com o perfil "Motorista".
+            // Para viagens agendadas, mostramos todos, caso contrário, apenas online.
+            const filter = scheduledFor 
+                ? 'role = "Motorista" && disabled = false'
+                : 'role = "Motorista" && disabled = false && driver_status = "online"';
+            
             const allDrivers = await pb.collection('users').getFullList<Driver>({
-                filter: 'role = "Motorista" && disabled = false && driver_status = "online"',
+                filter: filter,
             });
             setDrivers(allDrivers);
         } catch (err: any) {
@@ -77,13 +83,11 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [scheduledFor]);
 
     useEffect(() => {
-        // Fetch drivers immediately when the modal is opened
         fetchDrivers();
         
-        // Also subscribe to real-time updates
         const unsubscribe = pb.collection('users').subscribe('*', (e) => {
             if (e.record.role === 'Motorista') {
                 fetchDrivers();
@@ -138,7 +142,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         return (
              <div className="space-y-2">
                 {drivers.map((driver) => {
-                    const isAvailable = driver.driver_status === 'online';
+                    const isAvailable = driver.driver_status === 'online' || scheduledFor;
                     return (
                         <Collapsible
                             key={driver.id}
@@ -209,7 +213,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
             <DialogHeader>
                 <DialogTitle className="font-headline">Escolha um Motorista</DialogTitle>
                 <DialogDescription>
-                    Selecione um motorista para sua corrida ou veja mais detalhes.
+                    {scheduledFor ? 'Escolha um motorista para agendar sua corrida.' : 'Selecione um motorista para sua corrida ou veja mais detalhes.'}
                 </DialogDescription>
                 <ScrollArea className="h-96 pr-4 mt-4">
                     {renderContent()}
@@ -231,10 +235,9 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
                     }}
                     passengerAnonymousName={passengerAnonymousName}
+                    scheduledFor={scheduledFor}
                 />
             )}
         </>
     );
 }
-
-    
