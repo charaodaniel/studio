@@ -147,7 +147,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange) => {
         if (!currentUser) return;
         const startDate = format(dateRange.from, 'yyyy-MM-dd 00:00:00');
-        const endDate = format(dateRange.to, 'yyyy-MM-dd 23:59:59');
+        const endDate = format(endOfDay(dateRange.to), 'yyyy-MM-dd 23:59:59');
 
         const filteredRides = await pb.collection('rides').getFullList<RideRecord>({
             filter: `driver = "${currentUser.id}" && created >= "${startDate}" && created <= "${endDate}"`,
@@ -252,7 +252,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
-            const warningText = "Aviso: Algumas datas podem ter sido ajustadas ou são de corridas manuais, e podem não ser 100% precisas.";
+            const warningText = "Aviso: Algumas datas podem ter sido ajustadas devido a um problema interno no servidor e podem não ser 100% precisas.";
             const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
             doc.text(splitText, 14, 58);
             startY = 68; // Adjust table start position if warning is present
@@ -336,7 +336,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
     const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
-        const user = pb.authStore.model;
+        const user = pb.authStore.model as UserData | null;
         if (!user) return;
     
         if (!newRide.origin || !newRide.destination || !newRide.value) {
