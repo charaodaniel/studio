@@ -3,13 +3,14 @@
 
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Headset, ListChecks, MessageSquare, Loader2 } from 'lucide-react';
+import { Headset, ListChecks, MessageSquare, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DriverStatusList from './DriverStatusList';
 import UserManagement from '../admin/UserManagement';
 import type { User as UserData } from '../admin/UserList';
 import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
+import OperatorLists from './OperatorLists';
 
 export function OperatorPage() {
   const [activeTab, setActiveTab] = useState("status");
@@ -30,6 +31,11 @@ export function OperatorPage() {
       unsubscribe();
     };
   }, []);
+
+  const handleSelectUser = (user: UserData) => {
+    setSelectedUserForChat(user);
+    setActiveTab("conversations");
+  };
 
   const avatarUrl = currentUser?.avatar ? pb.getFileUrl(currentUser, currentUser.avatar) : '';
   const avatarFallback = currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : <Headset className="h-10 w-10"/>;
@@ -62,13 +68,17 @@ export function OperatorPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-grow flex flex-col">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="status"><ListChecks className="mr-2" />Status dos Motoristas</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="status"><ListChecks className="mr-2" />Status</TabsTrigger>
+          <TabsTrigger value="lists"><Users className="mr-2" />Listas</TabsTrigger>
           <TabsTrigger value="conversations"><MessageSquare className="mr-2" />Conversas</TabsTrigger>
         </TabsList>
         <div className="p-4 md:p-6 lg:p-8 flex-grow">
             <TabsContent value="status" className="m-0 h-full">
                 <DriverStatusList />
+            </TabsContent>
+            <TabsContent value="lists" className="m-0 h-full">
+                <OperatorLists onSelectUser={handleSelectUser} />
             </TabsContent>
             <TabsContent value="conversations" className="m-0 h-full">
                 <UserManagement preselectedUser={selectedUserForChat} onUserSelect={setSelectedUserForChat} />
