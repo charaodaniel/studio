@@ -106,8 +106,30 @@ const appData = {
         }
     }
     
-    const handleGenerateReport = async (driver: User, type: 'pdf' | 'csv', dateRange: DateRange) => {
-        const rides = await fetchRidesForDriver(driver.id, dateRange);
+    const fetchAllRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
+        try {
+            const result = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${driverId}"`,
+                sort: '-created',
+                expand: 'passenger',
+            });
+            return result;
+        } catch (err: any) {
+            console.error("Failed to fetch all rides for report:", err);
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao buscar corridas',
+                description: 'Não foi possível gerar o relatório completo.'
+            });
+            return [];
+        }
+    };
+
+    const handleGenerateReport = async (driver: User, type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
+        const rides = isCompleteReport
+            ? await fetchAllRidesForDriver(driver.id)
+            : await fetchRidesForDriver(driver.id, dateRange);
+
         if (rides.length === 0) {
             toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no período selecionado.` });
             return;
@@ -115,7 +137,7 @@ const appData = {
         if (type === 'csv') {
             handleGenerateCSV(driver, rides);
         } else {
-            handleGeneratePDF(driver, rides, dateRange);
+            handleGeneratePDF(driver, rides, dateRange, isCompleteReport);
         }
     };
 
@@ -124,7 +146,7 @@ const appData = {
         const rows = rides.map(ride => 
             [
                 ride.id, 
-                new Date(ride.updated).toLocaleString('pt-BR'), 
+                ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida', 
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -145,7 +167,7 @@ const appData = {
         document.body.removeChild(link);
     };
 
-    const handleGeneratePDF = (driver: User, rides: RideRecord[], dateRange: DateRange) => {
+    const handleGeneratePDF = (driver: User, rides: RideRecord[], dateRange: DateRange, isCompleteReport: boolean) => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
@@ -167,7 +189,9 @@ const appData = {
 
             doc.setFontSize(9);
             doc.setTextColor(100);
-            const periodText = `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
+            const periodText = isCompleteReport 
+                ? "Período: Completo"
+                : `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
             doc.text(periodText, pageWidth - 14, 27, { align: 'right' });
             
             doc.setDrawColor(200);
@@ -497,8 +521,10 @@ const appData = {
                 <ReportFilterModal
                     isOpen={isReportModalOpen}
                     onOpenChange={setIsReportModalOpen}
-                    onGenerateReport={(dateRange) => {
-                        handleGenerateReport(selectedUserForReport, reportType, dateRange);
+                    onGenerateReport={(dateRange, isCompleteReport) => {
+                        if (selectedUserForReport && reportType) {
+                            handleGenerateReport(selectedUserForReport, reportType, dateRange, isCompleteReport);
+                        }
                     }}
                     userName={selectedUserForReport.name}
                 />

@@ -21,7 +21,7 @@ export interface DateRange {
 interface ReportFilterModalProps {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onGenerateReport: (dateRange: DateRange) => void;
+    onGenerateReport: (dateRange: DateRange, isCompleteReport: boolean) => void;
     userName: string;
 }
 
@@ -62,17 +62,17 @@ export default function ReportFilterModal({ isOpen, onOpenChange, onGenerateRepo
         }
 
         if (finalDateRange) {
-            onGenerateReport(finalDateRange);
+            onGenerateReport(finalDateRange, false);
             onOpenChange(false); // Close modal after generating
         }
     };
 
     const handleGenerateComplete = () => {
         const completeDateRange = {
-            from: new Date(2024, 0, 1), // A very early date
+            from: new Date(2000, 0, 1), // A very early date
             to: new Date(),
         };
-        onGenerateReport(completeDateRange);
+        onGenerateReport(completeDateRange, true);
         onOpenChange(false);
     }
 

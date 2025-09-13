@@ -145,26 +145,40 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         };
     }, [fetchRides]);
 
-    const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange) => {
+    const fetchAllRides = async (): Promise<RideRecord[]> => {
+        if (!currentUser) return [];
+        try {
+            return await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${currentUser.id}"`,
+                sort: '-created',
+                expand: 'passenger',
+            });
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Erro ao buscar histórico completo." });
+            return [];
+        }
+    };
+
+    const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
         if (!currentUser) return;
-        const startDate = format(dateRange.from, 'yyyy-MM-dd 00:00:00');
-        const endDate = format(endOfDay(dateRange.to), 'yyyy-MM-dd 23:59:59');
 
-        const filteredRides = await pb.collection('rides').getFullList<RideRecord>({
-            filter: `driver = "${currentUser.id}" && created >= "${startDate}" && created <= "${endDate}"`,
-            sort: '-created',
-            expand: 'passenger',
-        });
+        const ridesToExport = isCompleteReport
+            ? await fetchAllRides()
+            : await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${currentUser.id}" && created >= "${format(dateRange.from, 'yyyy-MM-dd 00:00:00')}" && created <= "${format(endOfDay(dateRange.to), 'yyyy-MM-dd 23:59:59')}"`,
+                sort: '-created',
+                expand: 'passenger',
+            });
 
-        if (filteredRides.length === 0) {
+        if (ridesToExport.length === 0) {
             toast({ title: "Nenhuma corrida encontrada", description: "Não há corridas neste período para gerar um relatório." });
             return;
         }
 
         if (type === 'csv') {
-            handleExportCSV(filteredRides);
+            handleExportCSV(ridesToExport);
         } else {
-            handleExportPDF(filteredRides, dateRange);
+            handleExportPDF(ridesToExport, dateRange, isCompleteReport);
         }
     };
 
@@ -173,7 +187,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         const rows = ridesToExport.map(ride => 
             [
                 ride.id, 
-                new Date(ride.updated).toLocaleString('pt-BR'), 
+                ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida',
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -194,7 +208,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         document.body.removeChild(link);
     };
 
-    const handleExportPDF = (ridesToExport: RideRecord[], dateRange: DateRange) => {
+    const handleExportPDF = (ridesToExport: RideRecord[], dateRange: DateRange, isCompleteReport: boolean) => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
@@ -216,7 +230,9 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
             doc.setFontSize(9);
             doc.setTextColor(100);
-            const periodText = `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
+            const periodText = isCompleteReport 
+                ? "Período: Completo"
+                : `Período: ${dateRange.from.toLocaleDateString('pt-BR')} a ${dateRange.to.toLocaleDateString('pt-BR')}`;
             doc.text(periodText, pageWidth - 14, 27, { align: 'right' });
             
             doc.setDrawColor(200);
@@ -619,8 +635,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         <ReportFilterModal
             isOpen={isReportModalOpen}
             onOpenChange={setIsReportModalOpen}
-            onGenerateReport={(dateRange) => {
-                handleGenerateReport(reportType, dateRange);
+            onGenerateReport={(dateRange, isCompleteReport) => {
+                handleGenerateReport(reportType, dateRange, isCompleteReport);
             }}
             userName={currentUser.name}
         />
