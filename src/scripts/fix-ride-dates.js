@@ -47,7 +47,7 @@ async function fixRideDates() {
   
   try {
     // 1. Autenticar como admin
-    console.log('Autenticando como administrador...');
+    console.log(`Autenticando como administrador em ${POCKETBASE_URL}...`);
     await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
     console.log('\x1b[32m%s\x1b[0m', 'Autenticação bem-sucedida.');
 
@@ -93,7 +93,11 @@ async function fixRideDates() {
   } catch (error) {
     console.error('\x1b[31m%s\x1b[0m', '\n--- Ocorreu um erro durante o processo ---');
     console.error('Verifique a URL do PocketBase e suas credenciais de administrador.');
-    console.error('Detalhes do erro:', error.data || error.message);
+    if (error.status === 404) {
+        console.error('Detalhes do erro: O servidor não foi encontrado (404). Isso geralmente significa que a configuração do proxy reverso (Nginx) para a rota /api/ está ausente ou incorreta.');
+    } else {
+        console.error('Detalhes do erro:', error.data || error.message);
+    }
   } finally {
     console.log('--- Script de correção finalizado ---');
     pb.authStore.clear();
