@@ -1,13 +1,19 @@
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Car, MapPin, WifiOff, Loader2 } from "lucide-react";
+import { History, Car, MapPin, WifiOff, Loader2, Calendar as CalendarIcon, RefreshCw } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import pb from "@/lib/pocketbase";
 import type { RecordModel, ListResult } from "pocketbase";
 import { Skeleton } from "../ui/skeleton";
 import { Button } from "../ui/button";
+import { addDays, format, startOfMonth, endOfDay } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { cn } from "@/lib/utils";
+import { Calendar } from "../ui/calendar";
+import { DateRange as ReactDateRange } from "react-day-picker";
+import { ptBR } from 'date-fns/locale';
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -30,31 +36,29 @@ export function PassengerRideHistory() {
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const isFetching = useRef(false);
+    const [dateRange, setDateRange] = useState<ReactDateRange | undefined>({
+        from: startOfMonth(new Date()),
+        to: endOfDay(new Date()),
+    });
     
-    const fetchRides = useCallback(async (pageNum = 1) => {
-        if (!pb.authStore.isValid || isFetching.current) return;
-
-        isFetching.current = true;
-        if (pageNum === 1) setIsLoading(true);
-        else setIsLoadingMore(true);
+    const fetchRides = useCallback(async () => {
+        if (!pb.authStore.isValid || !dateRange?.from || !dateRange?.to) return;
         
+        setIsLoading(true);
         setError(null);
         
         try {
             const passengerId = pb.authStore.model!.id;
-            const result: ListResult<RideRecord> = await pb.collection('rides').getList(pageNum, 50, {
-                filter: `passenger = "${passengerId}"`,
+            const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
+            const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
+
+            const result = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `passenger = "${passengerId}" && created >= "${startDate}" && created <= "${endDate}"`,
                 sort: '-created',
                 expand: 'driver',
             });
             
-            setRides(prev => pageNum === 1 ? result.items : [...prev, ...result.items]);
-            setPage(result.page);
-            setTotalPages(result.totalPages);
+            setRides(result);
 
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
@@ -68,16 +72,14 @@ export function PassengerRideHistory() {
             }
             setError(errorMessage);
         } finally {
-            if (pageNum === 1) setIsLoading(false);
-            else setIsLoadingMore(false);
-            isFetching.current = false;
+            setIsLoading(false);
         }
-    }, []);
+    }, [dateRange]);
 
     useEffect(() => {
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             if (model) {
-                fetchRides(1);
+                fetchRides();
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -90,7 +92,7 @@ export function PassengerRideHistory() {
 
         const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.passenger === pb.authStore.model.id) {
-                 fetchRides(1);
+                 fetchRides();
             }
         };
 
@@ -165,6 +167,50 @@ export function PassengerRideHistory() {
     
   return (
     <div className="bg-card p-4 rounded-lg">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mb-4">
+             <h3 className="font-headline text-lg">Histórico de Viagens</h3>
+             <div className="flex gap-2 w-full sm:w-auto">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !dateRange && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                                dateRange.to ? (
+                                    <>
+                                        {format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}
+                                    </>
+                                ) : (
+                                    format(dateRange.from, "dd/MM/yy")
+                                )
+                            ) : (
+                                <span>Escolha uma data</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                            locale={ptBR}
+                        />
+                    </PopoverContent>
+                </Popover>
+                 <Button variant="ghost" size="icon" onClick={fetchRides} disabled={isLoading}>
+                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                </Button>
+            </div>
+        </div>
         <ScrollArea className="h-96 w-full">
             <Table>
                 <TableHeader>
@@ -177,14 +223,6 @@ export function PassengerRideHistory() {
                 {renderContent()}
             </Table>
         </ScrollArea>
-        {page < totalPages && (
-            <div className="mt-4 text-center">
-                <Button onClick={() => fetchRides(page + 1)} disabled={isLoadingMore}>
-                    {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Carregar Mais
-                </Button>
-            </div>
-        )}
     </div>
   );
 }

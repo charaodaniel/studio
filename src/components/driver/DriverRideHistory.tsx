@@ -2,11 +2,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff } from "lucide-react";
+import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { useState, useEffect, useCallback, useRef } from "react";
 import jsPDF from "jspdf";
@@ -20,7 +19,12 @@ import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
-import { format } from "date-fns";
+import { addDays, format, startOfMonth, endOfDay } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { cn } from "@/lib/utils";
+import { Calendar } from "../ui/calendar";
+import { DateRange as ReactDateRange } from "react-day-picker";
+import { ptBR } from 'date-fns/locale';
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -58,40 +62,35 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const isFetching = useRef(false);
+    const [dateRange, setDateRange] = useState<ReactDateRange | undefined>({
+        from: startOfMonth(new Date()),
+        to: endOfDay(new Date()),
+    });
 
-    const fetchRides = useCallback(async (pageNum = 1) => {
-        if (!pb.authStore.model?.id || isFetching.current) return;
+    const fetchRides = useCallback(async () => {
+        if (!pb.authStore.model?.id || !dateRange?.from || !dateRange?.to) return;
         
-        isFetching.current = true;
-        if (pageNum === 1) {
-            setIsLoading(true);
-        } else {
-            setIsLoadingMore(true);
-        }
+        setIsLoading(true);
         setError(null);
         
         try {
             const driverId = pb.authStore.model.id;
-            const result: ListResult<RideRecord> = await pb.collection('rides').getList(pageNum, 50, { // Fetch 50 items per page
-                filter: `driver = "${driverId}"`,
+            const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
+            const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
+            
+            const result = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
                 sort: '-created',
                 expand: 'passenger',
             });
             
-            setRides(prev => pageNum === 1 ? result.items : [...prev, ...result.items]);
-            setPage(result.page);
-            setTotalPages(result.totalPages);
+            setRides(result);
 
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
-             let errorMessage = "Não foi possível carregar seu histórico de corridas.";
+            let errorMessage = "Não foi possível carregar seu histórico de corridas.";
             if (err.isAbort) {
                 errorMessage += " A requisição demorou muito.";
             } else if (err.status === 0) {
@@ -101,18 +100,16 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             }
             setError(errorMessage);
         } finally {
-            if (pageNum === 1) setIsLoading(false);
-            else setIsLoadingMore(false);
-            isFetching.current = false;
+            setIsLoading(false);
         }
-    }, []);
+    }, [dateRange]);
 
     useEffect(() => {
         const handleAuthChange = (token: string, model: RecordModel | null) => {
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
             if (userModel) {
-                fetchRides(1);
+                fetchRides();
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -123,11 +120,13 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
 
-        pb.collection('rides').subscribe('*', (e) => {
+        const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
             if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
-                 fetchRides(1);
+                 fetchRides();
             }
-        });
+        };
+
+        pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
             pb.realtime.unsubscribe();
@@ -157,9 +156,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         }
     };
 
-
     const handleExportCSV = (ridesToExport: RideRecord[]) => {
-        const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status", "Iniciada Por"];
+        const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status"];
         const rows = ridesToExport.map(ride => 
             [
                 ride.id, 
@@ -168,7 +166,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
-                ride.started_by
             ].join(',')
         );
 
@@ -179,7 +176,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "historico_corridas_ceolin.csv");
+        link.setAttribute("download", `historico_${currentUser?.name.replace(/\s+/g, '_')}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -275,8 +272,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             },
             didDrawPage: (data: any) => {},
             didParseCell: (data: any) => {
-                // Color rows based on status
-                if (data.column.dataKey === 4) { // Status column
+                if (data.column.dataKey === 4) {
                     if (data.cell.raw === 'completed') {
                         data.cell.styles.textColor = '#16a34a'; // green
                     } else if (data.cell.raw === 'canceled') {
@@ -288,7 +284,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         
         finalY = (doc as any).lastAutoTable.finalY || 75;
 
-        // Performance Summary
         const completedRides = ridesToExport.filter(r => r.status === 'completed');
         const canceledRides = ridesToExport.filter(r => r.status === 'canceled');
         const totalRides = ridesToExport.length;
@@ -320,7 +315,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.save("relatorio_corridas_ceolin.pdf");
     };
 
-
     const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
         const user = pb.authStore.model;
@@ -335,7 +329,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         try {
             const rideData = {
                 driver: user.id,
-                passenger_anonymous_name: user.name, // Always use the driver's name for manual rides
+                passenger_anonymous_name: user.name,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -438,74 +432,115 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
   return (
     <>
     <div className="bg-card p-4 rounded-lg">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 mb-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
             <div>
                 <h3 className="font-headline text-lg">Suas Viagens</h3>
-                <p className="text-sm text-muted-foreground">Visualize e gerencie suas corridas concluídas.</p>
+                <p className="text-sm text-muted-foreground">Filtre e gerencie suas corridas concluídas.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Registrar Corrida Manual
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                                "w-full sm:w-[260px] justify-start text-left font-normal",
+                                !dateRange && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                                dateRange.to ? (
+                                    <>
+                                        {format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}
+                                    </>
+                                ) : (
+                                    format(dateRange.from, "dd/MM/yy")
+                                )
+                            ) : (
+                                <span>Escolha uma data</span>
+                            )}
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <form onSubmit={handleStartManualRide}>
-                            <DialogHeader>
-                                <DialogTitle>Iniciar Nova Corrida Manual</DialogTitle>
-                                <DialogDescription>
-                                    Preencha os dados para uma corrida iniciada presencialmente.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <Label htmlFor="origin-location">Local de Partida</Label>
-                                        <Input id="origin-location" value={newRide.origin} onChange={(e) => setNewRide(prev => ({ ...prev, origin: e.target.value }))} required placeholder="Ex: Rua Principal, 123" />
-                                    </div>
-                                     <div className="space-y-1">
-                                        <Label htmlFor="destination-location">Local de Destino</Label>
-                                        <Input id="destination-location" value={newRide.destination} onChange={(e) => setNewRide(prev => ({ ...prev, destination: e.target.value }))} required placeholder="Ex: Shopping Center" />
-                                    </div>
-                                </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                            locale={ptBR}
+                        />
+                    </PopoverContent>
+                </Popover>
+                <Button variant="ghost" size="icon" onClick={fetchRides} disabled={isLoading}>
+                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                </Button>
+            </div>
+        </div>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-end gap-2 mb-4">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Registrar Corrida Manual
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <form onSubmit={handleStartManualRide}>
+                        <DialogHeader>
+                            <DialogTitle>Iniciar Nova Corrida Manual</DialogTitle>
+                            <DialogDescription>
+                                Preencha os dados para uma corrida iniciada presencialmente.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <Label htmlFor="ride-value">Valor da Corrida (R$)</Label>
-                                    <Input id="ride-value" type="number" step="0.01" value={newRide.value} onChange={(e) => setNewRide(prev => ({ ...prev, value: e.target.value }))} required placeholder="25.50" />
+                                    <Label htmlFor="origin-location">Local de Partida</Label>
+                                    <Input id="origin-location" value={newRide.origin} onChange={(e) => setNewRide(prev => ({ ...prev, origin: e.target.value }))} required placeholder="Ex: Rua Principal, 123" />
+                                </div>
+                                    <div className="space-y-1">
+                                    <Label htmlFor="destination-location">Local de Destino</Label>
+                                    <Input id="destination-location" value={newRide.destination} onChange={(e) => setNewRide(prev => ({ ...prev, destination: e.target.value }))} required placeholder="Ex: Shopping Center" />
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button type="button" variant="secondary" id="close-new-ride-dialog" disabled={isSubmitting}>Cancelar</Button>
-                                </DialogClose>
-                                <Button type="submit" disabled={isSubmitting}>
-                                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Iniciar Corrida
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button className="w-full sm:w-auto">
-                            <Download className="mr-2 h-4 w-4" />
-                            Exportar
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => { setReportType('pdf'); setIsReportModalOpen(true); }}>
-                            <FileType className="mr-2 h-4 w-4" />
-                            Relatório (PDF)
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => { setReportType('csv'); setIsReportModalOpen(true); }}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Histórico (CSV)
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="ride-value">Valor da Corrida (R$)</Label>
+                                <Input id="ride-value" type="number" step="0.01" value={newRide.value} onChange={(e) => setNewRide(prev => ({ ...prev, value: e.target.value }))} required placeholder="25.50" />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="secondary" id="close-new-ride-dialog" disabled={isSubmitting}>Cancelar</Button>
+                            </DialogClose>
+                            <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Iniciar Corrida
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+                <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button className="w-full sm:w-auto">
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => { setReportType('pdf'); setIsReportModalOpen(true); }}>
+                        <FileType className="mr-2 h-4 w-4" />
+                        Relatório (PDF)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => { setReportType('csv'); setIsReportModalOpen(true); }}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Histórico (CSV)
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
         <ScrollArea className="h-[60vh] sm:h-96 w-full">
             <Table>
@@ -519,14 +554,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                 {renderContent()}
             </Table>
         </ScrollArea>
-        {page < totalPages && (
-            <div className="mt-4 text-center">
-                <Button onClick={() => fetchRides(page + 1)} disabled={isLoadingMore}>
-                    {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Carregar Mais Corridas
-                </Button>
-            </div>
-        )}
     </div>
     {currentUser && reportType && (
         <ReportFilterModal
