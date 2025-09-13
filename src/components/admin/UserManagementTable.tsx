@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2 } from "lucide-react";
+import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import pb from "@/lib/pocketbase";
 import type { User } from "./UserList";
@@ -171,10 +172,10 @@ const appData = {
 
         const drawFooter = () => {
             const pageCount = doc.internal.pages.length;
-            doc.setFontSize(8);
-            doc.setTextColor(150);
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
                 doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
                 doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
             }
@@ -196,13 +197,17 @@ const appData = {
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
         
-        const hasManualRides = rides.some(ride => ride.started_by === 'driver');
-        if (hasManualRides) {
+        let startY = 62;
+
+        const hasManualOrInvalidDateRides = rides.some(ride => ride.started_by === 'driver');
+        if (hasManualOrInvalidDateRides) {
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
-            doc.text("Aviso: Este relatório pode conter corridas registradas manualmente, que possuem dados limitados sobre o passageiro.", 14, 58);
-            doc.setFont('helvetica', 'normal');
+            const warningText = "Aviso: Algumas datas podem ter sido ajustadas devido a um problema interno no servidor e podem não ser 100% precisas.";
+            const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
+            doc.text(splitText, 14, 58);
+            startY = 68; // Adjust table start position if warning is present
         }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
@@ -217,7 +222,7 @@ const appData = {
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 62,
+            startY: startY,
             theme: 'grid',
             headStyles: { fillColor: [41, 121, 255], textColor: 255, fontStyle: 'bold' },
             styles: { cellPadding: 3, fontSize: 9 },

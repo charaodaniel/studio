@@ -1,8 +1,9 @@
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon } from "lucide-react";
+import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -210,10 +211,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const drawFooter = () => {
             const pageCount = doc.internal.pages.length;
-            doc.setFontSize(8);
-            doc.setTextColor(150);
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
                 doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
                 doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
             }
@@ -235,13 +236,16 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
         
-        const hasManualRides = ridesToExport.some(ride => ride.started_by === 'driver');
-        if (hasManualRides) {
+        let startY = 62;
+        const hasManualOrInvalidDateRides = ridesToExport.some(ride => ride.started_by === 'driver');
+        if (hasManualOrInvalidDateRides) {
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
-            doc.text("Aviso: Este relatório pode conter corridas registradas manualmente, que possuem dados limitados sobre o passageiro.", 14, 58);
-            doc.setFont('helvetica', 'normal');
+            const warningText = "Aviso: Algumas datas podem ter sido ajustadas devido a um problema interno no servidor e podem não ser 100% precisas.";
+            const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
+            doc.text(splitText, 14, 58);
+            startY = 68; // Adjust table start position if warning is present
         }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
@@ -256,7 +260,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 62,
+            startY: startY,
             theme: 'grid',
             headStyles: {
                 fillColor: [41, 121, 255],
@@ -329,7 +333,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         try {
             const rideData = {
                 driver: user.id,
-                passenger_anonymous_name: user.name,
+                passenger_anonymous_name: user.name, // Use driver's name for anonymous ride
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
@@ -348,7 +352,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             document.getElementById('close-new-ride-dialog')?.click();
         } catch (error: any) {
             console.error("Failed to create manual ride:", error.data || error);
-            const errorMessage = error.data?.data?.passenger_anonymous_name?.message || "Não foi possível registrar a corrida.";
+            const errorMessage = error.data?.message || "Não foi possível registrar a corrida.";
             toast({ variant: 'destructive', title: 'Erro ao Registrar', description: errorMessage });
         } finally {
             setIsSubmitting(false);
