@@ -100,7 +100,7 @@ import { Skeleton } from "../ui/skeleton";
         pb.collection('users').subscribe('*', handleUpdate);
 
         return () => {
-            pb.realtime.unsubscribe();
+            pb.collection('users').unsubscribe('*');
         };
     }, [fetchDrivers]);
     

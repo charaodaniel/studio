@@ -59,7 +59,7 @@ export function DriverChatHistory() {
     pb.collection('chats').subscribe('*', handleUpdate);
 
     return () => {
-        pb.realtime.unsubscribe();
+        pb.collection('chats').unsubscribe('*');
     };
   }, [fetchChats]);
 
