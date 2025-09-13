@@ -20,6 +20,7 @@ import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
+import { format } from "date-fns";
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -52,7 +53,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
-    const [newRide, setNewRide] = useState({ passengerName: '', origin: '', destination: '', value: '' });
+    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '' });
     const { toast } = useToast();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
@@ -111,7 +112,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             const userModel = model as UserData | null;
             setCurrentUser(userModel);
             if (userModel) {
-                fetchRides(1); // Fetch first page on login
+                fetchRides(1);
             } else {
                 setRides([]);
                 setIsLoading(false);
@@ -124,7 +125,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         pb.collection('rides').subscribe('*', (e) => {
             if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
-                 fetchRides(1); // Refetch all rides to ensure consistency
+                 fetchRides(1);
             }
         });
 
@@ -136,8 +137,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
     const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange) => {
         if (!currentUser) return;
-        const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
-        const endDate = dateRange.to.toISOString().split('T')[0] + ' 23:59:59';
+        const startDate = format(dateRange.from, 'yyyy-MM-dd HH:mm:ss');
+        const endDate = format(dateRange.to, 'yyyy-MM-dd HH:mm:ss');
 
         const filteredRides = await pb.collection('rides').getFullList<RideRecord>({
             filter: `driver = "${currentUser.id}" && created >= "${startDate}" && created <= "${endDate}"`,
@@ -240,9 +241,11 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         
         const hasManualRides = ridesToExport.some(ride => ride.started_by === 'driver');
         if (hasManualRides) {
+            doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
             doc.text("Aviso: Este relatório pode conter corridas registradas manualmente, que possuem dados limitados sobre o passageiro.", 14, 58);
+            doc.setFont('helvetica', 'normal');
         }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
@@ -342,13 +345,13 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                 started_by: 'driver',
                 is_negotiated: false,
             };
-            const createdRide = await pb.collection('rides').create<RideRecord>(data, { expand: 'passenger' });
+            const createdRide = await pb.collection('rides').create<RideRecord>(data);
     
             toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
             
             onManualRideStart(createdRide);
 
-            setNewRide({ passengerName: '', origin: '', destination: '', value: '' });
+            setNewRide({ origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
         } catch (error) {
             console.error("Failed to create manual ride:", error);
@@ -457,10 +460,6 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
-                               <div className="space-y-1">
-                                    <Label htmlFor="passenger-name">Nome do Passageiro (Opcional)</Label>
-                                    <Input id="passenger-name" value={newRide.passengerName} onChange={(e) => setNewRide(prev => ({ ...prev, passengerName: e.target.value }))} placeholder="Nome do passageiro" />
-                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <Label htmlFor="origin-location">Local de Partida</Label>

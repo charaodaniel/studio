@@ -27,6 +27,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import type { RecordModel } from "pocketbase";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
+import { format } from "date-fns";
+
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -82,8 +84,8 @@ const appData = {
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
-            const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
-            const endDate = dateRange.to.toISOString().split('T')[0] + ' 23:59:59';
+            const startDate = format(dateRange.from, 'yyyy-MM-dd HH:mm:ss');
+            const endDate = format(dateRange.to, 'yyyy-MM-dd HH:mm:ss');
 
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
@@ -196,9 +198,11 @@ const appData = {
         
         const hasManualRides = rides.some(ride => ride.started_by === 'driver');
         if (hasManualRides) {
+            doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
             doc.text("Aviso: Este relatório pode conter corridas registradas manualmente, que possuem dados limitados sobre o passageiro.", 14, 58);
+            doc.setFont('helvetica', 'normal');
         }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
