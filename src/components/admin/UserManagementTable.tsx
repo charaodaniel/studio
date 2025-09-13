@@ -84,8 +84,8 @@ const appData = {
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
-            const startDate = format(dateRange.from, 'yyyy-MM-dd HH:mm:ss');
-            const endDate = format(dateRange.to, 'yyyy-MM-dd HH:mm:ss');
+            const startDate = format(dateRange.from, 'yyyy-MM-dd 00:00:00');
+            const endDate = format(dateRange.to, 'yyyy-MM-dd 23:59:59');
 
             const result = await pb.collection('rides').getFullList<RideRecord>({
                 filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,

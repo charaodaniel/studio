@@ -122,6 +122,28 @@
       },
       {
         "system": false,
+        "id": "file1530890361",
+        "name": "driver_vehicle_photo",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/svg+xml",
+            "image/gif",
+            "image/webp"
+          ],
+          "thumbs": [],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
+      },
+      {
+        "system": false,
         "id": "kasd1f23",
         "name": "driver_cnpj",
         "type": "text",
@@ -159,8 +181,8 @@
         "options": {
           "maxSelect": 1,
           "values": [
-            "fixed",
-            "km"
+            "km",
+            "fixed"
           ]
         }
       },
@@ -214,22 +236,23 @@
       }
     ],
     "indexes": [
-      "CREATE UNIQUE INDEX `idx_users_name` ON `users` (`name`) WHERE name != ''"
+      "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
+      "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
     ],
-    "listRule": "role = \"Motorista\"",
-    "viewRule": "id = @request.auth.id || role != \"\"",
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "id = @request.auth.id || name != \"\"",
     "createRule": "",
     "updateRule": "id = @request.auth.id || @request.auth.role = \"Admin\"",
     "deleteRule": "@request.auth.role = \"Admin\"",
     "options": {
       "allowEmailAuth": true,
-      "allowOAuth2Auth": true,
-      "allowUsernameAuth": true,
+      "allowOAuth2Auth": false,
+      "allowUsernameAuth": false,
       "exceptEmailDomains": null,
       "manageRule": null,
       "minPasswordLength": 8,
       "onlyEmailDomains": null,
-      "requireEmail": false
+      "requireEmail": true
     }
   },
   {
@@ -275,7 +298,7 @@
         "id": "8zkskfgq",
         "name": "origin_address",
         "type": "text",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -289,7 +312,7 @@
         "id": "v3hdlqam",
         "name": "destination_address",
         "type": "text",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -322,7 +345,7 @@
         "id": "y9x5n6od",
         "name": "fare",
         "type": "number",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -336,7 +359,7 @@
         "id": "7v9kpxf4",
         "name": "is_negotiated",
         "type": "bool",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {}
@@ -346,14 +369,14 @@
         "id": "m11ddf4a",
         "name": "started_by",
         "type": "select",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
           "maxSelect": 1,
           "values": [
-            "passenger",
-            "driver"
+            "driver",
+            "passenger"
           ]
         }
       },
@@ -373,7 +396,7 @@
       }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
+    "listRule": "@request.auth.id != \"\"",
     "viewRule": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")",
     "createRule": "@request.auth.id != \"\" || passenger_anonymous_name != \"\"",
     "updateRule": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")",
@@ -391,13 +414,13 @@
         "id": "0otzua7m",
         "name": "participants",
         "type": "relation",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
           "collectionId": "_pb_users_auth_",
           "cascadeDelete": false,
-          "minSelect": 2,
+          "minSelect": null,
           "maxSelect": 2,
           "displayFields": null
         }
@@ -452,7 +475,7 @@
         "id": "xsv6a4m9",
         "name": "chat",
         "type": "relation",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -468,7 +491,7 @@
         "id": "z8vrflgn",
         "name": "sender",
         "type": "relation",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -484,7 +507,7 @@
         "id": "xewd5s9m",
         "name": "text",
         "type": "text",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -591,7 +614,7 @@
         "id": "tazdwfll",
         "name": "driver",
         "type": "relation",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -607,7 +630,7 @@
         "id": "c76b9gvv",
         "name": "status",
         "type": "text",
-        "required": true,
+        "required": false,
         "presentable": false,
         "unique": false,
         "options": {
@@ -621,8 +644,8 @@
     "listRule": "@request.auth.role = \"Admin\"",
     "viewRule": "@request.auth.role = \"Admin\"",
     "createRule": "@request.auth.id != \"\"",
-    "updateRule": "\"\"",
-    "deleteRule": "\"\"",
+    "updateRule": "@request.auth.role = \"\"",
+    "deleteRule": "@request.auth.role = \"\"",
     "options": {}
   }
 ]

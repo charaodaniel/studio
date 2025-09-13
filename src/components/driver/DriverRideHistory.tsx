@@ -130,15 +130,14 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         });
 
         return () => {
-            unsubscribeAuth();
             pb.realtime.unsubscribe();
         };
     }, [fetchRides]);
 
     const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange) => {
         if (!currentUser) return;
-        const startDate = format(dateRange.from, 'yyyy-MM-dd HH:mm:ss');
-        const endDate = format(dateRange.to, 'yyyy-MM-dd HH:mm:ss');
+        const startDate = format(dateRange.from, 'yyyy-MM-dd 00:00:00');
+        const endDate = format(dateRange.to, 'yyyy-MM-dd 23:59:59');
 
         const filteredRides = await pb.collection('rides').getFullList<RideRecord>({
             filter: `driver = "${currentUser.id}" && created >= "${startDate}" && created <= "${endDate}"`,
@@ -334,9 +333,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     
         setIsSubmitting(true);
         try {
-            const data = {
+            const rideData = {
                 driver: user.id,
-                passenger: null,
                 passenger_anonymous_name: user.name, // Always use the driver's name for manual rides
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
@@ -345,7 +343,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                 started_by: 'driver',
                 is_negotiated: false,
             };
-            const createdRide = await pb.collection('rides').create<RideRecord>(data);
+
+            const createdRide = await pb.collection('rides').create<RideRecord>(rideData);
     
             toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
             
@@ -353,9 +352,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
             setNewRide({ origin: '', destination: '', value: '' });
             document.getElementById('close-new-ride-dialog')?.click();
-        } catch (error) {
-            console.error("Failed to create manual ride:", error);
-            toast({ variant: 'destructive', title: 'Erro ao Registrar', description: 'Não foi possível registrar a corrida.' });
+        } catch (error: any) {
+            console.error("Failed to create manual ride:", error.data || error);
+            const errorMessage = error.data?.data?.passenger_anonymous_name?.message || "Não foi possível registrar a corrida.";
+            toast({ variant: 'destructive', title: 'Erro ao Registrar', description: errorMessage });
         } finally {
             setIsSubmitting(false);
         }
@@ -422,7 +422,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                                </TooltipProvider>
                            )}
                         </div>
-                        <div className="text-sm text-muted-foreground">{new Date(ride.updated).toLocaleString('pt-BR')}</div>
+                        <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleString('pt-BR')}</div>
                     </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
