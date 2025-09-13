@@ -122,13 +122,11 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
 
         const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
 
-        const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
+        pb.collection('rides').subscribe('*', (e) => {
             if (pb.authStore.model && e.record.driver === pb.authStore.model.id) {
-                 fetchRides(1);
+                 fetchRides(1); // Refetch all rides to ensure consistency
             }
-        };
-
-        pb.collection('rides').subscribe('*', handleRidesUpdate);
+        });
 
         return () => {
             unsubscribeAuth();
@@ -336,15 +334,15 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             const data = {
                 driver: user.id,
                 passenger: null,
-                passenger_anonymous_name: newRide.passengerName || user.name, // Fallback to driver's name
+                passenger_anonymous_name: user.name, // Always use the driver's name for manual rides
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
-                status: 'accepted', // Start as accepted to begin flow
+                status: 'accepted',
                 started_by: 'driver',
                 is_negotiated: false,
             };
-            const createdRide = await pb.collection('rides').create<RideRecord>(data, { expand: 'passenger' }); // expand passenger even if null
+            const createdRide = await pb.collection('rides').create<RideRecord>(data, { expand: 'passenger' });
     
             toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
             
