@@ -24,9 +24,9 @@ import PocketBase from 'pocketbase';
 import fetch from 'isomorphic-fetch';
 
 // --- CONFIGURAÇÃO ---
-const POCKETBASE_URL = 'https://mobmv.shop'; // Substitua pela URL do seu PocketBase
-const ADMIN_EMAIL = 'seu-email-de-admin@exemplo.com'; // <<< INSIRA SEU EMAIL DE ADMIN AQUI
-const ADMIN_PASSWORD = 'sua-senha-de-admin';      // <<< INSIRA SUA SENHA DE ADMIN AQUI
+const POCKETBASE_URL = 'https://mobmv.shop'; // Substitua pela URL do seu PocketBase (sem /_/)
+const ADMIN_EMAIL = 'daniel.kokynhw@gmail.com'; // <<< INSIRA SEU EMAIL DE ADMIN AQUI
+const ADMIN_PASSWORD = 'Dcm02061994@@';      // <<< INSIRA SUA SENHA DE ADMIN AQUI
 // --------------------
 
 
