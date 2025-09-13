@@ -97,7 +97,6 @@ export function PassengerRideHistory() {
         pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
-            unsubscribeAuth();
             pb.realtime.unsubscribe();
         };
     }, [fetchRides]);
