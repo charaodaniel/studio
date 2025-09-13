@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -198,7 +199,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         let finalY = 0;
-        
+
+        const validDateRides = ridesToExport.filter(ride => ride.created && !isNaN(new Date(ride.created).getTime()));
+        const invalidDateRides = ridesToExport.filter(ride => !ride.created || isNaN(new Date(ride.created).getTime()));
+
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
@@ -247,79 +251,96 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
         
         let startY = 62;
-        const hasManualOrInvalidDateRides = ridesToExport.some(ride => ride.started_by === 'driver' || !ride.created || isNaN(new Date(ride.created).getTime()));
-        if (hasManualOrInvalidDateRides) {
-            doc.setFont('helvetica', 'italic');
-            doc.setFontSize(8);
-            doc.setTextColor(150);
-            const warningText = "Aviso: Algumas datas podem ter sido ajustadas devido a um problema interno no servidor e podem não ser 100% precisas.";
-            const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
-            doc.text(splitText, 14, 58);
-            startY = 68; // Adjust table start position if warning is present
-        }
 
-        const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
-        const tableRows: (string | null)[][] = ridesToExport.map(ride => {
-            const dateStr = ride.created && !isNaN(new Date(ride.created).getTime()) 
-                ? new Date(ride.created).toLocaleString('pt-BR') 
-                : 'Data Inválida';
-            return [
-                dateStr,
+        if (validDateRides.length > 0) {
+            const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
+            const tableRows = validDateRides.map(ride => [
+                new Date(ride.created).toLocaleString('pt-BR'),
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
                 `${ride.origin_address} -> ${ride.destination_address}`,
                 `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                 ride.status,
-            ];
-        });
+            ]);
 
-        (doc as any).autoTable({
-            head: [tableColumn],
-            body: tableRows,
-            startY: startY,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [41, 121, 255],
-                textColor: 255,
-                fontStyle: 'bold',
-            },
-            styles: {
-                cellPadding: 3,
-                fontSize: 9,
-            },
-            columnStyles: {
-                3: { halign: 'right' }
-            },
-            didDrawPage: (data: any) => {},
-            didParseCell: (data: any) => {
-                if (data.column.dataKey === 4) {
-                    if (data.cell.raw === 'completed') {
-                        data.cell.styles.textColor = '#16a34a'; // green
-                    } else if (data.cell.raw === 'canceled') {
-                        data.cell.styles.textColor = '#dc2626'; // red
+            (doc as any).autoTable({
+                head: [tableColumn],
+                body: tableRows,
+                startY: startY,
+                theme: 'grid',
+                headStyles: { fillColor: [41, 121, 255], textColor: 255, fontStyle: 'bold' },
+                styles: { cellPadding: 3, fontSize: 9 },
+                columnStyles: { 3: { halign: 'right' } },
+                didParseCell: (data: any) => {
+                    if (data.column.dataKey === 4) {
+                        if (data.cell.raw === 'completed') data.cell.styles.textColor = '#16a34a';
+                        else if (data.cell.raw === 'canceled') data.cell.styles.textColor = '#dc2626';
                     }
-                }
-            },
-        });
-        
-        finalY = (doc as any).lastAutoTable.finalY || 75;
+                },
+            });
+            finalY = (doc as any).lastAutoTable.finalY || 75;
+        } else {
+            finalY = startY;
+        }
 
-        const completedRides = ridesToExport.filter(r => r.status === 'completed');
-        const canceledRides = ridesToExport.filter(r => r.status === 'canceled');
-        const totalRides = ridesToExport.length;
+        if (invalidDateRides.length > 0) {
+            finalY += 10;
+            doc.setFontSize(12);
+            doc.setTextColor(40);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Corridas com Data de Registro Inválida", 14, finalY);
+
+            finalY += 5;
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            const warningText = "Aviso: Corridas anteriores a 13/09/2024 podem não exibir a data correta devido a um erro no servidor.";
+            const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
+            doc.text(splitText, 14, finalY);
+            finalY += (splitText.length * 3) + 2;
+
+
+            const invalidTableColumn = ["Passageiro", "Trajeto", "Valor (R$)", "Status"];
+            const invalidTableRows = invalidDateRides.map(ride => [
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
+                `${ride.origin_address} -> ${ride.destination_address}`,
+                `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+                ride.status,
+            ]);
+
+            (doc as any).autoTable({
+                head: [invalidTableColumn],
+                body: invalidTableRows,
+                startY: finalY,
+                theme: 'grid',
+                headStyles: { fillColor: [249, 115, 22], textColor: 255, fontStyle: 'bold' }, // Orange header
+                styles: { cellPadding: 3, fontSize: 9 },
+                columnStyles: { 2: { halign: 'right' } },
+                 didParseCell: (data: any) => {
+                    if (data.column.dataKey === 3) {
+                        if (data.cell.raw === 'completed') data.cell.styles.textColor = '#16a34a';
+                        else if (data.cell.raw === 'canceled') data.cell.styles.textColor = '#dc2626';
+                    }
+                },
+            });
+            finalY = (doc as any).lastAutoTable.finalY || finalY;
+        }
+
+        // Performance Summary based only on valid rides
+        const completedRides = validDateRides.filter(r => r.status === 'completed');
         const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
 
         doc.setFontSize(12);
         doc.setTextColor(40);
         doc.setFont('helvetica', 'bold');
-        doc.text("Resumo de Desempenho", 14, finalY + 10);
+        doc.text("Resumo de Desempenho (Corridas Válidas)", 14, finalY + 12);
         
         (doc as any).autoTable({
-            startY: finalY + 15,
+            startY: finalY + 17,
             head: [['Métrica', 'Total', 'Valor']],
             body: [
                 ['Corridas Concluídas', completedRides.length.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
-                ['Corridas Canceladas', canceledRides.length.toString(), 'R$ 0,00'],
-                ['Total de Corridas', totalRides.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
+                ['Corridas Canceladas (Válidas)', validDateRides.filter(r => r.status === 'canceled').length.toString(), 'R$ 0,00'],
+                ['Total de Corridas (Válidas)', validDateRides.length.toString(), `R$ ${totalValue.toFixed(2).replace('.', ',')}`],
             ],
             theme: 'striped',
             headStyles: { fillColor: [241, 245, 249] , textColor: 20 },
@@ -607,3 +628,4 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     </>
   );
 }
+
