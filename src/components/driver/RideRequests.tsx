@@ -298,6 +298,12 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                             <p className="text-xs text-green-600 font-bold">{!passengerOnBoard ? 'A CAMINHO DO PASSAGEIRO' : 'VIAGEM EM ANDAMENTO'}</p>
                         </div>
                     </div>
+                     <div className="flex items-center gap-2 text-sm p-3 border rounded-md bg-muted/50">
+                        <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                        <div>
+                            <span className="font-semibold">Destino:</span> {acceptedRide.destination_address}
+                        </div>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
                     {!passengerOnBoard ? (
