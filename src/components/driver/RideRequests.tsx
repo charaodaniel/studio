@@ -151,7 +151,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
                 filter: rideFilter,
                 expand: 'passenger',
-                sort: 'scheduled_for,-created' // Prioriza agendadas
+                sort: '-created'
             });
 
             const fullRequests = await Promise.all(rideRecords.map(async (ride) => {
