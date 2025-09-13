@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -199,25 +200,30 @@ const appData = {
         
         let startY = 62;
 
-        const hasManualOrInvalidDateRides = rides.some(ride => ride.started_by === 'driver');
+        const hasManualOrInvalidDateRides = rides.some(ride => ride.started_by === 'driver' || !ride.created || isNaN(new Date(ride.created).getTime()));
         if (hasManualOrInvalidDateRides) {
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
-            const warningText = "Aviso: Algumas datas podem ter sido ajustadas devido a um problema interno no servidor e podem não ser 100% precisas.";
+            const warningText = "Aviso: Algumas datas podem ter sido ajustadas ou são de corridas manuais, e podem não ser 100% precisas.";
             const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
             doc.text(splitText, 14, 58);
             startY = 68; // Adjust table start position if warning is present
         }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
-        const tableRows: (string | null)[][] = rides.map(ride => [
-            new Date(ride.updated).toLocaleString('pt-BR'),
-            ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
-            `${ride.origin_address} -> ${ride.destination_address}`,
-            `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
-            ride.status,
-        ]);
+        const tableRows: (string | null)[][] = rides.map(ride => {
+            const dateStr = ride.created && !isNaN(new Date(ride.created).getTime()) 
+                ? new Date(ride.created).toLocaleString('pt-BR') 
+                : 'Data Inválida';
+            return [
+                dateStr,
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
+                `${ride.origin_address} -> ${ride.destination_address}`,
+                `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+                ride.status,
+            ];
+        });
         
         (doc as any).autoTable({
             head: [tableColumn],

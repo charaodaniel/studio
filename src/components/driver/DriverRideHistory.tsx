@@ -70,19 +70,29 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         to: endOfDay(new Date()),
     });
 
-    const fetchRides = useCallback(async () => {
-        if (!pb.authStore.model?.id || !dateRange?.from || !dateRange?.to) return;
+    const fetchRides = useCallback(async (filterOverride?: string) => {
+        if (!pb.authStore.model?.id) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
             const driverId = pb.authStore.model.id;
-            const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
-            const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
+            let filter = '';
+            
+            if (filterOverride) {
+                filter = `driver = "${driverId}" && (${filterOverride})`;
+            } else if (dateRange?.from && dateRange?.to) {
+                const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
+                const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
+                filter = `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`;
+            } else {
+                 setIsLoading(false);
+                 return;
+            }
             
             const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
+                filter: filter,
                 sort: '-created',
                 expand: 'passenger',
             });
@@ -237,25 +247,30 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
         
         let startY = 62;
-        const hasManualOrInvalidDateRides = ridesToExport.some(ride => ride.started_by === 'driver');
+        const hasManualOrInvalidDateRides = ridesToExport.some(ride => ride.started_by === 'driver' || !ride.created || isNaN(new Date(ride.created).getTime()));
         if (hasManualOrInvalidDateRides) {
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(8);
             doc.setTextColor(150);
-            const warningText = "Aviso: Algumas datas podem ter sido ajustadas devido a um problema interno no servidor e podem não ser 100% precisas.";
+            const warningText = "Aviso: Algumas datas podem ter sido ajustadas ou são de corridas manuais, e podem não ser 100% precisas.";
             const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
             doc.text(splitText, 14, 58);
             startY = 68; // Adjust table start position if warning is present
         }
 
         const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
-        const tableRows: (string | null)[][] = ridesToExport.map(ride => [
-            new Date(ride.updated).toLocaleString('pt-BR'),
-            ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
-            `${ride.origin_address} -> ${ride.destination_address}`,
-            `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
-            ride.status,
-        ]);
+        const tableRows: (string | null)[][] = ridesToExport.map(ride => {
+            const dateStr = ride.created && !isNaN(new Date(ride.created).getTime()) 
+                ? new Date(ride.created).toLocaleString('pt-BR') 
+                : 'Data Inválida';
+            return [
+                dateStr,
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
+                `${ride.origin_address} -> ${ride.destination_address}`,
+                `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+                ride.status,
+            ];
+        });
 
         (doc as any).autoTable({
             head: [tableColumn],
@@ -393,7 +408,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                         <TableCell colSpan={3} className="text-center p-8 text-muted-foreground">
                             <History className="h-10 w-10 mb-4 mx-auto" />
                             <p className="font-semibold">Nenhuma corrida encontrada</p>
-                            <p className="text-sm">Seu histórico de corridas aparecerá aqui.</p>
+                            <p className="text-sm">Seu histórico de corridas para o período selecionado aparecerá aqui.</p>
                         </TableCell>
                     </TableRow>
                 </TableBody>
@@ -401,34 +416,40 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         }
         return (
             <TableBody>
-                {rides.map((ride) => (
-                    <TableRow key={ride.id}>
-                    <TableCell>
-                        <div className="font-medium flex items-center gap-2">
-                           <User className="h-3 w-3" />
-                           {ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A')}
-                           {ride.started_by === 'driver' && (
-                               <TooltipProvider>
-                                   <Tooltip>
-                                       <TooltipTrigger>
-                                           <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                       </TooltipTrigger>
-                                       <TooltipContent>
-                                           <p>Corrida registrada manualmente por você.</p>
-                                       </TooltipContent>
-                                   </Tooltip>
-                               </TooltipProvider>
-                           )}
-                        </div>
-                        <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleString('pt-BR')}</div>
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
-                        <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-accent" /> {ride.destination_address}</div>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">R$ {ride.fare.toFixed(2).replace('.', ',')}</TableCell>
-                    </TableRow>
-                ))}
+                {rides.map((ride) => {
+                    const dateStr = ride.created && !isNaN(new Date(ride.created).getTime()) 
+                        ? new Date(ride.created).toLocaleString('pt-BR') 
+                        : 'Data Inválida';
+
+                    return (
+                        <TableRow key={ride.id}>
+                            <TableCell>
+                                <div className="font-medium flex items-center gap-2">
+                                    <User className="h-3 w-3" />
+                                    {ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A')}
+                                    {ride.started_by === 'driver' && (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Corrida registrada manualmente por você.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                </div>
+                                <div className={`text-sm ${dateStr === 'Data Inválida' ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{dateStr}</div>
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
+                                <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-accent" /> {ride.destination_address}</div>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">R$ {ride.fare.toFixed(2).replace('.', ',')}</TableCell>
+                        </TableRow>
+                    );
+                })}
             </TableBody>
         );
     }
@@ -478,9 +499,23 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                         />
                     </PopoverContent>
                 </Popover>
-                <Button variant="ghost" size="icon" onClick={fetchRides} disabled={isLoading}>
-                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-                </Button>
+                <div className="flex gap-2">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="outline" size="icon" onClick={() => fetchRides('created = null || created = ""')} disabled={isLoading}>
+                                    <AlertTriangle className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Ver corridas com data inválida</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <Button variant="ghost" size="icon" onClick={() => fetchRides()} disabled={isLoading}>
+                        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                    </Button>
+                </div>
             </div>
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center justify-end gap-2 mb-4">

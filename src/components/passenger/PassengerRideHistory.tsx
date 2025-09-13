@@ -2,7 +2,7 @@
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, Car, MapPin, WifiOff, Loader2, Calendar as CalendarIcon, RefreshCw } from "lucide-react";
+import { History, Car, MapPin, WifiOff, Loader2, Calendar as CalendarIcon, RefreshCw, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import pb from "@/lib/pocketbase";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -42,19 +43,29 @@ export function PassengerRideHistory() {
         to: endOfDay(new Date()),
     });
     
-    const fetchRides = useCallback(async () => {
-        if (!pb.authStore.isValid || !dateRange?.from || !dateRange?.to) return;
+    const fetchRides = useCallback(async (filterOverride?: string) => {
+        if (!pb.authStore.isValid) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
             const passengerId = pb.authStore.model!.id;
-            const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
-            const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
+            let filter = '';
+            
+            if (filterOverride) {
+                filter = `passenger = "${passengerId}" && (${filterOverride})`;
+            } else if (dateRange?.from && dateRange?.to) {
+                const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
+                const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
+                filter = `passenger = "${passengerId}" && created >= "${startDate}" && created <= "${endDate}"`;
+            } else {
+                setIsLoading(false);
+                return;
+            }
 
             const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `passenger = "${passengerId}" && created >= "${startDate}" && created <= "${endDate}"`,
+                filter: filter,
                 sort: '-created',
                 expand: 'driver',
             });
@@ -146,22 +157,28 @@ export function PassengerRideHistory() {
         }
         return (
             <TableBody>
-                {rides.map((ride) => (
-                    <TableRow key={ride.id}>
-                        <TableCell>
-                            <div className="font-medium flex items-center gap-2">
-                            <Car className="h-3 w-3" />
-                            {ride.expand?.driver?.name || "Motorista não definido"}
-                            </div>
-                            <div className="text-sm text-muted-foreground">{new Date(ride.created).toLocaleString('pt-BR')}</div>
-                        </TableCell>
-                        <TableCell>
-                            <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
-                            <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-accent" /> {ride.destination_address}</div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">R$ {ride.fare.toFixed(2).replace('.', ',')}</TableCell>
-                    </TableRow>
-                ))}
+                {rides.map((ride) => {
+                    const dateStr = ride.created && !isNaN(new Date(ride.created).getTime()) 
+                        ? new Date(ride.created).toLocaleString('pt-BR') 
+                        : 'Data Inválida';
+
+                    return (
+                        <TableRow key={ride.id}>
+                            <TableCell>
+                                <div className="font-medium flex items-center gap-2">
+                                <Car className="h-3 w-3" />
+                                {ride.expand?.driver?.name || "Motorista não definido"}
+                                </div>
+                                <div className={`text-sm ${dateStr === 'Data Inválida' ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{dateStr}</div>
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
+                                <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-accent" /> {ride.destination_address}</div>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">R$ {ride.fare.toFixed(2).replace('.', ',')}</TableCell>
+                        </TableRow>
+                    );
+                })}
             </TableBody>
         );
     }
@@ -207,9 +224,23 @@ export function PassengerRideHistory() {
                         />
                     </PopoverContent>
                 </Popover>
-                 <Button variant="ghost" size="icon" onClick={fetchRides} disabled={isLoading}>
-                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-                </Button>
+                <div className="flex gap-2">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="outline" size="icon" onClick={() => fetchRides('created = null || created = ""')} disabled={isLoading}>
+                                    <AlertTriangle className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Ver corridas com data inválida</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                     <Button variant="ghost" size="icon" onClick={() => fetchRides()} disabled={isLoading}>
+                        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                    </Button>
+                </div>
             </div>
         </div>
         <ScrollArea className="h-96 w-full">
