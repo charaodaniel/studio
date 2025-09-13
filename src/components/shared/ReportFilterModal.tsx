@@ -43,7 +43,7 @@ export default function ReportFilterModal({ isOpen, onOpenChange, onGenerateRepo
     const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
     const [date, setDate] = useState<ReactDateRange | undefined>({
         from: startOfMonth(new Date()),
-        to: endOfMonth(new Date()),
+        to: endOfDay(new Date()),
     });
 
     const monthOptions = getMonthOptions();
@@ -66,6 +66,15 @@ export default function ReportFilterModal({ isOpen, onOpenChange, onGenerateRepo
             onOpenChange(false); // Close modal after generating
         }
     };
+
+    const handleGenerateComplete = () => {
+        const completeDateRange = {
+            from: new Date(2024, 0, 1), // A very early date
+            to: new Date(),
+        };
+        onGenerateReport(completeDateRange);
+        onOpenChange(false);
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -139,9 +148,12 @@ export default function ReportFilterModal({ isOpen, onOpenChange, onGenerateRepo
                         </Popover>
                     </TabsContent>
                 </Tabs>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleGenerate}>Gerar Relatório</Button>
+                <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
+                    <Button variant="ghost" onClick={handleGenerateComplete} className="w-full sm:w-auto justify-center sm:justify-start">Gerar Relatório Completo</Button>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0">
+                         <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                        <Button onClick={handleGenerate}>Gerar do Período</Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
