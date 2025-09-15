@@ -13,7 +13,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
-import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { useRideRequestSound } from '@/hooks/useRideRequestSound';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -112,7 +112,7 @@ interface FullRideRequest {
 
 export function RideRequests({ setDriverStatus, manualRideOverride, onManualRideEnd }: { setDriverStatus: (status: string) => void, manualRideOverride: RideRecord | null, onManualRideEnd: () => void }) {
     const { toast } = useToast();
-    const { playNotification } = useNotificationSound();
+    const { playRideRequestSound } = useRideRequestSound();
     const [requests, setRequests] = useState<FullRideRequest[]>([]);
     const [acceptedRide, setAcceptedRide] = useState<RideRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -185,7 +185,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             const driverId = pb.authStore.model?.id;
             if (driverId && e.record.driver === driverId) {
                 if(e.action === 'create' && e.record.status === 'requested') {
-                    playNotification();
+                    playRideRequestSound();
                 }
                 fetchRequests();
             }
@@ -196,7 +196,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         return () => {
             pb.collection('rides').unsubscribe('*');
         };
-    }, [fetchRequests, manualRideOverride, playNotification]);
+    }, [fetchRequests, manualRideOverride, playRideRequestSound]);
 
 
     const handleAccept = async (ride: RideRecord) => {
