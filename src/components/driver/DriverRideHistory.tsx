@@ -4,7 +4,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
+import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Switch } from "../ui/switch";
 
 interface RideRecord extends RecordModel {
     passenger: string | null;
@@ -40,6 +42,8 @@ interface RideRecord extends RecordModel {
     passenger_anonymous_name?: string;
     created: string;
     updated: string;
+    scheduled_for?: string;
+    ride_description?: string;
     expand?: {
         driver?: RecordModel;
         passenger?: RecordModel;
@@ -59,7 +63,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
-    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '' });
+    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '', passengerName: '' });
     const { toast } = useToast();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
@@ -70,6 +74,12 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         from: startOfMonth(new Date()),
         to: endOfDay(new Date()),
     });
+
+    // States for scheduling
+    const [isScheduling, setIsScheduling] = useState(false);
+    const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+    const [scheduledTime, setScheduledTime] = useState<string>('');
+
 
     const fetchRides = useCallback(async (filterOverride?: string) => {
         if (!pb.authStore.model?.id) return;
@@ -141,7 +151,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         pb.collection('rides').subscribe('*', handleRidesUpdate);
 
         return () => {
-            pb.realtime.unsubscribe();
+            pb.collection('rides').unsubscribe('*');
+            unsubscribeAuth();
         };
     }, [fetchRides]);
 
@@ -371,6 +382,20 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         doc.save("relatorio_corridas_ceolin.pdf");
     };
 
+    const getFullScheduledDate = () => {
+        if (!isScheduling || !scheduledDate || !scheduledTime) return undefined;
+        const [hours, minutes] = scheduledTime.split(':');
+        const date = new Date(scheduledDate);
+        date.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+        return date;
+    }
+
+    const timeOptions = Array.from({ length: 48 }, (_, i) => {
+        const hour = Math.floor(i / 2);
+        const minute = (i % 2) * 30;
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    });
+
     const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
         const user = pb.authStore.model as UserData | null;
@@ -380,27 +405,45 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             toast({ variant: 'destructive', title: 'Campos obrigatórios' });
             return;
         }
+
+        const fullScheduledDate = getFullScheduledDate();
+        if (isScheduling && !fullScheduledDate) {
+            toast({ variant: 'destructive', title: 'Data/Hora de Agendamento Inválida' });
+            return;
+        }
     
         setIsSubmitting(true);
         try {
-            const rideData = {
+            const rideData: { [key: string]: any } = {
                 driver: user.id,
-                passenger_anonymous_name: user.name, // Use driver's name for anonymous ride
+                passenger_anonymous_name: newRide.passengerName || user.name, // Use provided name or driver's name
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
                 fare: parseFloat(newRide.value),
-                status: 'accepted',
+                status: isScheduling ? 'requested' : 'accepted',
                 started_by: 'driver',
                 is_negotiated: false,
             };
 
+            if (isScheduling && fullScheduledDate) {
+                rideData.scheduled_for = fullScheduledDate.toISOString();
+                rideData.ride_description = `Viagem agendada para ${format(fullScheduledDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Passageiro: ${newRide.passengerName}. Valor: R$ ${newRide.value}`;
+            }
+
             const createdRide = await pb.collection('rides').create<RideRecord>(rideData);
     
-            toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
-            
-            onManualRideStart(createdRide);
+            if (isScheduling) {
+                toast({ title: 'Corrida Agendada!', description: 'A corrida agendada foi adicionada às suas solicitações.' });
+                fetchRides();
+            } else {
+                toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
+                onManualRideStart(createdRide);
+            }
 
-            setNewRide({ origin: '', destination: '', value: '' });
+            setNewRide({ origin: '', destination: '', value: '', passengerName: '' });
+            setIsScheduling(false);
+            setScheduledDate(undefined);
+            setScheduledTime('');
             document.getElementById('close-new-ride-dialog')?.click();
         } catch (error: any) {
             console.error("Failed to create manual ride:", error.data || error);
@@ -560,19 +603,23 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                 <DialogTrigger asChild>
                     <Button variant="outline" className="w-full sm:w-auto">
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Registrar Corrida Manual
+                        Registrar Corrida
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
                     <form onSubmit={handleStartManualRide}>
                         <DialogHeader>
-                            <DialogTitle>Iniciar Nova Corrida Manual</DialogTitle>
+                            <DialogTitle>Registrar Nova Corrida</DialogTitle>
                             <DialogDescription>
-                                Preencha os dados para uma corrida iniciada presencialmente.
+                                Preencha os dados para uma corrida combinada ou agendada.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <Label htmlFor="passenger-name">Nome do Passageiro</Label>
+                                <Input id="passenger-name" value={newRide.passengerName} onChange={(e) => setNewRide(prev => ({ ...prev, passengerName: e.target.value }))} required placeholder="Ex: João Silva" />
+                            </div>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <Label htmlFor="origin-location">Local de Partida</Label>
                                     <Input id="origin-location" value={newRide.origin} onChange={(e) => setNewRide(prev => ({ ...prev, origin: e.target.value }))} required placeholder="Ex: Rua Principal, 123" />
@@ -583,8 +630,32 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <Label htmlFor="ride-value">Valor da Corrida (R$)</Label>
+                                <Label htmlFor="ride-value">Valor Combinado (R$)</Label>
                                 <Input id="ride-value" type="number" step="0.01" value={newRide.value} onChange={(e) => setNewRide(prev => ({ ...prev, value: e.target.value }))} required placeholder="25.50" />
+                            </div>
+                            
+                            <div className="space-y-2 rounded-lg border p-4">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="scheduling-switch" className="font-semibold">Agendar para o futuro?</Label>
+                                    <Switch id="scheduling-switch" checked={isScheduling} onCheckedChange={setIsScheduling} />
+                                </div>
+                                {isScheduling && (
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("justify-start text-left font-normal", !scheduledDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {scheduledDate ? format(scheduledDate, "dd/MM/yy") : <span>Data</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} initialFocus locale={ptBR} /></PopoverContent>
+                                        </Popover>
+                                        <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                                            <SelectTrigger><Clock className="mr-2 h-4 w-4" /><SelectValue placeholder="Horário" /></SelectTrigger>
+                                            <SelectContent>{timeOptions.map(time => (<SelectItem key={time} value={time}>{time}</SelectItem>))}</SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <DialogFooter>
@@ -592,8 +663,8 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
                                 <Button type="button" variant="secondary" id="close-new-ride-dialog" disabled={isSubmitting}>Cancelar</Button>
                             </DialogClose>
                             <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Iniciar Corrida
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isScheduling ? 'Agendar Corrida' : 'Iniciar Corrida Agora'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -644,4 +715,3 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
     </>
   );
 }
-
