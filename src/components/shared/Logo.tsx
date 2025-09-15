@@ -19,12 +19,10 @@ export default function Logo({ alt = "CEOLIN Mobilidade Urbana Logo", ...props }
       <title id="logoTitle">{alt}</title>
       <desc id="logoDesc">Logo da CEOLIN Mobilidade Urbana, com o nome da empresa e a tagline.</desc>
       <defs>
-        <style>
-          {`
+        <style dangerouslySetInnerHTML={{ __html: `
             .text-ceolin { fill: #1E3A8A; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; letter-spacing: -1px;}
             .text-tagline { fill: #DC2626; font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 8px; letter-spacing: 0.5px; text-transform: uppercase; }
-          `}
-        </style>
+        ` }} />
       </defs>
       <text x="0" y="20" className="text-ceolin">
         CEOLIN
