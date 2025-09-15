@@ -96,7 +96,7 @@ O protótipo atual é um MVP (Produto Mínimo Viável) robusto, com a interface 
 
 ### Para o Passageiro
 
--   **Interface de Solicitação de Corrida** (Urbana e Interior).
+-   **Interface de Solicitação de Corrida** (Urbana e Interior), com opção de **agendamento** para data e hora futuras.
 -   **Visualização de Motoristas** disponíveis em cartões com status em tempo real.
 -   **Formulários de Login e Cadastro**.
 -   **Recuperação de Senha** via e-mail.
@@ -107,7 +107,7 @@ O protótipo atual é um MVP (Produto Mínimo Viável) robusto, com a interface 
 ### Para o Motorista
 
 -   **Painel de Controle Completo** com abas para:
-    -   **Solicitações:** Receber e gerenciar novas corridas em tempo real.
+    -   **Solicitações:** Receber e gerenciar novas corridas, incluindo **corridas agendadas**.
     -   **Conversas:** Histórico de chats com passageiros.
     -   **Histórico:** Lista de corridas realizadas com opções avançadas.
     -   **Perfil:** Gerenciamento de dados pessoais, veículo, documentos e configurações de tarifa.
