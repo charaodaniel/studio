@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import pb from '@/lib/pocketbase';
 import Logo from '@/components/shared/Logo';
-import { Loader2, KeyRound } from 'lucide-react';
+import { Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 
 function ResetPasswordComponent() {
@@ -22,6 +22,8 @@ function ResetPasswordComponent() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   
   useEffect(() => {
     const urlToken = searchParams.get('token');
@@ -92,25 +94,51 @@ function ResetPasswordComponent() {
                 <form onSubmit={handleResetPassword} className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="new-password">Nova Senha</Label>
-                        <Input 
-                            id="new-password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
+                        <div className="relative">
+                            <Input 
+                                id="new-password"
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                disabled={isLoading}
+                                className="pr-10"
+                            />
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff /> : <Eye />}
+                            </Button>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
-                        <Input
-                            id="confirm-password"
-                            type="password"
-                            value={passwordConfirm}
-                            onChange={(e) => setPasswordConfirm(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
+                         <div className="relative">
+                            <Input
+                                id="confirm-password"
+                                type={showPasswordConfirm ? 'text' : 'password'}
+                                value={passwordConfirm}
+                                onChange={(e) => setPasswordConfirm(e.target.value)}
+                                required
+                                disabled={isLoading}
+                                className="pr-10"
+                            />
+                             <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                                onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                                tabIndex={-1}
+                            >
+                                {showPasswordConfirm ? <EyeOff /> : <Eye />}
+                            </Button>
+                        </div>
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading || !token}>
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, History, MessageSquare, ShieldCheck } from 'lucide-react';
+import { Camera, History, MessageSquare, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogTrigger } from '../ui/dialog';
@@ -29,6 +30,9 @@ export function PassengerProfilePage() {
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
 
   useEffect(() => {
     const currentUser = pb.authStore.model as User | null;
@@ -167,11 +171,17 @@ export function PassengerProfilePage() {
                         <h3 className="font-semibold font-headline">Alterar Senha</h3>
                         <div>
                             <Label htmlFor="newPassword">Nova Senha</Label>
-                            <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={isSaving}/>
+                             <div className="relative">
+                                <Input id="newPassword" type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={isSaving} className="pr-10"/>
+                                <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground" onClick={() => setShowNewPassword(!showNewPassword)} tabIndex={-1}>{showNewPassword ? <EyeOff/> : <Eye/>}</Button>
+                            </div>
                         </div>
                          <div>
                             <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-                            <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isSaving}/>
+                            <div className="relative">
+                                <Input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isSaving} className="pr-10"/>
+                                <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground" onClick={() => setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1}>{showConfirmPassword ? <EyeOff/> : <Eye/>}</Button>
+                            </div>
                         </div>
                         <Button type="submit" className="w-full" disabled={isSaving}>
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

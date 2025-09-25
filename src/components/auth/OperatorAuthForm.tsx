@@ -6,11 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/shared/Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Checkbox } from '../ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import pb from '@/lib/pocketbase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
 export default function OperatorAuthForm() {
@@ -19,6 +18,7 @@ export default function OperatorAuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
 
   const hasRole = (userRole: string | string[], roleToCheck: string): boolean => {
     if (Array.isArray(userRole)) {
@@ -96,18 +96,27 @@ export default function OperatorAuthForm() {
                     </DialogContent>
                 </Dialog>
             </div>
-            <Input 
-                id="password-operator" 
-                type="password" 
-                required 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-            />
+            <div className="relative">
+                <Input
+                    id="password-operator"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="pr-10"
+                />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
             </div>
-             <div className="flex items-center space-x-2">
-                <Checkbox id="remember-me-operator" disabled={isLoading} />
-                <Label htmlFor="remember-me-operator" className="text-sm font-normal">Mantenha-me conectado</Label>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

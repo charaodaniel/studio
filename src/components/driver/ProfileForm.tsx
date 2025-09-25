@@ -2,7 +2,7 @@
 
 'use client';
 import { Button } from '@/components/ui/button';
-import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon } from 'lucide-react';
+import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
@@ -128,6 +128,8 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   // States for Personal Info
   const [formData, setFormData] = useState<Partial<User>>(user);
   const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { id, value } = e.target;
@@ -255,11 +257,17 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                                 <h3 className="font-medium">Alterar Senha</h3>
                                 <div className="space-y-1">
                                     <Label htmlFor="new-password">Nova Senha</Label>
-                                    <Input id="new-password" type="password" value={newPassword.password} onChange={(e) => setNewPassword(prev => ({...prev, password: e.target.value}))} required />
+                                    <div className="relative">
+                                        <Input id="new-password" type={showPassword ? "text" : "password"} value={newPassword.password} onChange={(e) => setNewPassword(prev => ({...prev, password: e.target.value}))} required />
+                                        <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}><Eye className="h-4 w-4" /></Button>
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
-                                    <Input id="confirm-new-password" type="password" value={newPassword.confirmPassword} onChange={(e) => setNewPassword(prev => ({...prev, confirmPassword: e.target.value}))} required />
+                                    <div className="relative">
+                                        <Input id="confirm-new-password" type={showPasswordConfirm ? "text" : "password"} value={newPassword.confirmPassword} onChange={(e) => setNewPassword(prev => ({...prev, confirmPassword: e.target.value}))} required />
+                                        <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground" onClick={() => setShowPasswordConfirm(!showPasswordConfirm)} tabIndex={-1}><Eye className="h-4 w-4" /></Button>
+                                    </div>
                                 </div>
                                 <Button type="submit" variant="secondary" className="w-full">Confirmar Nova Senha</Button>
                             </form>

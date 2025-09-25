@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Logo from '../shared/Logo';
-import { Checkbox } from '../ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import pb from '@/lib/pocketbase';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
@@ -161,14 +160,11 @@ export default function DriverAuthForm() {
                             size="icon" 
                             className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
                             onClick={() => setShowLoginPassword(!showLoginPassword)}
+                            tabIndex={-1}
                         >
                             {showLoginPassword ? <EyeOff /> : <Eye />}
                         </Button>
                    </div>
-                </div>
-                 <div className="flex items-center space-x-2">
-                    <Checkbox id="remember-me-driver" disabled={isLoading} />
-                    <Label htmlFor="remember-me-driver" className="text-sm font-normal">Mantenha-me conectado</Label>
                 </div>
                 <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -204,6 +200,7 @@ export default function DriverAuthForm() {
                         size="icon" 
                         className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
                         onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        tabIndex={-1}
                     >
                         {showRegisterPassword ? <EyeOff /> : <Eye />}
                     </Button>

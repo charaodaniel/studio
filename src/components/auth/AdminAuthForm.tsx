@@ -8,9 +8,8 @@ import Logo from '@/components/shared/Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { POCKETBASE_URL } from '@/lib/pocketbase';
-import { Checkbox } from '../ui/checkbox';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
@@ -20,6 +19,8 @@ export default function AdminAuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,18 +111,27 @@ export default function AdminAuthForm() {
                 </DialogContent>
               </Dialog>
             </div>
-            <Input 
-              id="password-admin" 
-              type="password" 
-              required 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-           <div className="flex items-center space-x-2">
-            <Checkbox id="remember-me-admin" />
-            <Label htmlFor="remember-me-admin" className="text-sm font-normal">Mantenha-me conectado</Label>
+             <div className="relative">
+                <Input
+                    id="password-admin"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="pr-10"
+                />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

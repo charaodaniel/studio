@@ -9,10 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CardContent, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, PenSquare, ShieldCheck, History, MessageSquare, Loader2 } from 'lucide-react';
+import { LogOut, PenSquare, ShieldCheck, History, MessageSquare, Loader2, Eye, EyeOff } from 'lucide-react';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '../ui/checkbox';
 import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import type { RecordModel } from 'pocketbase';
@@ -35,11 +34,14 @@ export default function PassengerAuthForm() {
   // States for login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
 
   // States for registration form
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   useEffect(() => {
     const unsubscribe = pb.authStore.onChange(() => {
@@ -193,11 +195,27 @@ export default function PassengerAuthForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-login">Senha</Label>
-                  <Input id="password-login" type="password" required disabled={isLoading} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-                </div>
-                 <div className="flex items-center space-x-2 pt-2">
-                    <Checkbox id="remember-me-passenger" disabled={isLoading}/>
-                    <Label htmlFor="remember-me-passenger" className="text-sm font-normal">Mantenha-me conectado</Label>
+                   <div className="relative">
+                        <Input
+                            id="password-login"
+                            type={showLoginPassword ? 'text' : 'password'}
+                            required
+                            disabled={isLoading}
+                            value={loginPassword}
+                            onChange={(e) => setLoginPassword(e.target.value)}
+                            className="pr-10"
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                            onClick={() => setShowLoginPassword(!showLoginPassword)}
+                            tabIndex={-1}
+                        >
+                            {showLoginPassword ? <EyeOff /> : <Eye />}
+                        </Button>
+                    </div>
                 </div>
               </CardContent>
               <CardFooter className="px-0 pb-0">
@@ -221,7 +239,27 @@ export default function PassengerAuthForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-register">Senha</Label>
-                  <Input id="password-register" type="password" required disabled={isLoading} value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)} />
+                   <div className="relative">
+                        <Input
+                            id="password-register"
+                            type={showRegisterPassword ? 'text' : 'password'}
+                            required
+                            disabled={isLoading}
+                            value={registerPassword}
+                            onChange={(e) => setRegisterPassword(e.target.value)}
+                            className="pr-10"
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                            onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                            tabIndex={-1}
+                        >
+                            {showRegisterPassword ? <EyeOff /> : <Eye />}
+                        </Button>
+                    </div>
                 </div>
               </CardContent>
               <CardFooter className="px-0 pb-0">
