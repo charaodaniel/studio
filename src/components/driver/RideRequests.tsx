@@ -368,7 +368,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-2 w-full">
-                             <Button variant="destructive" className="w-full" onClick={handleEndRide}>
+                             <Button className="w-full" onClick={handleEndRide}>
                                 <CheckSquare className="mr-2 h-4 w-4" />
                                 Finalizar Viagem
                             </Button>
