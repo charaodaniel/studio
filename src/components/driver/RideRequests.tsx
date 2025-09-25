@@ -338,6 +338,12 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                             <span className="font-semibold">Destino:</span> {acceptedRide.destination_address}
                         </div>
                     </div>
+                    <div className="flex items-center gap-2 text-sm p-3 border rounded-md bg-muted/50">
+                        <DollarSign className="h-4 w-4 text-primary flex-shrink-0" />
+                        <div>
+                            <span className="font-semibold">Valor:</span> R$ {acceptedRide.fare.toFixed(2)}
+                        </div>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2">
                     {!passengerOnBoard ? (
@@ -417,10 +423,40 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     }
     
     if(requests.length === 0) {
+        const currentUser = pb.authStore.model as User | null;
+
         return (
             <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card space-y-4">
                 <CardTitle>Nenhuma solicitação no momento</CardTitle>
                 <CardDescription>Aguardando novas corridas...</CardDescription>
+                {currentUser?.driver_status === 'online' && (
+                    <Button variant="secondary" onClick={() => {
+                        const newStatus = currentUser?.driver_fare_type === 'fixed' ? 'in_progress' : 'accepted';
+                        onManualRideEnd(); // This is a bit of a hack, but it resets state
+                         try {
+                             pb.collection('rides').create({
+                                driver: currentUser.id,
+                                status: newStatus,
+                                started_by: 'driver',
+                                origin_address: 'Corrida Rápida',
+                                destination_address: 'A definir',
+                                fare: currentUser?.driver_fare_type === 'fixed' ? currentUser.driver_fixed_rate : 0,
+                                is_negotiated: false,
+                                passenger_anonymous_name: 'Passageiro (Rápida)'
+                            }).then((newRide) => {
+                                 toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está pronta para começar." });
+                                 setDriverStatus('urban-trip');
+                                 setAcceptedRide(newRide);
+                                 if (newStatus === 'in_progress') setPassengerOnBoard(true);
+                            });
+                        } catch (e) {
+                             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar a corrida rápida.' });
+                        }
+                    }}>
+                        <Zap className="mr-2 h-4 w-4" />
+                        Corrida Rápida (Urbano)
+                    </Button>
+                 )}
             </div>
         )
     }
