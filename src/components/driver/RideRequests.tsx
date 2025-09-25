@@ -358,16 +358,10 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                             </Button>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 gap-2 w-full">
-                             <Button className="w-full" onClick={handleEndRide}>
-                                <CheckCheck className="mr-2 h-4 w-4" />
-                                Finalizar Viagem
-                            </Button>
-                             <Button className="w-full" onClick={handleNavigate}>
-                                <Navigation className="mr-2 h-4 w-4" />
-                                Waze
-                            </Button>
-                        </div>
+                         <Button className="w-full" onClick={handleEndRide}>
+                            <CheckCheck className="mr-2 h-4 w-4" />
+                            Finalizar Viagem
+                        </Button>
                      )}
                      <div className="grid grid-cols-2 gap-2 w-full mt-2">
                         {acceptedRide.started_by === 'passenger' ? (
@@ -380,9 +374,9 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                         ) : (<div/>)}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="outline" className="w-full text-amber-600 border-amber-500 hover:bg-amber-50 hover:text-amber-700">
-                                    <AlertTriangle className="mr-2 h-4 w-4" />
-                                    Imprevisto
+                                <Button variant="destructive" className="w-full">
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancelar
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -394,7 +388,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                    <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleCancelByDriver}>Sim, Cancelar Corrida</AlertDialogAction>
+                                    <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleCancelByDriver}>Sim, Cancelar Corrida</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -429,34 +423,6 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card space-y-4">
                 <CardTitle>Nenhuma solicitação no momento</CardTitle>
                 <CardDescription>Aguardando novas corridas...</CardDescription>
-                {currentUser?.driver_status === 'online' && (
-                    <Button variant="secondary" onClick={() => {
-                        const newStatus = currentUser?.driver_fare_type === 'fixed' ? 'in_progress' : 'accepted';
-                        onManualRideEnd(); // This is a bit of a hack, but it resets state
-                         try {
-                             pb.collection('rides').create({
-                                driver: currentUser.id,
-                                status: newStatus,
-                                started_by: 'driver',
-                                origin_address: 'Corrida Rápida',
-                                destination_address: 'A definir',
-                                fare: currentUser?.driver_fare_type === 'fixed' ? currentUser.driver_fixed_rate : 0,
-                                is_negotiated: false,
-                                passenger_anonymous_name: 'Passageiro (Rápida)'
-                            }).then((newRide) => {
-                                 toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está pronta para começar." });
-                                 setDriverStatus('urban-trip');
-                                 setAcceptedRide(newRide);
-                                 if (newStatus === 'in_progress') setPassengerOnBoard(true);
-                            });
-                        } catch (e) {
-                             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar a corrida rápida.' });
-                        }
-                    }}>
-                        <Zap className="mr-2 h-4 w-4" />
-                        Corrida Rápida (Urbano)
-                    </Button>
-                 )}
             </div>
         )
     }
@@ -480,4 +446,5 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         </div>
     );
 }
+
 
