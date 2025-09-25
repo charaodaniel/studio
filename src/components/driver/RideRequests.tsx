@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -112,7 +111,7 @@ interface FullRideRequest {
 
 export function RideRequests({ setDriverStatus, manualRideOverride, onManualRideEnd }: { setDriverStatus: (status: string) => void, manualRideOverride: RideRecord | null, onManualRideEnd: () => void }) {
     const { toast } = useToast();
-    const { playRideRequestSound } = useRideRequestSound();
+    const { playRideRequestSound, stopRideRequestSound } = useRideRequestSound();
     const [requests, setRequests] = useState<FullRideRequest[]>([]);
     const [acceptedRide, setAcceptedRide] = useState<RideRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -147,6 +146,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                 }
                 setRequests([]); // Limpa as solicitações pendentes se uma for aceita
                 setIsLoading(false);
+                stopRideRequestSound();
                 return; 
             } catch (err: any) {
                 if (err.status !== 404) throw err; 
@@ -157,8 +157,14 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
                 filter: rideFilter,
                 expand: 'passenger',
-                sort: 'scheduled_for,-created'
+                sort: '-created'
             });
+
+            if (rideRecords.length > 0) {
+                playRideRequestSound();
+            } else {
+                stopRideRequestSound();
+            }
 
             const fullRequests = await Promise.all(rideRecords.map(async (ride) => {
                 let chatId: string | null = null;
@@ -178,10 +184,11 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         } catch (err) {
             console.error(err);
             setError("Não foi possível buscar as solicitações de corrida.");
+            stopRideRequestSound();
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [playRideRequestSound, stopRideRequestSound]);
 
     useEffect(() => {
         if (manualRideOverride) return;
@@ -190,9 +197,6 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         const handleUpdate = (e: { record: RideRecord, action: string }) => {
             const driverId = pb.authStore.model?.id;
             if (driverId && e.record.driver === driverId) {
-                if(e.action === 'create' && e.record.status === 'requested') {
-                    playRideRequestSound();
-                }
                 fetchRequests();
             }
         };
@@ -201,12 +205,14 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
         return () => {
             pb.collection('rides').unsubscribe('*');
+            stopRideRequestSound();
         };
-    }, [fetchRequests, manualRideOverride, playRideRequestSound]);
+    }, [fetchRequests, manualRideOverride, stopRideRequestSound]);
 
 
     const handleAccept = async (ride: RideRecord) => {
         if (!pb.authStore.model) return;
+        stopRideRequestSound();
 
         try {
             const updatedRide = await pb.collection('rides').update<RideRecord>(ride.id, {
@@ -232,6 +238,9 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             await pb.collection('rides').update(rideId, { status: 'canceled' });
             toast({ variant: "destructive", title: "Corrida Rejeitada" });
             setRequests(prev => prev.filter(r => r.ride.id !== rideId));
+            if (requests.length <= 1) {
+                stopRideRequestSound();
+            }
         } catch (error) {
             console.error("Failed to update ride to canceled:", error);
             toast({ variant: "destructive", title: "Erro", description: "Não foi possível rejeitar a corrida."});
@@ -463,3 +472,5 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         </div>
     );
 }
+
+    
