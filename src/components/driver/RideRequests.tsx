@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import type { RecordModel } from 'pocketbase';
 import { useRideRequestSound } from '@/hooks/useRideRequestSound';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { type User } from '../admin/UserList';
 
 interface RideRecord extends RecordModel {
     passenger: string;
@@ -442,3 +444,4 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         </div>
     );
 }
+

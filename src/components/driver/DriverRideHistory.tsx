@@ -456,22 +456,37 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     };
 
     const handleStartQuickRide = async () => {
-        if (!pb.authStore.model) return;
+        if (!currentUser) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não encontrado.' });
+            return;
+        }
         
+        let fare = 0;
+        let status: 'in_progress' | 'accepted' = 'in_progress';
+        
+        if (currentUser.driver_fare_type === 'fixed' && currentUser.driver_fixed_rate) {
+            fare = currentUser.driver_fixed_rate;
+        } else if (currentUser.driver_fare_type === 'km' && currentUser.driver_km_rate) {
+            // For KM-based quick rides, we start with 0 and let the driver handle the final value.
+            // But we need to go through the 'accepted' status to allow for the flow.
+            status = 'accepted';
+        }
+
         try {
             const rideData: Partial<RideRecord> = {
-                driver: pb.authStore.model.id,
-                status: 'in_progress',
+                driver: currentUser.id,
+                status: status,
                 started_by: 'driver',
                 origin_address: 'Corrida Rápida',
-                destination_address: 'Corrida Rápida',
-                fare: 0,
+                destination_address: 'A definir',
+                fare: fare,
                 is_negotiated: false,
+                passenger_anonymous_name: 'Passageiro (Rápida)'
             };
 
             const newRide = await pb.collection('rides').create<RideRecord>(rideData);
 
-            toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está em andamento." });
+            toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está pronta para começar." });
             onManualRideStart(newRide);
             setDriverStatus('urban-trip');
 
@@ -745,3 +760,4 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     </>
   );
 }
+
