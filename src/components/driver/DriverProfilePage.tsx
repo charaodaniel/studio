@@ -216,7 +216,7 @@ export function DriverProfilePage() {
                 <DriverChatHistory />
             </TabsContent>
             <TabsContent value="history">
-                <DriverRideHistory onManualRideStart={handleManualRideStarted} />
+                <DriverRideHistory onManualRideStart={handleManualRideStarted} setDriverStatus={handleStatusChange} />
             </TabsContent>
             <TabsContent value="profile">
                 {user && <ProfileForm user={user} onUpdate={setUser} />}

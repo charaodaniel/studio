@@ -311,32 +311,6 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         window.open(wazeUrl, '_blank');
     };
 
-    const handleStartQuickRide = async () => {
-        if (!pb.authStore.model) return;
-        
-        try {
-            const rideData: Partial<RideRecord> = {
-                driver: pb.authStore.model.id,
-                status: 'in_progress',
-                started_by: 'driver',
-                origin_address: 'Corrida Rápida',
-                destination_address: 'Corrida Rápida',
-                fare: 0,
-                is_negotiated: false,
-            };
-
-            const newRide = await pb.collection('rides').create<RideRecord>(rideData);
-
-            toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está em andamento." });
-            setAcceptedRide(newRide);
-            setPassengerOnBoard(true);
-            setDriverStatus('urban-trip');
-
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar a corrida rápida.' });
-        }
-    };
-
     if (acceptedRide) {
          const passengerName = acceptedRide.expand?.passenger?.name || acceptedRide.passenger_anonymous_name || "Passageiro";
          return (
@@ -445,10 +419,6 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card space-y-4">
                 <CardTitle>Nenhuma solicitação no momento</CardTitle>
                 <CardDescription>Aguardando novas corridas...</CardDescription>
-                <Button onClick={handleStartQuickRide}>
-                    <Zap className="mr-2 h-4 w-4" />
-                    Corrida Rápida (Urbano)
-                </Button>
             </div>
         )
     }
@@ -472,7 +442,3 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         </div>
     );
 }
-
-    
-
-    

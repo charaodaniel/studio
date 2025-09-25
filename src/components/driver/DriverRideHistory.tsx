@@ -4,7 +4,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle, Clock } from "lucide-react";
+import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle, Clock, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -52,6 +52,7 @@ interface RideRecord extends RecordModel {
 
 interface DriverRideHistoryProps {
     onManualRideStart: (ride: RideRecord) => void;
+    setDriverStatus: (status: string) => void;
 }
 
 const appData = {
@@ -59,7 +60,7 @@ const appData = {
     cnpj: "52.905.738/0001-00"
 }
 
-export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps) {
+export function DriverRideHistory({ onManualRideStart, setDriverStatus }: DriverRideHistoryProps) {
     const [rides, setRides] = useState<RideRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
@@ -453,6 +454,31 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             setIsSubmitting(false);
         }
     };
+
+    const handleStartQuickRide = async () => {
+        if (!pb.authStore.model) return;
+        
+        try {
+            const rideData: Partial<RideRecord> = {
+                driver: pb.authStore.model.id,
+                status: 'in_progress',
+                started_by: 'driver',
+                origin_address: 'Corrida Rápida',
+                destination_address: 'Corrida Rápida',
+                fare: 0,
+                is_negotiated: false,
+            };
+
+            const newRide = await pb.collection('rides').create<RideRecord>(rideData);
+
+            toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está em andamento." });
+            onManualRideStart(newRide);
+            setDriverStatus('urban-trip');
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar a corrida rápida.' });
+        }
+    };
     
     const renderContent = () => {
         if (isLoading) {
@@ -599,6 +625,10 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             </div>
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center justify-end gap-2 mb-4">
+             <Button variant="secondary" onClick={handleStartQuickRide}>
+                <Zap className="mr-2 h-4 w-4" />
+                Corrida Rápida
+            </Button>
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline">
