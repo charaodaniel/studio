@@ -5,7 +5,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2, Navigation, Calendar } from 'lucide-react';
+import { Check, X, MapPin, DollarSign, MessageSquareQuote, CheckSquare, AlertTriangle, UserCheck, CheckCheck, WifiOff, Loader2, Navigation, Calendar, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RideChat } from './NegotiationChat';
 import { useState, useEffect, useCallback } from 'react';
@@ -123,6 +123,9 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (manualRideOverride) {
             setAcceptedRide(manualRideOverride);
             setIsLoading(false);
+            if (manualRideOverride.status === 'in_progress') {
+                setPassengerOnBoard(true);
+            }
         }
     }, [manualRideOverride]);
 
@@ -135,10 +138,13 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         try {
             const driverId = pb.authStore.model.id;
             // Verifica se já existe uma corrida aceita
-            const acceptedFilter = `status = "accepted" && driver = "${driverId}"`;
+            const acceptedFilter = `(status = "accepted" || status = "in_progress") && driver = "${driverId}"`;
             try {
                 const alreadyAccepted = await pb.collection('rides').getFirstListItem<RideRecord>(acceptedFilter, { expand: 'passenger' });
                 setAcceptedRide(alreadyAccepted);
+                if (alreadyAccepted.status === 'in_progress') {
+                    setPassengerOnBoard(true);
+                }
                 setRequests([]); // Limpa as solicitações pendentes se uma for aceita
                 setIsLoading(false);
                 return; 
@@ -151,7 +157,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
                 filter: rideFilter,
                 expand: 'passenger',
-                sort: '-created'
+                sort: 'scheduled_for,-created'
             });
 
             const fullRequests = await Promise.all(rideRecords.map(async (ride) => {
@@ -296,6 +302,32 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         window.open(wazeUrl, '_blank');
     };
 
+    const handleStartQuickRide = async () => {
+        if (!pb.authStore.model) return;
+        
+        try {
+            const rideData: Partial<RideRecord> = {
+                driver: pb.authStore.model.id,
+                status: 'in_progress',
+                started_by: 'driver',
+                origin_address: 'Corrida Rápida',
+                destination_address: 'Corrida Rápida',
+                fare: 0,
+                is_negotiated: false,
+            };
+
+            const newRide = await pb.collection('rides').create<RideRecord>(rideData);
+
+            toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está em andamento." });
+            setAcceptedRide(newRide);
+            setPassengerOnBoard(true);
+            setDriverStatus('urban-trip');
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar a corrida rápida.' });
+        }
+    };
+
     if (acceptedRide) {
          const passengerName = acceptedRide.expand?.passenger?.name || acceptedRide.passenger_anonymous_name || "Passageiro";
          return (
@@ -401,9 +433,13 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     
     if(requests.length === 0) {
         return (
-            <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card">
+            <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card space-y-4">
                 <CardTitle>Nenhuma solicitação no momento</CardTitle>
                 <CardDescription>Aguardando novas corridas...</CardDescription>
+                <Button onClick={handleStartQuickRide}>
+                    <Zap className="mr-2 h-4 w-4" />
+                    Corrida Rápida (Urbano)
+                </Button>
             </div>
         )
     }
