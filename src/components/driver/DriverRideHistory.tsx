@@ -601,7 +601,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
         <div className="flex flex-col md:flex-row items-start md:items-center justify-end gap-2 mb-4">
             <Dialog>
                 <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto">
+                    <Button variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Registrar Corrida
                     </Button>
@@ -672,7 +672,7 @@ export function DriverRideHistory({ onManualRideStart }: DriverRideHistoryProps)
             </Dialog>
                 <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button className="w-full sm:w-auto">
+                    <Button>
                         <Download className="mr-2 h-4 w-4" />
                         Exportar
                     </Button>
