@@ -76,18 +76,24 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
             </CardContent>
             <CardFooter className="grid grid-cols-2 gap-2">
                 {ride.is_negotiated ? (
-                     <RideChat 
-                        rideId={ride.id}
-                        chatId={chatId}
-                        passengerName={ride.expand?.passenger.name || 'Passageiro'} 
-                        isNegotiation={true}
-                        onAcceptRide={() => onAccept(ride)}
-                     >
-                        <Button className="w-full col-span-2">
-                            <MessageSquareQuote className="mr-2 h-4 w-4" />
-                            Negociar Valor
+                    <>
+                        <Button variant="outline" className="w-full" onClick={() => onReject(ride.id)}>
+                            <X className="mr-2 h-4 w-4" />
+                            Recusar
                         </Button>
-                    </RideChat>
+                         <RideChat 
+                            rideId={ride.id}
+                            chatId={chatId}
+                            passengerName={ride.expand?.passenger.name || 'Passageiro'} 
+                            isNegotiation={true}
+                            onAcceptRide={() => onAccept(ride)}
+                         >
+                            <Button className="w-full">
+                                <MessageSquareQuote className="mr-2 h-4 w-4" />
+                                Negociar
+                            </Button>
+                        </RideChat>
+                    </>
                 ) : (
                     <>
                         <Button variant="outline" className="w-full" onClick={() => onReject(ride.id)}>
@@ -446,5 +452,3 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         </div>
     );
 }
-
-
