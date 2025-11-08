@@ -52,35 +52,43 @@ export default function DeveloperPage() {
         // Test each collection endpoint using standard user auth if available
         if (pb.authStore.isValid) {
             const testUserPb = new PocketBase(POCKETBASE_URL);
-            testUserPb.authStore.loadFromCookie(document.cookie);
+            // Use current auth token for tests
+            testUserPb.authStore.save(pb.authStore.token, pb.authStore.model);
 
             const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
                 try {
-                    await testUserPb.collections.getOne(name, { requestKey: null }); // requestKey: null to prevent caching
+                    // Using `requestKey: null` disables caching for this request
+                    await testUserPb.collections.getOne(name, { requestKey: null }); 
                     return { name, status: 'success', error: null };
                 } catch (error: any) {
-                    return { name, status: 'error', error: error.message || 'Falha ao buscar' };
+                    let errorMessage = 'Falha ao buscar. ';
+                    if (error.status === 403 || error.status === 401) {
+                        errorMessage += 'Verifique as "API Rules" da coleção.';
+                    } else {
+                        errorMessage += error.message || 'Erro desconhecido.';
+                    }
+                    return { name, status: 'error', error: errorMessage };
                 }
             });
              const results = await Promise.all(promises);
             setEndpointStates(results);
         } else {
-             const results = collectionsToTest.map(name => ({ name, status: 'error' as 'error', error: "Não autenticado" }));
+             const results = collectionsToTest.map(name => ({ name, status: 'error' as 'error', error: "Não autenticado. Faça login como admin." }));
              setEndpointStates(results);
         }
 
 
         // Fetch driver status logs
         try {
-            if (pb.authStore.model?.role !== 'Admin') {
-                setLogErrorMessage("Apenas administradores do aplicativo podem ver os logs de status.");
-                setLogs([]);
-            } else {
-                const logResults = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
+            if (pb.authStore.model?.role.includes('Admin')) {
+                 const logResults = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
                     sort: '-created',
                     expand: 'driver',
                 });
                 setLogs(logResults);
+            } else {
+                setLogErrorMessage("Apenas administradores podem ver os logs de status.");
+                setLogs([]);
             }
         } catch(err: any) {
             console.error("Failed to fetch driver status logs:", err);
@@ -94,6 +102,7 @@ export default function DeveloperPage() {
     // Initial check on component mount
     useEffect(() => {
         checkApiEndpoints();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
 
@@ -102,7 +111,6 @@ export default function DeveloperPage() {
         setTestResult(null);
         try {
             const tempPb = new PocketBase(apiUrl);
-            // The health check is on the `/api/health` endpoint.
             const health = await tempPb.health.check();
 
             if (health && health.code === 200) {
@@ -114,18 +122,20 @@ export default function DeveloperPage() {
         } catch (error: any) {
             setTestStatus('error');
             let errorMessage = `Falha ao conectar na API em ${apiUrl}.`;
+            let solution = '';
 
-            if (error.isAbort) {
-                errorMessage += " A requisição demorou muito para responder (timeout). Verifique a URL e a rede do servidor.";
-            } else if (error.originalError || (error.message && error.message.includes('Failed to fetch'))) {
-                 errorMessage += " Verifique se o servidor está no ar e se as configurações de CORS estão corretas para permitir acesso do seu domínio frontend. O navegador pode ter bloqueado a requisição.";
+            if (error.isAbort || (error.message && error.message.includes('Failed to fetch'))) {
+                 errorMessage += " Causa provável: O navegador bloqueou a requisição.";
+                 solution = "Isso geralmente é um problema de CORS. Verifique se a URL do seu app (ex: https://seu-app.vercel.app) está na lista de 'Allowed Origins' nas configurações do seu PocketBase Admin.";
             } else if (error.status === 404) {
-                 errorMessage += ` O endpoint /api/health não foi encontrado (404). Verifique se a URL base está correta (sem /_/ ou /api/).`;
+                 errorMessage += ` O endpoint /api/health não foi encontrado (404).`;
+                 solution = "Causa provável: O proxy reverso (Nginx, Caddy) não está configurado corretamente. Verifique se ele está encaminhando as requisições de '/api/' para a porta correta do PocketBase (geralmente 8090).";
             } else if (error.message) {
                  errorMessage += ` Detalhe: ${error.message}`;
+                 solution = "O servidor está no ar, mas retornou um erro inesperado. Verifique os logs do PocketBase no seu servidor para mais detalhes."
             }
             
-            setTestResult(errorMessage);
+            setTestResult(`${errorMessage} ${solution}`);
         }
     };
 
@@ -139,6 +149,7 @@ export default function DeveloperPage() {
                     </div>
                     <Button onClick={checkApiEndpoints} disabled={isRefreshing} variant="outline" size="sm">
                         <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                         <span className="sr-only">Atualizar</span>
                     </Button>
                 </header>
 
@@ -187,8 +198,8 @@ export default function DeveloperPage() {
                                         <AlertTitle>Erro de Conexão</AlertTitle>
                                         <AlertDescription>
                                             {testResult}
-                                            <div className="mt-2 text-xs">
-                                                <p>Consulte a documentação de configuração para ajuda com erros de CORS.</p>
+                                            <div className="mt-2 text-xs font-mono p-2 bg-slate-100 rounded">
+                                                <p>Consulte o arquivo <code className="font-bold">POCKETBASE_SETUP.md</code> na raiz do projeto para um guia detalhado de solução de problemas de CORS e Nginx.</p>
                                             </div>
                                         </AlertDescription>
                                     </Alert>
@@ -246,7 +257,7 @@ export default function DeveloperPage() {
                         <CardHeader>
                             <CardTitle>Status das Coleções da API</CardTitle>
                              <CardDescription>
-                                 Testado com as credenciais do usuário logado no momento.
+                                 Testado com as credenciais do usuário logado.
                              </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -281,21 +292,22 @@ export default function DeveloperPage() {
                              </CardDescription>
                         </CardHeader>
                         <CardContent className="bg-slate-900 text-slate-100 rounded-lg p-4 font-mono text-xs overflow-x-auto h-64">
-                             {isRefreshing && <p>Carregando...</p>}
+                             {isRefreshing && <p className="text-gray-400">Carregando logs...</p>}
                              {!isRefreshing && logErrorMessage && (
                                 <p className="text-yellow-400">
                                     <AlertTriangle className="inline-block h-4 w-4 mr-2"/>
                                     {logErrorMessage}
                                 </p>
+
                              )}
-                             {!isRefreshing && logs.length > 0 && logs.map(log => (
+                             {!isRefreshing && !logErrorMessage && logs.length > 0 && logs.map(log => (
                                 <p key={log.id}>
                                     <span className="text-cyan-400">[{new Date(log.created).toLocaleString('pt-BR')}]</span>
-                                    <span className="text-violet-400 mx-2">{log.expand.driver.name}:</span>
+                                    <span className="text-violet-400 mx-2">{log.expand?.driver?.name || 'Motorista desconhecido'}:</span>
                                     <span className="text-slate-300">{log.status}</span>
                                 </p>
                              ))}
-                             {!isRefreshing && logs.length === 0 && !logErrorMessage &&(
+                             {!isRefreshing && !logErrorMessage && logs.length === 0 && (
                                  <p className="text-gray-400">Nenhum log de status encontrado.</p>
                              )}
                         </CardContent>
