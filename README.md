@@ -15,8 +15,7 @@ Este documento serve como guia central para desenvolvedores, detalhando a arquit
 -   **UI Library:** [React](https://react.dev/)
 -   **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Componentes:** [ShadCN/UI](https://ui.shadcn.com/)
--   **Backend:** [PocketBase](https://pocketbase.io/)
--   **Hospedagem de Backend (Grátis):** [PocketHost](https://pockethost.io/)
+-   **Backend:** [Firebase](https://firebase.google.com/) (Authentication e Firestore)
 -   **Geração de Relatórios:** [jsPDF](https://github.com/parallax/jsPDF) & [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable)
 -   **Notificações Sonoras:** [Howler.js](https://howlerjs.com/)
 
@@ -30,6 +29,7 @@ Siga os passos abaixo para executar o projeto localmente.
 
 -   [Node.js](https://nodejs.org/) (versão 18 ou superior)
 -   Um gerenciador de pacotes Node, como `npm`, `pnpm` ou `yarn`.
+-   Uma conta Google para usar o Firebase.
 
 ### 2. Clonar o Repositório e Instalar Dependências
 
@@ -39,48 +39,61 @@ cd <NOME_DA_PASTA_DO_PROJETO>
 npm install
 ```
 
-### 3. Configurar o Backend (PocketBase com PocketHost - Grátis)
+### 3. Configurar o Backend (Firebase)
 
-Este protótipo precisa de um backend PocketBase para funcionar. A maneira mais fácil, rápida e gratuita de fazer isso é usando o serviço **PocketHost.io**. Ele elimina a necessidade de gerenciar um servidor (VPS).
+Este protótipo precisa de um backend Firebase para funcionar. A configuração é gratuita e não exige um cartão de crédito para os recursos que utilizamos.
 
-#### Passo 1: Crie seu Backend Gratuito no PocketHost
+#### Passo 1: Crie seu Projeto no Firebase
 
-1.  Acesse [**pockethost.io**](https://pockethost.io/) e crie uma conta.
-2.  No painel, clique em "**New Instance**".
-3.  Dê um nome para sua instância (ex: `meu-app-ceolin`). O PocketHost gerará uma URL para você, como `https://meu-app-ceolin.pockethost.io`.
-4.  **Esta URL é o endereço do seu backend.**
+1.  Acesse o [**Firebase Console**](https://console.firebase.google.com/) e faça login com sua conta Google.
+2.  Clique em "**Adicionar projeto**" e siga as instruções para criar um novo projeto (ex: `meu-app-ceolin`).
 
-#### Passo 2: Configure a URL no seu Projeto
+#### Passo 2: Crie um Aplicativo Web e Obtenha a Configuração
 
-1.  Crie um novo arquivo na raiz do seu projeto chamado `.env.local`.
-2.  Dentro deste arquivo, adicione a seguinte linha, substituindo pela URL que você obteve do PocketHost:
+1.  Dentro do seu projeto Firebase, clique no ícone de engrenagem ao lado de "**Visão geral do projeto**" e vá para "**Configurações do projeto**".
+2.  Na aba "**Geral**", role para baixo até a seção "**Seus apps**".
+3.  Clique no ícone **</>** para criar um novo aplicativo Web.
+4.  Dê um nome ao seu app (ex: "Ceolin App Web") e clique em "**Registrar app**".
+5.  O Firebase exibirá o objeto `firebaseConfig`. **Copie este objeto inteiro.**
 
-    ```env
-    # Substitua pela sua URL do PocketHost
-    NEXT_PUBLIC_API_BASE=https://meu-app-ceolin.pockethost.io
+#### Passo 3: Adicione a Configuração ao Projeto
+
+1.  Abra o arquivo `src/lib/firebase.ts` no seu editor de código.
+2.  **Substitua** o objeto `firebaseConfig` existente pelo que você copiou do Firebase Console.
+
+    ```typescript
+    // src/lib/firebase.ts
+
+    // Cole sua configuração do Firebase aqui
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
+      authDomain: "SEU_AUTH_DOMAIN",
+      projectId: "SEU_PROJECT_ID",
+      // ...e assim por diante
+    };
+
+    // ...o resto do arquivo permanece o mesmo
     ```
-    **Importante:** Não adicione `/` ou `/_/` no final da URL.
 
-#### Passo 3: Importe o Schema do Banco de Dados
+#### Passo 4: Ative os Serviços no Firebase
 
-1.  Abra o painel de administrador do seu PocketBase. A URL será `https://sua-url.pockethost.io/_/`.
-2.  Vá para **Settings > Import collections**.
-3.  Clique em **Load from file** e selecione o arquivo `pocketbase_schema.json` que está na raiz deste projeto.
-4.  Clique em **Import**. Isso criará todas as tabelas (`users`, `rides`, etc.) automaticamente.
+1.  No menu lateral do Firebase Console, vá para a seção **Build**.
+2.  Clique em **Authentication**:
+    *   Vá para a aba **"Sign-in method"**.
+    *   Clique em **"E-mail/senha"** e ative-o.
+3.  Clique em **Firestore Database**:
+    *   Clique em **"Criar banco de dados"**.
+    *   Selecione **"Iniciar em modo de produção"** e clique em "Avançar".
+    *   Escolha uma localização para o seu banco de dados (pode ser a padrão) e clique em **"Ativar"**.
 
-#### Passo 4: Aplique as Regras de Acesso (API Rules)
+#### Passo 5: Aplique as Regras de Segurança do Firestore
 
-As regras de acesso não são importadas automaticamente. Você precisa configurá-las manualmente.
--   As instruções detalhadas para copiar e colar cada regra estão no arquivo: [**POCKETBASE_API.md**](./src/POCKETBASE_API.md). Siga este guia para cada coleção.
+Esta é a etapa mais importante para que o aplicativo funcione.
 
-#### Passo 5: Crie seu Primeiro Administrador
-
-1.  No painel do PocketBase, vá para a aba **Admins**.
-2.  Clique em **+ New Admin** e crie sua conta de administrador.
-3.  As instruções detalhadas estão no arquivo [**ADMIN_SETUP.md**](./ADMIN_SETUP.md).
-
-#### Passo 6: Configure o Envio de E-mails (Opcional, para "Esqueci a Senha")
-- Para que a recuperação de senha funcione, configure o serviço de e-mail em **Settings > Mail Settings** no seu painel PocketBase.
+1.  No Firebase Console, dentro do **Firestore Database**, vá para a aba **"Regras"**.
+2.  Copie **todo o conteúdo** do arquivo `firestore.rules` que está na raiz deste projeto.
+3.  Cole o conteúdo na caixa de texto das regras no Firebase, substituindo qualquer regra existente.
+4.  Clique em **"Publicar"**.
 
 ### 4. Executar o Projeto Localmente
 
@@ -90,7 +103,7 @@ Com o backend configurado, inicie o servidor de desenvolvimento:
 npm run dev
 ```
 
-O aplicativo estará disponível em `http://localhost:9002`.
+O aplicativo estará disponível em `http://localhost:9002`. Agora você pode criar usuários (passageiros, motoristas) e usar todas as funcionalidades.
 
 ---
 
@@ -127,4 +140,4 @@ O protótipo atual é um MVP (Produto Mínimo Viável) robusto, com a interface 
 1.  **Integração com Gateway de Pagamento (Crítico)**
 2.  **Integração com API de Mapas Real** (Google Maps, Mapbox)
 3.  **Sistema de Avaliação (Estrelas)**
-4.  **Notificações
+4.  **Notificações Push** (via Firebase Cloud Messaging)

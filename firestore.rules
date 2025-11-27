@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isUserRole(role) {
+      return isSignedIn() && getUserData(request.auth.uid).role.hasAny([role]);
+    }
+    
+    function isAdmin() {
+      return isUserRole('Admin');
+    }
+    
+    function isOperator() {
+      return isUserRole('Atendente');
+    }
+
+    // Collection: users
+    match /users/{userId} {
+      allow read: if true; // Publicly readable for names, avatars etc.
+      allow create: if true; // Anyone can create a user (register)
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Collection: rides
+    match /rides/{rideId} {
+      allow read, list: if isSignedIn() && (
+                            resource.data.passenger == request.auth.uid ||
+                            resource.data.driver == request.auth.uid ||
+                            isAdmin() || 
+                            isOperator()
+                          );
+      allow create: if isSignedIn() || request.resource.data.passenger_anonymous_name != null;
+      allow update: if isSignedIn() && (
+                          isOwner(resource.data.driver) || 
+                          isOwner(resource.data.passenger) || 
+                          isAdmin()
+                        );
+      allow delete: if isAdmin();
+    }
+    
+    // Collection: chats
+    match /chats/{chatId} {
+      function isParticipant() {
+      	return request.auth.uid in resource.data.participants;
+      }
+      
+      allow read, list: if isSignedIn() && (isParticipant() || isAdmin() || isOperator());
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow update: if isSignedIn() && (isParticipant() || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Collection: messages
+    match /messages/{messageId} {
+       function isChatParticipant() {
+         let chatDoc = get(/databases/$(database)/documents/chats/$(resource.data.chat));
+      	 return request.auth.uid in chatDoc.data.participants;
+       }
+       
+       function isNewMessageChatParticipant() {
+         let chatDoc = get(/databases/$(database)/documents/chats/$(request.resource.data.chat));
+      	 return request.auth.uid in chatDoc.data.participants;
+       }
+       
+      allow read, list: if isSignedIn() && (isChatParticipant() || isAdmin() || isOperator());
+      allow create: if isSignedIn() && isNewMessageChatParticipant();
+      allow update, delete: if isAdmin();
+    }
+    
+    // Collection: driver_documents
+    match /driver_documents/{docId} {
+      allow read, list: if isSignedIn() && (isOwner(resource.data.driver) || isAdmin());
+      allow create: if isSignedIn() && isOwner(request.resource.data.driver);
+      allow update: if isSignedIn() && (isOwner(resource.data.driver) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+     // Collection: driver_status_logs
+    match /driver_status_logs/{logId} {
+      allow read, list: if isAdmin() || isOperator();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Immutable logs
+    }
+  }
+}
