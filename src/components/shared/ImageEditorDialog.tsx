@@ -11,14 +11,13 @@ import { Label } from '../ui/label';
 
 interface ImageEditorDialogProps {
     isOpen: boolean;
-    currentImage: string;
-    onImageSave: (newImage: string) => void;
+    onImageSave: (newImageAsDataUrl: string) => void;
     onDialogClose: () => void;
 }
 
-export function ImageEditorDialog({ isOpen, currentImage, onImageSave, onDialogClose }: ImageEditorDialogProps) {
+export function ImageEditorDialog({ isOpen, onImageSave, onDialogClose }: ImageEditorDialogProps) {
     const { toast } = useToast();
-    const [image, setImage] = useState(currentImage);
+    const [image, setImage] = useState<string | null>(null);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,8 +83,12 @@ export function ImageEditorDialog({ isOpen, currentImage, onImageSave, onDialogC
     };
     
     const handleSave = () => {
-        onImageSave(image);
-        onDialogClose();
+        if (image) {
+            onImageSave(image);
+            onDialogClose();
+        } else {
+            toast({ variant: 'destructive', title: 'Nenhuma Imagem', description: 'Por favor, capture ou selecione uma imagem para salvar.'});
+        }
     };
 
     return (

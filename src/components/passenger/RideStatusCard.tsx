@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +11,7 @@ import { RideChat } from '../driver/NegotiationChat';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -57,9 +55,10 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
       const findChat = async () => {
         if (rideId) {
           try {
-            const rideDoc = await getDoc(doc(db, 'rides', rideId));
-            if (rideDoc.exists() && rideDoc.data().chatId) {
-              setChatId(rideDoc.data().chatId);
+            const q = query(collection(db, 'chats'), where('rideId', '==', rideId));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                setChatId(querySnapshot.docs[0].id);
             }
           } catch(e) {
             console.warn("Could not find chat for this ride", e);
@@ -142,7 +141,7 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
             chatId={chatId} 
             passengerName={rideDetails.driverName} 
             isNegotiation={isNegotiated} 
-            isReadOnly={!isNegotiated} // Passenger can only accept/reject, not propose
+            isReadOnly={!isNegotiated}
         >
           <Button className="w-full"><MessageSquare className="mr-2"/> {isNegotiated ? 'Negociar/Chat' : 'Chat'}</Button>
         </RideChat>

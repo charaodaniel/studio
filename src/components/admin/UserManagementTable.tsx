@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import {
@@ -257,7 +255,6 @@ const appData = {
              finalY = startY;
         }
         
-        // Performance Summary based only on valid rides
         const completedRides = validDateRides.filter(r => r.status === 'completed');
         const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
 
@@ -489,7 +486,3 @@ const appData = {
       </>
     );
   }
-
-
-
-    

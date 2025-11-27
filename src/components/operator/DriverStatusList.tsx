@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import {
@@ -14,10 +12,11 @@ import {
   import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
   import { ScrollArea } from "../ui/scroll-area";
   import { useState, useEffect, useCallback } from "react";
-  import pb from "@/lib/pocketbase";
   import { type User } from "../admin/UserList";
   import { Loader2, WifiOff } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
   
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -67,40 +66,26 @@ import { Skeleton } from "../ui/skeleton";
     const fetchDrivers = useCallback(async () => {
         setIsLoading(true);
         setError(null);
-        try {
-            const records = await pb.collection('users').getFullList<User>({
-                filter: 'role = "Motorista"',
-                sort: '-created',
-            });
-            setDrivers(records);
-        } catch (err: any) {
+        
+        const q = query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'));
+        
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const driverList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setDrivers(driverList);
+            setIsLoading(false);
+        }, (err) => {
             console.error("Failed to fetch drivers:", err);
             setError("Não foi possível carregar os motoristas.");
-        } finally {
             setIsLoading(false);
-        }
+        });
+
+        return unsubscribe;
     }, []);
 
     useEffect(() => {
-        fetchDrivers();
-
-        const handleUpdate = (e: any) => {
-             // A simple way to check if the update is relevant
-            if (e.record.collectionName === 'users') {
-                 // More specific check: does the updated user have a 'Motorista' role?
-                const roles = e.record.role;
-                if (Array.isArray(roles) && roles.includes('Motorista')) {
-                    fetchDrivers();
-                } else if (typeof roles === 'string' && roles === 'Motorista') {
-                    fetchDrivers();
-                }
-            }
-        };
-        
-        pb.collection('users').subscribe('*', handleUpdate);
-
+        const unsubscribePromise = fetchDrivers();
         return () => {
-            pb.collection('users').unsubscribe('*');
+            unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
         };
     }, [fetchDrivers]);
     
@@ -138,7 +123,7 @@ import { Skeleton } from "../ui/skeleton";
             <TableCell>
                 <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                        <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
                         <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{driver.name}</span>
@@ -171,4 +156,3 @@ import { Skeleton } from "../ui/skeleton";
       </ScrollArea>
     );
   }
-  

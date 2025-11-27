@@ -20,7 +20,7 @@ interface DocumentRecord {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string;
+    fileUrl: string; // This holds the Base64 Data URI
     is_verified: boolean;
 }
 

@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,12 +13,14 @@ import { ProfileForm } from './ProfileForm';
 import { Dialog, DialogTrigger } from '../ui/dialog';
 import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
-import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
 import { type User } from '../admin/UserList';
-import type { RecordModel } from 'pocketbase';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     passenger: string;
     driver: string;
     origin_address: string;
@@ -29,8 +29,8 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
-    expand: {
-        passenger: RecordModel;
+    expand?: {
+        passenger: User;
     }
 }
 
@@ -45,40 +45,40 @@ export function DriverProfilePage() {
   const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
-    const fetchUserAndRides = async () => {
-      const currentUser = pb.authStore.model as User | null;
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+                const userData = { id: userDoc.id, ...userDoc.data() } as User;
+                setUser(userData);
+                 try {
+                  // This is a placeholder for ride count. A more performant way would be a counter in Firestore.
+                  // const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('driver', '==', userData.id), where('status', '==', 'completed')));
+                  // setCompletedRidesCount(ridesSnapshot.size);
+                  setCompletedRidesCount(0); // Placeholder
+                } catch (error) {
+                  console.error("Failed to fetch rides count:", error);
+                  setCompletedRidesCount(0);
+                }
 
-      if (currentUser) {
-        try {
-          const result = await pb.collection('rides').getList(1, 1, {
-            filter: `driver = "${currentUser.id}" && status = "completed"`,
-          });
-          setCompletedRidesCount(result.totalItems);
-        } catch (error) {
-          console.error("Failed to fetch rides count:", error);
-          setCompletedRidesCount(0);
+            } else {
+                setUser(null);
+            }
+        } else {
+            setUser(null);
         }
-      }
-      
-      setIsLoading(false);
-    };
+        setIsLoading(false);
+    });
     
-    fetchUserAndRides();
-    
-    const unsubscribe = pb.authStore.onChange(fetchUserAndRides, true);
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!user) return;
     
     try {
-        const updatedUser = await pb.collection('users').update<User>(user.id, { 'driver_status': newStatus });
-        setUser(updatedUser);
+        await updateDoc(doc(db, 'users', user.id), { driver_status: newStatus });
+        setUser(prev => prev ? { ...prev, driver_status: newStatus as User['driver_status'] } : null);
 
         toast({
           title: 'Status Atualizado',
@@ -91,9 +91,10 @@ export function DriverProfilePage() {
         });
 
         try {
-            await pb.collection('driver_status_logs').create({
+            await addDoc(collection(db, 'driver_status_logs'), {
                 driver: user.id,
                 status: newStatus,
+                createdAt: new Date(),
             });
         } catch (logError) {
              console.error("Failed to create status log (non-critical):", logError);
@@ -107,8 +108,8 @@ export function DriverProfilePage() {
 
   const handleManualRideStarted = (ride: RideRecord) => {
     setActiveManualRide(ride);
-    setActiveTab("requests"); // Switch to the requests tab to show the in-progress UI
-    handleStatusChange('urban-trip'); // Or determine based on ride type
+    setActiveTab("requests"); 
+    handleStatusChange('urban-trip'); 
   }
 
   const handleManualRideEnded = () => {
@@ -116,7 +117,22 @@ export function DriverProfilePage() {
     handleStatusChange('online');
   }
 
-  const avatarUrl = user?.avatar ? pb.getFileUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
+  const handleAvatarSave = async (newImageAsDataUrl: string) => {
+    if (!user) return;
+    try {
+        await updateDoc(doc(db, 'users', user.id), {
+            avatar: newImageAsDataUrl
+        });
+        setUser(prev => prev ? { ...prev, avatar: newImageAsDataUrl } : null);
+        toast({ title: 'Avatar atualizado com sucesso!' });
+    } catch (error) {
+        console.error("Failed to update avatar:", error);
+        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
+    }
+  }
+
+
+  const avatarUrl = user?.avatar || `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
 
   if (isLoading || !user) {
@@ -154,21 +170,7 @@ export function DriverProfilePage() {
             </DialogTrigger>
             <ImageEditorDialog 
                 isOpen={isCameraDialogOpen}
-                currentImage={avatarUrl}
-                onImageSave={async (newImage) => {
-                    if (!user) return;
-                    try {
-                        const formData = new FormData();
-                        const blob = await (await fetch(newImage)).blob();
-                        formData.append('avatar', blob);
-                        const updatedRecord = await pb.collection('users').update(user.id, formData);
-                        pb.authStore.save(pb.authStore.token, updatedRecord as any);
-                        toast({ title: 'Avatar atualizado com sucesso!' });
-                    } catch (error) {
-                        console.error("Failed to update avatar:", error);
-                        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
-                    }
-                }}
+                onImageSave={handleAvatarSave}
                 onDialogClose={() => setIsCameraDialogOpen(false)}
             />
         </Dialog>

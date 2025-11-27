@@ -1,5 +1,3 @@
-
-
 'use client';
 import { Button } from '@/components/ui/button';
 import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon, EyeOff } from 'lucide-react';
@@ -15,16 +13,15 @@ import { Switch } from '../ui/switch';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { auth, db, storage } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import type { User } from '../admin/UserList';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface DocumentRecord {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string;
+    fileUrl: string; // This will now store a Base64 Data URI
     is_verified: boolean;
 }
 
@@ -49,29 +46,29 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
             }
         };
         fetchDocument();
-    }, [driverId, docType]);
+    }, [driverId, docType, onUpdate]);
 
-    const handleFileSave = async (newImage: string) => {
+    const handleFileSave = async (newImageAsDataUrl: string) => {
         try {
-            const blob = await(await fetch(newImage)).blob();
-            const storageRef = ref(storage, `driver_documents/${driverId}/${docType}-${Date.now()}.png`);
-            
-            await uploadBytes(storageRef, blob);
-            const downloadURL = await getDownloadURL(storageRef);
-
             const docData = {
                 driver: driverId,
                 document_type: docType,
-                fileUrl: downloadURL,
+                fileUrl: newImageAsDataUrl, // Save the Base64 Data URI directly
                 is_verified: false, // Always requires re-verification
                 updatedAt: new Date().toISOString(),
             };
 
-            if (document?.id) {
-                await setDoc(doc(db, "driver_documents", document.id), docData, { merge: true });
+            // Find if a document already exists to update it, or create a new one.
+            const q = query(collection(db, "driver_documents"), where("driver", "==", driverId), where("document_type", "==", docType));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+                const existingDocId = querySnapshot.docs[0].id;
+                await updateDoc(doc(db, "driver_documents", existingDocId), docData);
             } else {
                 await addDoc(collection(db, "driver_documents"), { ...docData, createdAt: new Date().toISOString() });
             }
+
             toast({ title: `${label} atualizado com sucesso!`});
             onUpdate(); // Trigger parent re-fetch
         } catch(error) {
@@ -119,7 +116,6 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
                     </DialogTrigger>
                     <ImageEditorDialog 
                         isOpen={isCameraDialogOpen}
-                        currentImage={docUrl || ''}
                         onImageSave={handleFileSave} 
                         onDialogClose={() => setIsCameraDialogOpen(false)}
                     />
@@ -141,7 +137,6 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   const [isEditingVehicleInfo, setIsEditingVehicleInfo] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   
-  // States for Personal Info
   const [formData, setFormData] = useState<Partial<User>>(user);
   const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -165,7 +160,6 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
     try {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), formData);
         
-        // Fetch updated user to refresh parent state
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         if (userDoc.exists()) {
              onUpdate({ ...userDoc.data(), id: userDoc.id } as User);
@@ -204,8 +198,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
         toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
         return;
     }
-    // Firebase doesn't have a direct password update for security reasons.
-    // The user needs to re-authenticate for this. For now, we'll just show a message.
+    
      toast({
         title: 'Funcionalidade em Breve',
         description: 'A alteração de senha no perfil requer re-autenticação. Esta função será adicionada.',
@@ -213,7 +206,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   };
   
   const handleCancelEdit = (section: string) => {
-      setFormData(user); // Reset form data to original user data
+      setFormData(user); 
       if (section === 'personal') setIsEditingPersonalInfo(false);
       if (section === 'vehicle') setIsEditingVehicleInfo(false);
       if (section === 'settings') setIsEditingSettings(false);

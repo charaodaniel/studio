@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -17,48 +15,35 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, getDocs, addDoc, doc, updateDoc, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
+import type { User as UserData, User as AppUser } from './UserList';
 
-export interface User extends RecordModel {
-    name: string;
-    email: string;
-    avatar: string;
-    phone: string;
-    role: string[];
 
-    driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
-    driver_vehicle_model?: string;
-    driver_vehicle_plate?: string;
-    driver_vehicle_photo?: string;
-    driver_cnpj?: string;
-    driver_pix_key?: string;
-    driver_fare_type?: 'fixed' | 'km';
-    driver_fixed_rate?: number;
-    driver_km_rate?: number;
-    driver_accepts_rural?: boolean;
-}
-  
-interface ChatRecord extends RecordModel {
+interface ChatRecord {
+  id: string;
   participants: string[];
   last_message: string;
+  updatedAt: any; // Firestore Timestamp
   expand: {
-    participants: User[];
+    participants: AppUser[];
   }
 }
 
-interface MessageRecord extends RecordModel {
+interface MessageRecord {
+    id: string;
     chat: string;
     sender: string;
     text: string;
+    createdAt: any; // Firestore Timestamp
     expand: {
-        sender: User
+        sender: AppUser;
     }
 }
 
 interface UserManagementProps {
-    preselectedUser: User | null;
-    onUserSelect: (user: User | null) => void;
+    preselectedUser: UserData | null;
+    onUserSelect: (user: UserData | null) => void;
 }
   
 export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
@@ -67,7 +52,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [error, setError] = useState<string | null>(null);
 
     const [selectedChat, setSelectedChat] = useState<ChatRecord | null>(null);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
     const [messages, setMessages] = useState<MessageRecord[]>([]);
     const [newMessage, setNewMessage] = useState('');
     
@@ -75,76 +60,101 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isClient, setIsClient] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const currentUser = auth.currentUser;
 
 
     const fetchChats = useCallback(async () => {
+        if (!currentUser) return;
         setIsLoading(true);
         setError(null);
-        try {
-            const records = await pb.collection('chats').getFullList<ChatRecord>({ 
-                sort: '-updated',
-                expand: 'participants' 
-            });
-            setChats(records);
-        } catch (err: any) {
+
+        const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.uid), orderBy("updatedAt", "desc"));
+        
+        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+            try {
+                const chatsData: ChatRecord[] = [];
+                for (const chatDoc of querySnapshot.docs) {
+                    const data = chatDoc.data();
+                    const participantsData: AppUser[] = [];
+
+                    for (const participantId of data.participants) {
+                        const userDoc = await doc(db, 'users', participantId);
+                        const userSnap = await getDoc(userDoc);
+                        if (userSnap.exists()) {
+                            participantsData.push({ id: userSnap.id, ...userSnap.data() } as AppUser);
+                        }
+                    }
+                    
+                    chatsData.push({
+                        id: chatDoc.id,
+                        participants: data.participants,
+                        last_message: data.last_message,
+                        updatedAt: data.updatedAt,
+                        expand: {
+                            participants: participantsData,
+                        },
+                    });
+                }
+                setChats(chatsData);
+
+            } catch (err) {
+                console.error("Failed to process chat updates:", err);
+                setError("Não foi possível carregar as conversas.");
+                setChats([]);
+            } finally {
+                setIsLoading(false);
+            }
+        }, (err) => {
             console.error("Failed to fetch chats:", err);
             setError("Não foi possível carregar as conversas.");
-            setChats([]);
-        } finally {
             setIsLoading(false);
-        }
-    }, []);
+        });
+
+        return unsubscribe;
+    }, [currentUser]);
+
 
     useEffect(() => {
         setIsClient(true);
-        fetchChats();
+        let unsubscribe: (() => void) | undefined;
+        fetchChats().then(cb => unsubscribe = cb);
         
-        const handleUpdate = (e: { record: ChatRecord, action: string }) => {
-            if (e.action === 'create' || e.action === 'update') {
-               fetchChats();
-            }
-        };
-
-        pb.collection('chats').subscribe('*', handleUpdate);
-
         return () => {
-            pb.collection('chats').unsubscribe('*');
+            if (unsubscribe) {
+                unsubscribe();
+            }
         };
 
     }, [fetchChats]);
 
     const fetchMessages = useCallback(async (chatId: string) => {
-        try {
-            const result = await pb.collection('messages').getFullList<MessageRecord>({
-                filter: `chat = "${chatId}"`,
-                sort: 'created',
-                expand: 'sender'
-            });
-            setMessages(result);
-        } catch (error) {
-            console.error("Failed to fetch messages:", error);
-            setMessages([]);
-        }
+        // Now handled by onSnapshot in useEffect
     }, []);
 
     useEffect(() => {
         if (!selectedChat) return;
 
-        const handleNewMessage = (e: { record: MessageRecord, action: string }) => {
-            if (e.action === 'create' && e.record.chat === selectedChat.id) {
-                pb.collection('messages').getOne<MessageRecord>(e.record.id, { expand: 'sender'}).then(fullRecord => {
-                    setMessages(prev => [...prev, fullRecord]);
-                });
-            }
-        };
-
-        fetchMessages(selectedChat.id);
-        pb.collection('messages').subscribe('*', handleNewMessage);
+        const q = query(collection(db, "messages"), where("chat", "==", selectedChat.id), orderBy("createdAt", "asc"));
         
-        return () => {
-            pb.collection('messages').unsubscribe('*');
-        }
-    }, [selectedChat, fetchMessages]);
+        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+            const newMessages: MessageRecord[] = [];
+            for (const messageDoc of querySnapshot.docs) {
+                const data = messageDoc.data();
+                const senderDocRef = doc(db, 'users', data.sender);
+                const senderSnap = await getDoc(senderDocRef);
+                newMessages.push({
+                    id: messageDoc.id,
+                    ...data,
+                    expand: {
+                        sender: { id: senderSnap.id, ...senderSnap.data() } as AppUser
+                    }
+                } as MessageRecord);
+            }
+            setMessages(newMessages);
+        });
+        
+        return () => unsubscribe();
+    }, [selectedChat]);
 
     useEffect(() => {
       if (scrollAreaRef.current) {
@@ -154,58 +164,74 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
 
     const handleSelectChat = (chat: ChatRecord) => {
         setSelectedChat(chat);
-        const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
         setSelectedUser(otherUser || null);
         setIsProfileOpen(false);
     }
     
     useEffect(() => {
-        if (preselectedUser) {
+        if (preselectedUser && currentUser) {
             const findOrCreateChat = async () => {
                 try {
-                    // Try to find an existing chat
-                    const existingChat = await pb.collection('chats').getFirstListItem<ChatRecord>(`participants~"${pb.authStore.model?.id}" && participants~"${preselectedUser.id}"`, {
-                        expand: 'participants'
-                    });
-                    handleSelectChat(existingChat);
-                } catch (error: any) {
-                     // If not found, create a new one
-                    if (error.status === 404) {
-                        try {
-                            const newChat = await pb.collection('chats').create<ChatRecord>({
-                                participants: [pb.authStore.model?.id, preselectedUser.id]
-                            }, { expand: 'participants' });
-                            handleSelectChat(newChat);
-                            fetchChats(); // Refresh the list
-                        } catch (createError) {
-                            console.error("Error creating chat:", createError);
+                    const q = query(collection(db, "chats"), where("participants", "in", [[currentUser.uid, preselectedUser.id], [preselectedUser.id, currentUser.uid]]));
+                    const querySnapshot = await getDocs(q);
+
+                    if (!querySnapshot.empty) {
+                        const existingChat = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as ChatRecord;
+                        // We need to expand participants manually
+                        const participantsData: AppUser[] = [];
+                        for (const participantId of existingChat.participants) {
+                            const userDoc = await getDoc(doc(db, 'users', participantId));
+                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as AppUser);
                         }
+                        existingChat.expand = { participants: participantsData };
+                        handleSelectChat(existingChat);
                     } else {
-                        console.error("Error finding or creating chat:", error);
+                        const newChatRef = await addDoc(collection(db, "chats"), {
+                            participants: [currentUser.uid, preselectedUser.id],
+                            last_message: '',
+                            updatedAt: serverTimestamp(),
+                        });
+                        const newChatDoc = await getDoc(newChatRef);
+                        const newChatData = { id: newChatDoc.id, ...newChatDoc.data() } as ChatRecord;
+                        // Expand participants
+                        const participantsData: AppUser[] = [];
+                        for (const participantId of newChatData.participants) {
+                            const userDoc = await getDoc(doc(db, 'users', participantId));
+                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as AppUser);
+                        }
+                        newChatData.expand = { participants: participantsData };
+
+                        handleSelectChat(newChatData);
+                        fetchChats(); // Refresh the list
                     }
+                } catch (error) {
+                     console.error("Error finding or creating chat:", error);
                 }
             }
             findOrCreateChat();
             onUserSelect(null); // Reset preselection
         }
-    }, [preselectedUser, onUserSelect, fetchChats]);
+    }, [preselectedUser, onUserSelect, fetchChats, currentUser]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedChat || !pb.authStore.model) return;
+        if (!newMessage.trim() || !selectedChat || !currentUser) return;
 
         const text = newMessage;
         setNewMessage(''); // Clear input immediately
 
         try {
-            await pb.collection('messages').create({
+            await addDoc(collection(db, 'messages'), {
                 chat: selectedChat.id,
-                sender: pb.authStore.model.id,
-                text: text
+                sender: currentUser.uid,
+                text: text,
+                createdAt: serverTimestamp(),
             });
-             await pb.collection('chats').update(selectedChat.id, {
+             await updateDoc(doc(db, 'chats', selectedChat.id), {
                 last_message: text,
+                updatedAt: serverTimestamp(),
             });
 
         } catch (error) {
@@ -221,7 +247,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         const reportHeader = `Histórico de Conversa com ${selectedUser.name}\n`;
         const reportContent = messages.map(msg => {
             const senderName = msg.expand?.sender?.name || 'Desconhecido';
-            const timestamp = new Date(msg.created).toLocaleString('pt-BR');
+            const timestamp = msg.createdAt ? new Date(msg.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Indisponível';
             return `[${timestamp}] ${senderName}: ${msg.text}`;
         }).join('\n');
         
@@ -248,7 +274,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     }
     
     const filteredChats = chats.filter(chat => {
-        const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
         if (!otherUser) return false;
         return otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                otherUser.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -265,7 +291,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             return <div className="p-4 text-center text-muted-foreground">Nenhuma conversa encontrada.</div>
         }
         return filteredChats.map((chat) => {
-              const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+              const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
               if (!otherUser) return null;
               return (
                 <div 
@@ -274,7 +300,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   onClick={() => handleSelectChat(chat)}
                 >
                   <Avatar>
-                    <AvatarImage src={otherUser.avatar ? pb.getFileUrl(otherUser, otherUser.avatar) : ''} data-ai-hint="user portrait"/>
+                    <AvatarImage src={otherUser.avatar || ''} data-ai-hint="user portrait"/>
                     <AvatarFallback>{otherUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">
@@ -330,7 +356,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   <ArrowLeft className="w-5 h-5"/>
                 </Button>
                 <Avatar>
-                  <AvatarImage src={selectedUser.avatar ? pb.getFileUrl(selectedUser, selectedUser.avatar) : ''} data-ai-hint="user portrait"/>
+                  <AvatarImage src={selectedUser.avatar || ''} data-ai-hint="user portrait"/>
                   <AvatarFallback>{selectedUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
@@ -355,12 +381,12 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
               <ScrollArea className="flex-1 p-4 sm:p-6 bg-[url('https://placehold.co/1000x1000/E3F2FD/E3F2FD.png')] bg-center bg-cover" ref={scrollAreaRef}>
                 <div className="flex flex-col gap-4">
                   {messages.map((msg) => (
-                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === pb.authStore.model?.id ? 'flex-row-reverse' : ''}`}>
+                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === currentUser?.uid ? 'flex-row-reverse' : ''}`}>
                        <Avatar className="w-8 h-8 border">
                           <AvatarFallback>{msg.expand.sender?.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
                        </Avatar>
-                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === pb.authStore.model?.id ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
-                           <p className="font-bold">{msg.expand.sender.name === pb.authStore.model?.name ? 'Você' : msg.expand.sender.name}</p>
+                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === currentUser?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
+                           <p className="font-bold">{msg.sender === currentUser?.uid ? 'Você' : msg.expand.sender.name}</p>
                           <p>{msg.text}</p>
                       </div>
                   </div>

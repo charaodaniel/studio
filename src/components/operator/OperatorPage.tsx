@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,9 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DriverStatusList from './DriverStatusList';
 import UserManagement from '../admin/UserManagement';
 import type { User as UserData } from '../admin/UserList';
-import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
 import OperatorLists from './OperatorLists';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function OperatorPage() {
   const [activeTab, setActiveTab] = useState("status");
@@ -19,17 +20,19 @@ export function OperatorPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const user = pb.authStore.model as UserData | null;
-    setCurrentUser(user);
-    setIsLoading(false);
-
-    const unsubscribe = pb.authStore.onChange((token, model) => {
-      setCurrentUser(model as UserData | null);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setCurrentUser({ id: userDoc.id, ...userDoc.data() } as UserData);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setIsLoading(false);
     });
 
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const handleSelectUser = (user: UserData) => {
@@ -37,7 +40,7 @@ export function OperatorPage() {
     setActiveTab("conversations");
   };
 
-  const avatarUrl = currentUser?.avatar ? pb.getFileUrl(currentUser, currentUser.avatar) : '';
+  const avatarUrl = currentUser?.avatar || '';
   const avatarFallback = currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : <Headset className="h-10 w-10"/>;
 
   return (

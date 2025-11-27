@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,14 +12,13 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { auth, db, storage } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { PassengerRideHistory } from './PassengerRideHistory';
 import { PassengerChatHistory } from './PassengerChatHistory';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
 export function PassengerProfilePage() {
@@ -73,8 +70,6 @@ export function PassengerProfilePage() {
     }
 
     setIsSaving(true);
-    // Note: Firebase requires re-authentication to change a password.
-    // This is a simplified version; a production app would need a re-auth flow.
     toast({
         title: 'Funcionalidade em Breve',
         description: 'A alteração de senha requer uma nova autenticação. Esta funcionalidade será implementada em breve.',
@@ -82,20 +77,14 @@ export function PassengerProfilePage() {
     setIsSaving(false);
   };
 
-  const handleAvatarSave = async (newImage: string) => {
+  const handleAvatarSave = async (newImageAsDataUrl: string) => {
     if (!user) return;
     try {
-        const blob = await (await fetch(newImage)).blob();
-        const storageRef = ref(storage, `avatars/${user.id}/${Date.now()}.png`);
-        
-        await uploadBytes(storageRef, blob);
-        const downloadURL = await getDownloadURL(storageRef);
-
         await updateDoc(doc(db, 'users', user.id), {
-            avatar: downloadURL,
+            avatar: newImageAsDataUrl,
         });
 
-        setUser(prev => prev ? { ...prev, avatar: downloadURL } : null);
+        setUser(prev => prev ? { ...prev, avatar: newImageAsDataUrl } : null);
         
         toast({ title: 'Avatar atualizado com sucesso!' });
     } catch (error) {
@@ -140,7 +129,6 @@ export function PassengerProfilePage() {
             </DialogTrigger>
             <ImageEditorDialog 
                 isOpen={isCameraDialogOpen}
-                currentImage={avatarUrl}
                 onImageSave={handleAvatarSave} 
                 onDialogClose={() => setIsCameraDialogOpen(false)}
             />

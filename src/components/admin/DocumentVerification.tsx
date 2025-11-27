@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,7 +20,7 @@ interface DocumentRecord {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string;
+    fileUrl: string; // This can be a URL or a Base64 Data URI
     is_verified: boolean;
     expand: {
         driver: User;
@@ -44,14 +43,21 @@ export default function DocumentVerification() {
             const docsData: DocumentRecord[] = [];
             for (const docSnap of querySnapshot.docs) {
                 const data = docSnap.data();
-                const userDoc = await getDoc(doc(db, "users", data.driver));
-                const userData = userDoc.data() as User;
+                let driverName = 'Motorista Desconhecido';
+                try {
+                    const userDoc = await getDoc(doc(db, "users", data.driver));
+                    if (userDoc.exists()) {
+                        driverName = (userDoc.data() as User).name;
+                    }
+                } catch (userError) {
+                    console.warn(`Could not fetch user ${data.driver}`, userError);
+                }
                 
                 docsData.push({
                     id: docSnap.id,
                     ...data,
                     expand: {
-                        driver: { id: userDoc.id, name: userData.name }
+                        driver: { id: data.driver, name: driverName }
                     }
                 } as DocumentRecord);
             }
