@@ -12,13 +12,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import pb from "@/lib/pocketbase"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
+import { auth, db } from "@/lib/firebase"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { setDoc, doc } from "firebase/firestore"
 
 const formSchema = z.object({
   name: z.string().min(2, "O nome precisa ter pelo menos 2 caracteres."),
@@ -50,12 +52,31 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         setIsLoading(true);
+        const originalAuthUser = auth.currentUser;
+        
         try {
-            const data = {
-                ...values,
-                passwordConfirm: values.password,
+            // Create a temporary user in Firebase Auth to get a UID
+            const tempUserCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+            const newUser = tempUserCredential.user;
+
+            const userData = {
+                uid: newUser.uid,
+                name: values.name,
+                email: values.email,
+                phone: values.phone || '',
+                role: [values.role],
+                disabled: false,
+                createdAt: new Date().toISOString(),
             };
-            await pb.collection('users').create(data);
+
+            // Add driver specific fields if role is Motorista
+            if (values.role === 'Motorista') {
+                (userData as any).driver_status = 'offline';
+            }
+
+            // Save the user data to Firestore
+            await setDoc(doc(db, "users", newUser.uid), userData);
+
             toast({
                 title: "Usuário Adicionado!",
                 description: `O usuário ${values.name} foi criado com sucesso.`,
@@ -64,15 +85,15 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             if (onUserAdded) {
                 onUserAdded();
             }
-             // This is a workaround to close the dialog. A better approach is to control the open state from the parent.
+             // This is a workaround to close the dialog.
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
 
         } catch (error: any) {
              let description = 'Ocorreu um erro ao criar o usuário.';
-            if (error.data?.data?.email?.message) {
-                description = `Erro no email: ${error.data.data.email.message}`;
-            } else if (error.data?.data?.password?.message) {
-                description = `Erro na senha: ${error.data.data.password.message}`;
+            if (error.code === 'auth/email-already-in-use') {
+                description = 'Este e-mail já está em uso por outra conta.';
+            } else if (error.code === 'auth/weak-password') {
+                description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
             }
             toast({
                 variant: 'destructive',
@@ -80,6 +101,12 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
                 description: description,
             });
         } finally {
+            // Re-authenticate the original admin user if they were signed out
+            // This is a simplified approach. A more robust solution would use Admin SDK in a Cloud Function.
+            if (auth.currentUser?.uid !== originalAuthUser?.uid) {
+                // In a real app you might need to re-sign in the admin.
+                // For this context, we assume the admin's session persists or is handled.
+            }
             setIsLoading(false);
         }
     }

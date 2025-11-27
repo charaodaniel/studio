@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -16,8 +17,8 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
-import type { User as UserData, User as AppUser } from './UserList';
+import { collection, query, where, getDocs, addDoc, doc, updateDoc, onSnapshot, orderBy, serverTimestamp, getDoc } from 'firebase/firestore';
+import type { User as UserData } from './UserList';
 
 
 interface ChatRecord {
@@ -26,7 +27,7 @@ interface ChatRecord {
   last_message: string;
   updatedAt: any; // Firestore Timestamp
   expand: {
-    participants: AppUser[];
+    participants: UserData[];
   }
 }
 
@@ -37,7 +38,7 @@ interface MessageRecord {
     text: string;
     createdAt: any; // Firestore Timestamp
     expand: {
-        sender: AppUser;
+        sender: UserData;
     }
 }
 
@@ -52,7 +53,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [error, setError] = useState<string | null>(null);
 
     const [selectedChat, setSelectedChat] = useState<ChatRecord | null>(null);
-    const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [messages, setMessages] = useState<MessageRecord[]>([]);
     const [newMessage, setNewMessage] = useState('');
     
@@ -75,13 +76,12 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 const chatsData: ChatRecord[] = [];
                 for (const chatDoc of querySnapshot.docs) {
                     const data = chatDoc.data();
-                    const participantsData: AppUser[] = [];
+                    const participantsData: UserData[] = [];
 
                     for (const participantId of data.participants) {
-                        const userDoc = await doc(db, 'users', participantId);
-                        const userSnap = await getDoc(userDoc);
-                        if (userSnap.exists()) {
-                            participantsData.push({ id: userSnap.id, ...userSnap.data() } as AppUser);
+                        const userDoc = await getDoc(doc(db, 'users', participantId));
+                        if (userDoc.exists()) {
+                            participantsData.push({ id: userDoc.id, ...userDoc.data() } as UserData);
                         }
                     }
                     
@@ -146,7 +146,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                     id: messageDoc.id,
                     ...data,
                     expand: {
-                        sender: { id: senderSnap.id, ...senderSnap.data() } as AppUser
+                        sender: { id: senderSnap.id, ...senderSnap.data() } as UserData
                     }
                 } as MessageRecord);
             }
@@ -179,10 +179,10 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                     if (!querySnapshot.empty) {
                         const existingChat = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as ChatRecord;
                         // We need to expand participants manually
-                        const participantsData: AppUser[] = [];
+                        const participantsData: UserData[] = [];
                         for (const participantId of existingChat.participants) {
                             const userDoc = await getDoc(doc(db, 'users', participantId));
-                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as AppUser);
+                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as UserData);
                         }
                         existingChat.expand = { participants: participantsData };
                         handleSelectChat(existingChat);
@@ -195,10 +195,10 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                         const newChatDoc = await getDoc(newChatRef);
                         const newChatData = { id: newChatDoc.id, ...newChatDoc.data() } as ChatRecord;
                         // Expand participants
-                        const participantsData: AppUser[] = [];
+                        const participantsData: UserData[] = [];
                         for (const participantId of newChatData.participants) {
                             const userDoc = await getDoc(doc(db, 'users', participantId));
-                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as AppUser);
+                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as UserData);
                         }
                         newChatData.expand = { participants: participantsData };
 
@@ -378,7 +378,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <ScrollArea className="flex-1 p-4 sm:p-6 bg-[url('https://placehold.co/1000x1000/E3F2FD/E3F2FD.png')] bg-center bg-cover" ref={scrollAreaRef}>
+              <ScrollArea className="flex-1 p-4 sm:p-6" ref={scrollAreaRef}>
                 <div className="flex flex-col gap-4">
                   {messages.map((msg) => (
                      <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === currentUser?.uid ? 'flex-row-reverse' : ''}`}>
