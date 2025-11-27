@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MailCheck } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
@@ -21,11 +22,11 @@ export default function ForgotPasswordForm() {
     setIsLoading(true);
 
     try {
-      await pb.collection('users').requestPasswordReset(email);
+      await sendPasswordResetEmail(auth, email);
       setIsSubmitted(true);
     } catch (error: any) {
       let description = "Ocorreu um erro. Verifique o e-mail e tente novamente.";
-      if (error.status === 404) {
+      if (error.code === 'auth/user-not-found') {
         description = "Nenhum usuário encontrado com este endereço de e-mail.";
       }
       toast({

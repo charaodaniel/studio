@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Car, Star, User, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
-import pb from '@/lib/pocketbase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import type { User as Driver } from '../admin/UserList';
 
 interface FullDriver extends Driver {
@@ -27,43 +28,36 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
 
   const fetchOnlineDrivers = useCallback(async () => {
     try {
-      const driverRecords = await pb.collection('users').getFullList<Driver>({
-        filter: 'role = "Motorista" && driver_status = "online"',
-      });
-
-      const driversWithPosition = driverRecords.map(driver => ({
-        ...driver,
-        position: {
-          top: `${Math.random() * 80 + 10}%`,
-          left: `${Math.random() * 80 + 10}%`,
-        }
-      }));
-
-      setOnlineDrivers(driversWithPosition);
+      // This will be handled by the snapshot listener
     } catch (error) {
       console.error("Failed to fetch online drivers:", error);
     }
   }, []);
 
   useEffect(() => {
-    fetchOnlineDrivers();
+    const q = query(collection(db, "users"), where("role", "array-contains", "Motorista"), where("driver_status", "==", "online"));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const driversWithPosition = querySnapshot.docs.map(doc => ({
+            ...(doc.data() as Driver),
+            id: doc.id,
+            position: {
+            top: `${Math.random() * 80 + 10}%`,
+            left: `${Math.random() * 80 + 10}%`,
+            }
+        }));
+        setOnlineDrivers(driversWithPosition);
+    });
+
     setUserPosition({
         top: `${Math.random() * 60 + 20}%`,
         left: `${Math.random() * 60 + 20}%`,
     });
-    
-    const handleUserUpdate = (e: { record: Partial<Driver> }) => {
-        if ('driver_status' in e.record) {
-            fetchOnlineDrivers();
-        }
-    };
-    
-    pb.collection('users').subscribe('*', handleUserUpdate);
 
     return () => {
-        pb.collection('users').unsubscribe('*');
+        unsubscribe();
     };
-  }, [fetchOnlineDrivers, refreshKey]);
+  }, [refreshKey]);
 
   const onRefreshLocation = () => {
       setMapRefreshKey(prev => prev + 1);
@@ -94,7 +88,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 delay-75"></span>
                     <Avatar className="h-10 w-10 border-2 border-primary-foreground shadow-md">
-                      <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                      <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
                       <AvatarFallback>{driver.name.substring(0,2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   </button>

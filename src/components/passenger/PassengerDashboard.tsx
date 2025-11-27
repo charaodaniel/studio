@@ -5,8 +5,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import RideRequestForm from './RideRequestForm';
 import RideStatusCard from './RideStatusCard';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { Card, CardContent } from '../ui/card';
@@ -17,18 +15,25 @@ import { Star, Car, Send } from 'lucide-react';
 import type { User as Driver } from '../admin/UserList';
 import RideConfirmationModal from './RideConfirmationModal';
 import { cn } from '@/lib/utils';
+import { db, auth } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, getDoc, doc, updateDoc } from 'firebase/firestore';
+import type { DocumentData, Timestamp } from 'firebase/firestore';
 
 
-interface RideRecord extends RecordModel {
+interface RideRecord extends DocumentData {
+    id: string;
     status: RideStatus;
     is_negotiated: boolean;
     passenger_anonymous_name?: string;
+    driver: string;
+    passenger: string;
     expand?: {
         driver: DriverRecord;
     }
 }
 
-interface DriverRecord extends RecordModel {
+interface DriverRecord extends DocumentData {
+    id: string;
     name: string;
     avatar: string;
     phone: string;
@@ -88,48 +93,46 @@ export default function PassengerDashboard() {
   const [destination, setDestination] = useState('');
 
   useEffect(() => {
-    const handleRideUpdate = (e: { record: RideRecord }) => {
-      if (!activeRide || e.record.id !== activeRide.id) return;
-  
-      // Fetch the full record with expanded data
-      pb.collection('rides')
-        .getOne<RideRecord>(e.record.id, { expand: 'driver' })
-        .then(fullRecord => {
-          if (fullRecord.status !== 'requested') {
-            setActiveRide(fullRecord);
-          }
-  
-          if (fullRecord.status === 'accepted' && fullRecord.expand?.driver) {
-            const driver = fullRecord.expand.driver;
-            setRideDetails({
-              driverName: driver.name,
-              driverAvatar: driver.avatar ? pb.getFileUrl(driver, driver.avatar) : '',
-              driverPhone: driver.phone,
-              vehicleModel: driver.driver_vehicle_model,
-              licensePlate: driver.driver_vehicle_plate,
-              eta: '5 minutos'
-            });
-            setRideStatus('accepted');
-            playNotification();
-            toast({
-              title: 'Corrida Aceita!',
-              description: `${driver.name} está a caminho.`,
-            });
-          } else if (fullRecord.status === 'in_progress') {
-            setRideStatus('in_progress');
-          } else if (fullRecord.status === 'completed') {
-            handleCompleteRide();
-          } else if (fullRecord.status === 'canceled') {
-            handleCancelRide(false); // Do not update DB again
-            toast({
-              title: 'Corrida Cancelada',
-              description: 'O motorista cancelou a corrida.',
-              variant: 'destructive',
-            });
-          }
-        }).catch(err => {
-          console.error("Failed to fetch full ride record on update:", err);
+    let unsubscribe: (() => void) | null = null;
+    
+    const handleRideUpdate = async (rideDoc: DocumentData) => {
+      const fullRecord = { id: rideDoc.id, ...rideDoc } as RideRecord;
+
+      if (fullRecord.status !== 'requested') {
+        setActiveRide(fullRecord);
+      }
+      
+      if (fullRecord.status === 'accepted' && fullRecord.driver) {
+        const driverDoc = await getDoc(doc(db, 'users', fullRecord.driver));
+        if (driverDoc.exists()) {
+          const driverData = driverDoc.data() as DriverRecord;
+          setRideDetails({
+            driverName: driverData.name,
+            driverAvatar: driverData.avatar || '',
+            driverPhone: driverData.phone,
+            vehicleModel: driverData.driver_vehicle_model,
+            licensePlate: driverData.driver_vehicle_plate,
+            eta: '5 minutos'
+          });
+          setRideStatus('accepted');
+          playNotification();
+          toast({
+            title: 'Corrida Aceita!',
+            description: `${driverData.name} está a caminho.`,
+          });
+        }
+      } else if (fullRecord.status === 'in_progress') {
+        setRideStatus('in_progress');
+      } else if (fullRecord.status === 'completed') {
+        handleCompleteRide();
+      } else if (fullRecord.status === 'canceled') {
+        handleCancelRide(false); // Do not update DB again
+        toast({
+          title: 'Corrida Cancelada',
+          description: 'A corrida foi cancelada.',
+          variant: 'destructive',
         });
+      }
     };
   
     // Ask for location permission on component mount
@@ -151,30 +154,33 @@ export default function PassengerDashboard() {
   
     const fetchDrivers = async () => {
       setIsLoadingDrivers(true);
-      try {
-        const driverRecords = await pb.collection('users').getFullList<Driver>({
-          filter: 'role = "Motorista" && disabled = false && driver_status = "online"',
-        });
+      const q = query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'), where('disabled', '==', false), where('driver_status', '==', 'online'));
+      const unsubscribeDrivers = onSnapshot(q, (querySnapshot) => {
+        const driverRecords = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Driver));
         setDrivers(driverRecords);
-      } catch (error) {
+        setIsLoadingDrivers(false);
+      }, (error) => {
         console.error("Failed to fetch drivers:", error);
         toast({ variant: 'destructive', title: 'Erro ao buscar motoristas' });
-      } finally {
         setIsLoadingDrivers(false);
-      }
+      });
+      return unsubscribeDrivers;
     };
-    fetchDrivers();
+    const unsubscribeDrivers = fetchDrivers();
   
     // Subscribe to ride updates if there's an active ride
     if (activeRide) {
-      pb.collection('rides').subscribe(activeRide.id, handleRideUpdate);
+      unsubscribe = onSnapshot(doc(db, 'rides', activeRide.id), (doc) => {
+        if(doc.exists()) {
+          handleRideUpdate(doc.data());
+        }
+      });
     }
   
     // Return cleanup function
     return () => {
-      if (activeRide) {
-        pb.collection('rides').unsubscribe(activeRide.id);
-      }
+      if (unsubscribe) unsubscribe();
+      (async () => { (await unsubscribeDrivers)(); })();
     };
   }, [toast, activeRide, playNotification]);
   
@@ -182,8 +188,12 @@ export default function PassengerDashboard() {
   const onRideRequest = async (rideId: string) => {
     setRideStatus('searching');
     try {
-        const ride = await pb.collection('rides').getOne<RideRecord>(rideId, { expand: 'driver' });
-        setActiveRide(ride);
+        const rideDoc = await getDoc(doc(db, 'rides', rideId));
+        if (rideDoc.exists()) {
+            setActiveRide({ id: rideDoc.id, ...rideDoc.data() } as RideRecord);
+        } else {
+            throw new Error("Ride not found");
+        }
     } catch (error) {
         console.error("Failed to fetch created ride:", error);
         setRideStatus('idle');
@@ -194,7 +204,7 @@ export default function PassengerDashboard() {
   const handleCancelRide = async (updateDb = true) => {
     if (updateDb && activeRide) {
         try {
-            await pb.collection('rides').update(activeRide.id, { status: 'canceled' });
+            await updateDoc(doc(db, 'rides', activeRide.id), { status: 'canceled' });
             toast({
                 title: 'Corrida Cancelada',
                 description: 'Sua solicitação foi cancelada.',
@@ -263,7 +273,7 @@ export default function PassengerDashboard() {
                         <CardContent className="p-4 flex-grow">
                             <div className="flex flex-col items-center text-center gap-2">
                                 <Avatar className="h-16 w-16 mb-2">
-                                    <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                                    <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
                                     <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <p className="font-bold">{driver.name}</p>

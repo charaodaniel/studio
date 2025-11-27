@@ -11,8 +11,8 @@ import { MapPin, Locate, ArrowRight, Loader2, Calendar as CalendarIcon, Clock } 
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
-import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
 
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
@@ -33,7 +33,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
         setIsClient(true);
     }, []);
 
-    const isLoggedIn = isClient && pb.authStore.isValid;
+    const isLoggedIn = isClient && auth.currentUser;
     const canRequest = isLoggedIn || !!anonymousUserName;
 
     const handleGetCurrentLocation = () => {

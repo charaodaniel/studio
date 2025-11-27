@@ -7,13 +7,17 @@ import { Separator } from "../ui/separator";
 import { MessageSquare, WifiOff, Loader2 } from "lucide-react";
 import { RideChat } from "../driver/NegotiationChat";
 import { useState, useEffect, useCallback } from "react";
-import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { User } from "../admin/UserList";
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, getDoc, doc } from "firebase/firestore";
 
-interface ChatRecord extends RecordModel {
+interface ChatRecord {
+  id: string;
   participants: string[];
-  last_message: string;
+  lastMessage: string;
+  rideId: string;
+  updatedAt: any;
   expand: {
     participants: User[];
   }
@@ -23,43 +27,72 @@ export function PassengerChatHistory() {
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const currentUser = auth.currentUser;
 
   const fetchChats = useCallback(async () => {
-    if (!pb.authStore.isValid) return;
+    if (!currentUser) return;
     setIsLoading(true);
     setError(null);
-
-    try {
-        const currentUser = pb.authStore.model;
-        if (!currentUser) return;
+  
+    const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.uid));
+  
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      try {
+        const chatsData: ChatRecord[] = [];
+        for (const chatDoc of querySnapshot.docs) {
+          const data = chatDoc.data();
+          const participantsData: User[] = [];
+          for (const participantId of data.participants) {
+            const userDoc = await getDoc(doc(db, 'users', participantId));
+            if (userDoc.exists()) {
+              participantsData.push({ id: userDoc.id, ...userDoc.data() } as User);
+            }
+          }
+          
+          chatsData.push({
+            id: chatDoc.id,
+            participants: data.participants,
+            lastMessage: data.lastMessage,
+            rideId: data.rideId,
+            updatedAt: data.updatedAt,
+            expand: {
+              participants: participantsData,
+            },
+          });
+        }
         
-        const records = await pb.collection('chats').getFullList<ChatRecord>({ 
-            filter: `participants.id ?= "${currentUser.id}"`,
-            sort: '-updated',
-            expand: 'participants' 
-        });
-        setChats(records);
-    } catch (err: any) {
-        console.error("Failed to fetch chats:", err);
+        chatsData.sort((a, b) => b.updatedAt?.toMillis() - a.updatedAt?.toMillis());
+        setChats(chatsData);
+      } catch (err) {
+        console.error("Failed to process chat updates:", err);
         setError("Não foi possível carregar as conversas.");
         setChats([]);
-    } finally {
+      } finally {
         setIsLoading(false);
-    }
-  }, []);
+      }
+    }, (err) => {
+        console.error("Failed to fetch chats:", err);
+        setError("Não foi possível carregar as conversas.");
+        setIsLoading(false);
+    });
+
+    return unsubscribe;
+
+  }, [currentUser]);
 
   useEffect(() => {
-    fetchChats();
-    const handleUpdate = (e: { record: ChatRecord }) => {
-        if (pb.authStore.model && e.record.participants.includes(pb.authStore.model.id)) {
-            fetchChats();
-        }
-    };
+    let unsubscribe: (() => void) | undefined;
     
-    pb.collection('chats').subscribe('*', handleUpdate);
+    const setup = async () => {
+        unsubscribe = await fetchChats();
+    }
+    
+    setup();
 
     return () => {
-        pb.collection('chats').unsubscribe('*');
+        if (unsubscribe) {
+            unsubscribe();
+        }
     };
   }, [fetchChats]);
 
@@ -88,16 +121,16 @@ export function PassengerChatHistory() {
     return (
         <ul className="px-4">
             {chats.map((chat, index) => {
-                const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+                const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
                 if (!otherUser) return null;
 
-                const avatarUrl = otherUser.avatar ? pb.getFileUrl(otherUser, otherUser.avatar) : '';
+                const avatarUrl = otherUser.avatar; // Assuming avatar is already a full URL if stored in Firestore
 
                 return (
                     <li key={chat.id}>
                         <RideChat 
                             chatId={chat.id}
-                            rideId={chat.ride} // Assuming ride id is stored in chat
+                            rideId={chat.rideId} // Assuming ride id is stored in chat
                             passengerName={otherUser.name} // This will be driver's name from passenger's perspective
                             isNegotiation={false}
                         >
@@ -110,9 +143,9 @@ export function PassengerChatHistory() {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-center">
                                             <p className="font-semibold">{otherUser.name}</p>
-                                            <p className="text-xs text-muted-foreground">{new Date(chat.updated).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                            <p className="text-xs text-muted-foreground">{chat.updatedAt ? new Date(chat.updatedAt.toDate()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
                                         </div>
-                                        <p className="text-sm text-muted-foreground truncate">{chat.last_message || 'Nenhuma mensagem.'}</p>
+                                        <p className="text-sm text-muted-foreground truncate">{chat.lastMessage || 'Nenhuma mensagem.'}</p>
                                     </div>
                                 </div>
                             </button>

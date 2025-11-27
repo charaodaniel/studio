@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, D
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Image from 'next/image';
-import pb from '@/lib/pocketbase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import type { User as Driver } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '../ui/badge';
@@ -63,23 +64,16 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setIsLoading(true);
         setError(null);
         try {
-            // A API rule permite que qualquer um liste usuários com o perfil "Motorista".
-            // Para viagens agendadas, mostramos todos, caso contrário, apenas online.
-            const filter = scheduledFor 
-                ? 'role = "Motorista" && disabled = false'
-                : 'role = "Motorista" && disabled = false && driver_status = "online"';
+            const driversQuery = scheduledFor 
+                ? query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'), where('disabled', '==', false))
+                : query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'), where('disabled', '==', false), where('driver_status', '==', 'online'));
             
-            const allDrivers = await pb.collection('users').getFullList<Driver>({
-                filter: filter,
-            });
+            const querySnapshot = await getDocs(driversQuery);
+            const allDrivers = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Driver));
             setDrivers(allDrivers);
         } catch (err: any) {
             console.error("Failed to fetch drivers:", err);
-            if (err.status === 403) {
-                 setError("Você não tem permissão para ver os motoristas. Contate o administrador.");
-            } else {
-                setError("Não foi possível carregar os motoristas. Verifique a conexão.");
-            }
+            setError("Não foi possível carregar os motoristas. Verifique a conexão.");
         } finally {
             setIsLoading(false);
         }
@@ -88,14 +82,13 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
     useEffect(() => {
         fetchDrivers();
         
-        const unsubscribe = pb.collection('users').subscribe('*', (e) => {
-            if (e.record.role === 'Motorista') {
-                fetchDrivers();
-            }
+        const q = query(collection(db, "users"), where("role", "array-contains", "Motorista"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            fetchDrivers();
         });
 
         return () => {
-            pb.collection('users').unsubscribe('*');
+            unsubscribe();
         };
     }, [fetchDrivers]);
 
@@ -155,12 +148,12 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                                     <Dialog>
                                         <DialogTrigger asChild>
                                                 <Avatar className="h-12 w-12 cursor-pointer">
-                                                <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                                                <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
                                                 <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                         </DialogTrigger>
                                         <DialogContent className="p-0 max-w-xs">
-                                            <Image src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
+                                            <Image src={driver.avatar || 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
                                         </DialogContent>
                                     </Dialog>
                                     
@@ -190,7 +183,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                                             </p>
                                             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                                                 {driver.driver_vehicle_photo && (
-                                                    <Image src={pb.getFileUrl(driver, driver.driver_vehicle_photo, {thumb: "100x100"})} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
+                                                    <Image src={driver.driver_vehicle_photo} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
                                                 )}
                                             </div>
                                         </div>

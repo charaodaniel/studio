@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { MapPin, DollarSign, Loader2, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
+import { db, auth } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { type User as Driver } from '../admin/UserList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -50,7 +51,7 @@ export default function RideConfirmationModal({
 
     const handleConfirmRide = async () => {
         setIsLoading(true);
-        const currentUser = pb.authStore.model;
+        const currentUser = auth.currentUser;
         if (!currentUser && !passengerAnonymousName) {
             toast({
                 variant: 'destructive',
@@ -73,7 +74,7 @@ export default function RideConfirmationModal({
 
         try {
             const rideData: { [key: string]: any } = {
-                passenger: currentUser?.id || null,
+                passenger: currentUser?.uid || null,
                 driver: driver.id,
                 origin_address: origin,
                 destination_address: destination,
@@ -82,6 +83,8 @@ export default function RideConfirmationModal({
                 started_by: "passenger",
                 fare: isNegotiated ? 0 : (calculatedFare || 0),
                 passenger_anonymous_name: passengerAnonymousName,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
             };
 
             if (scheduledFor) {
@@ -89,13 +92,15 @@ export default function RideConfirmationModal({
                 rideData.ride_description = `Viagem agendada para ${format(scheduledFor, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`;
             }
 
-            const rideRecord = await pb.collection('rides').create(rideData);
+            const rideRecordRef = await addDoc(collection(db, 'rides'), rideData);
 
             if (isNegotiated && currentUser) {
-                await pb.collection('chats').create({
-                    participants: [currentUser.id, driver.id],
-                    ride: rideRecord.id,
-                    last_message: `Solicitação de corrida para: ${destination}`
+                await addDoc(collection(db, 'chats'), {
+                    participants: [currentUser.uid, driver.id],
+                    rideId: rideRecordRef.id,
+                    lastMessage: `Solicitação de corrida para: ${destination}`,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
                 });
             }
             
@@ -103,11 +108,11 @@ export default function RideConfirmationModal({
                 title: "Corrida Solicitada!",
                 description: `Sua solicitação foi enviada para ${driver.name}.`,
             });
-            onConfirm(rideRecord.id);
+            onConfirm(rideRecordRef.id);
 
         } catch (error: any) {
-            console.error("Failed to create ride:", error.data || error);
-            const errorMessage = error.data?.message || "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.";
+            console.error("Failed to create ride:", error);
+            const errorMessage = "Não foi possível criar sua solicitação. Verifique os dados e tente novamente.";
             toast({
                 variant: "destructive",
                 title: "Erro ao Solicitar Corrida",

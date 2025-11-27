@@ -10,9 +10,10 @@ import type { RideDetails } from './PassengerDashboard';
 import { Progress } from '../ui/progress';
 import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
-import pb from '@/lib/pocketbase';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -54,12 +55,14 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
 
     useEffect(() => {
       const findChat = async () => {
-        if (rideId && pb.authStore.model) {
+        if (rideId) {
           try {
-            const chat = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
-            setChatId(chat.id);
+            const rideDoc = await getDoc(doc(db, 'rides', rideId));
+            if (rideDoc.exists() && rideDoc.data().chatId) {
+              setChatId(rideDoc.data().chatId);
+            }
           } catch(e) {
-            // No chat found for this ride yet, which is fine
+            console.warn("Could not find chat for this ride", e);
           }
         }
       }
