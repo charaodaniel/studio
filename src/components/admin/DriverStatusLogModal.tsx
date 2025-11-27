@@ -1,19 +1,22 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import type { User } from './UserList';
 import { DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { ScrollArea } from '../ui/scroll-area';
 import { AlertTriangle, ListVideo, Loader2, WifiOff } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
-interface DriverStatusLog extends RecordModel {
+interface DriverStatusLog {
+    id: string;
     driver: string;
     status: string;
+    createdAt: any;
 }
 
 interface DriverStatusLogModalProps {
@@ -30,10 +33,9 @@ export default function DriverStatusLogModal({ user }: DriverStatusLogModalProps
         setIsLoading(true);
         setError(null);
         try {
-            const logRecords = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
-                filter: `driver = "${user.id}"`,
-                sort: '-created',
-            });
+            const q = query(collection(db, 'driver_status_logs'), where('driver', '==', user.id), orderBy('createdAt', 'desc'));
+            const querySnapshot = await getDocs(q);
+            const logRecords = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DriverStatusLog));
             setLogs(logRecords);
         } catch (err: any) {
             setError('Não foi possível carregar os logs.');
@@ -103,7 +105,7 @@ export default function DriverStatusLogModal({ user }: DriverStatusLogModalProps
                     {!isLoading && !error && logs.map((log) => (
                         <div key={log.id} className="flex justify-between items-center bg-muted/50 p-2 rounded-md">
                             <span className="text-sm text-muted-foreground">
-                                {new Date(log.created).toLocaleString('pt-BR')}
+                                {log.createdAt ? new Date(log.createdAt.toDate()).toLocaleString('pt-BR') : 'Data inválida'}
                             </span>
                             <Badge variant="outline" className={cn('text-xs', getStatusClass(log.status))}>
                                 {getStatusLabel(log.status)}

@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { type User } from './UserList';
-import pb from '@/lib/pocketbase';
 import { Separator } from '../ui/separator';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -13,12 +12,15 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import type { RecordModel } from 'pocketbase';
+import { db, auth } from '@/lib/firebase';
+import { doc, getDocs, updateDoc, collection, query, where } from 'firebase/firestore';
 
-interface DocumentRecord extends RecordModel {
+
+interface DocumentRecord {
+    id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    file: string;
+    fileUrl: string;
     is_verified: boolean;
 }
 
@@ -29,10 +31,10 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
         const fetchDocs = async () => {
             if (!user) return;
             try {
-                const records = await pb.collection('driver_documents').getFullList<DocumentRecord>({
-                    filter: `driver="${user.id}" && is_verified=true`
-                }, { admin: true });
-                setDocuments(records);
+                const q = query(collection(db, "driver_documents"), where("driver", "==", user.id), where("is_verified", "==", true));
+                const querySnapshot = await getDocs(q);
+                const docsData = querySnapshot.docs.map(d => ({ ...d.data(), id: d.id } as DocumentRecord));
+                setDocuments(docsData);
             } catch (error) {
                 console.error("Failed to fetch verified documents:", error);
             }
@@ -62,7 +64,7 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
                                 <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4"/>Ver Imagem</Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl">
-                                <Image src={pb.getFileUrl(doc, doc.file)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
+                                <Image src={doc.fileUrl} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
                             </DialogContent>
                            </Dialog>
                         </div>
@@ -108,7 +110,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
   const handleSave = async () => {
     try {
-      await pb.collection('users').update(user.id, formData);
+      await updateDoc(doc(db, 'users', user.id), formData);
       toast({
         title: 'Sucesso!',
         description: 'Os dados do usuário foram atualizados.',
@@ -133,16 +135,11 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
         return;
     }
-    try {
-        await pb.collection('users').update(user.id, {
-            password: newPassword.password,
-            passwordConfirm: newPassword.confirmPassword,
-        });
-        toast({ title: 'Senha Alterada!', description: `A senha de ${user.name} foi alterada com sucesso.` });
-        setNewPassword({ password: '', confirmPassword: '' });
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Tente novamente.' });
-    }
+    toast({
+        title: 'Funcionalidade Indisponível',
+        description: 'A alteração de senha de outro usuário não é permitida por motivos de segurança.',
+        variant: 'destructive'
+    });
   };
 
   const handleCall = () => {
@@ -167,7 +164,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
       onBack(); // Close the modal to allow navigation
   }
 
-  const avatarUrl = user.avatar ? pb.getFileUrl(user, user.avatar) : '';
+  const avatarUrl = user.avatar || '';
 
   const renderListItem = (
     icon: React.ReactNode, 
@@ -182,7 +179,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         <div className="flex-1">
         {isEditing && isEditable && fieldId ? (
             <>
-            <Label htmlFor={fieldId} className="text-xs">{secondary}</Label>
+            <Label htmlFor={fieldId} className="text-xs">{primary}</Label>
             <Input
                 id={fieldId}
                 value={formData[fieldId as keyof typeof formData] as string || ''}
@@ -230,7 +227,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
           </Avatar>
           <div className="text-center">
               <h3 className="font-headline text-2xl">{isEditing ? formData.name : user.name}</h3>
-              <p className="text-muted-foreground">{isEditing ? formData.role : user.role}</p>
+              <p className="text-muted-foreground">{Array.isArray(user.role) ? user.role.join(', ') : user.role}</p>
           </div>
           <div className="flex items-center gap-4">
               <Button variant="ghost" className="flex-col h-auto p-3" onClick={handleCall}>
@@ -251,12 +248,12 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         <div className="p-4 space-y-4">
           <Card>
             <CardContent className="p-0 divide-y">
-               {renderListItem(<Mail className="w-5 h-5" />, formData.email || '', "Email", "email", false)}
+               {renderListItem(<Mail className="w-5 h-5" />, user.email, "Email", "email", false)}
                {renderListItem(<Phone className="w-5 h-5" />, formData.phone || 'Não informado', "Telefone", "phone")}
             </CardContent>
           </Card>
 
-          {user.role === 'Motorista' && (
+          {user.role.includes('Motorista') && (
             <>
               <Card>
                 <CardContent className="p-0 divide-y">
@@ -282,7 +279,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             </>
           )}
 
-          {user.role === 'Passageiro' && (
+          {user.role.includes('Passageiro') && (
              <Card>
                  <CardContent className="p-0 divide-y">
                    {renderListItem(<FileText className="w-5 h-5" />, "Ver Histórico de Corridas", "Nenhuma corrida recente", undefined, false, handleSearch)}

@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Loader2, Info, RefreshCw } from "lucide-react";
-import { POCKETBASE_URL } from "@/lib/pocketbase";
 import { useState, useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import PocketBase, { type RecordModel } from 'pocketbase';
 import Link from "next/link";
-import pb from "@/lib/pocketbase";
+import { auth, db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, limit, getDoc, doc } from 'firebase/firestore';
+
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 type ApiEndpointStatus = 'loading' | 'success' | 'error';
@@ -23,11 +23,13 @@ type EndpointState = {
     error: string | null;
 };
 
-interface DriverStatusLog extends RecordModel {
+interface DriverStatusLog {
+    id: string;
     driver: string;
     status: string;
+    createdAt: any; // Timestamp
     expand: {
-        driver: RecordModel;
+        driver: { id: string; name: string; };
     }
 }
 
@@ -35,7 +37,7 @@ interface DriverStatusLog extends RecordModel {
 const collectionsToTest: string[] = ['users', 'rides', 'messages', 'driver_documents', 'driver_status_logs'];
 
 export default function DeveloperPage() {
-    const [apiUrl, setApiUrl] = useState(POCKETBASE_URL);
+    const [apiUrl, setApiUrl] = useState(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
     const [endpointStates, setEndpointStates] = useState<EndpointState[]>(
@@ -49,21 +51,16 @@ export default function DeveloperPage() {
         setIsRefreshing(true);
         setLogErrorMessage(null);
         
-        // Test each collection endpoint using standard user auth if available
-        if (pb.authStore.isValid) {
-            const testUserPb = new PocketBase(POCKETBASE_URL);
-            // Use current auth token for tests
-            testUserPb.authStore.save(pb.authStore.token, pb.authStore.model);
-
+        // Test each collection endpoint
+        if (auth.currentUser) {
             const promises = collectionsToTest.map(async (name): Promise<EndpointState> => {
                 try {
-                    // Using `requestKey: null` disables caching for this request
-                    await testUserPb.collections.getOne(name, { requestKey: null }); 
+                    await getDocs(query(collection(db, name), limit(1))); 
                     return { name, status: 'success', error: null };
                 } catch (error: any) {
                     let errorMessage = 'Falha ao buscar. ';
-                    if (error.status === 403 || error.status === 401) {
-                        errorMessage += 'Verifique as "API Rules" da coleção.';
+                    if (error.code === 'permission-denied') {
+                        errorMessage += 'Verifique as Regras de Segurança (Security Rules) da coleção.';
                     } else {
                         errorMessage += error.message || 'Erro desconhecido.';
                     }
@@ -77,15 +74,27 @@ export default function DeveloperPage() {
              setEndpointStates(results);
         }
 
-
         // Fetch driver status logs
         try {
-            if (pb.authStore.model?.role.includes('Admin')) {
-                 const logResults = await pb.collection('driver_status_logs').getFullList<DriverStatusLog>({
-                    sort: '-created',
-                    expand: 'driver',
-                });
-                setLogs(logResults);
+            const currentUserDoc = auth.currentUser ? await getDoc(doc(db, 'users', auth.currentUser.uid)) : null;
+            if (currentUserDoc && currentUserDoc.exists() && currentUserDoc.data().role.includes('Admin')) {
+                 const logsQuery = query(collection(db, 'driver_status_logs'), orderBy('createdAt', 'desc'), limit(50));
+                 const logResults = await getDocs(logsQuery);
+                 const logsData = await Promise.all(logResults.docs.map(async (logDoc) => {
+                     const logData = logDoc.data();
+                     const driverDoc = await getDoc(doc(db, 'users', logData.driver));
+                     return {
+                         id: logDoc.id,
+                         ...logData,
+                         expand: {
+                             driver: {
+                                 id: driverDoc.id,
+                                 name: driverDoc.data()?.name || 'Desconhecido'
+                             }
+                         }
+                     } as DriverStatusLog
+                 }));
+                setLogs(logsData);
             } else {
                 setLogErrorMessage("Apenas administradores podem ver os logs de status.");
                 setLogs([]);
@@ -110,29 +119,26 @@ export default function DeveloperPage() {
         setTestStatus('loading');
         setTestResult(null);
         try {
-            const tempPb = new PocketBase(apiUrl);
-            const health = await tempPb.health.check();
+            if (!apiUrl) throw new Error("O ID do projeto Firebase não está definido nas variáveis de ambiente.");
+            
+            // A simple way to "test" connection is to try reading a non-existent doc.
+            // A permission error or not-found is better than a network error.
+            await getDoc(doc(db, "health_check", "test"));
 
-            if (health && health.code === 200) {
-                setTestStatus('success');
-                setTestResult(`Conexão bem-sucedida! O servidor em ${apiUrl}/api/health respondeu com status ${health.code}: ${health.message}.`);
-            } else {
-                throw new Error(`O servidor respondeu com um status inesperado: ${JSON.stringify(health)}`);
-            }
+            setTestStatus('success');
+            setTestResult(`Conexão com o Firebase (${apiUrl}) bem-sucedida. As regras de segurança podem impedir a leitura, mas a conexão de rede está OK.`);
+
         } catch (error: any) {
             setTestStatus('error');
-            let errorMessage = `Falha ao conectar na API em ${apiUrl}.`;
+            let errorMessage = `Falha ao conectar no Firebase (${apiUrl}).`;
             let solution = '';
 
-            if (error.isAbort || (error.message && error.message.includes('Failed to fetch'))) {
-                 errorMessage += " Causa provável: O navegador bloqueou a requisição.";
-                 solution = "Isso geralmente é um problema de CORS. Verifique se a URL do seu app (ex: https://seu-app.vercel.app) está na lista de 'Allowed Origins' nas configurações do seu PocketBase Admin.";
-            } else if (error.status === 404) {
-                 errorMessage += ` O endpoint /api/health não foi encontrado (404).`;
-                 solution = "Causa provável: O proxy reverso (Nginx, Caddy) não está configurado corretamente. Verifique se ele está encaminhando as requisições de '/api/' para a porta correta do PocketBase (geralmente 8090).";
-            } else if (error.message) {
+            if (error.code && error.code.includes('auth/network-request-failed')) {
+                 errorMessage += " Causa provável: Problema de rede ou firewall bloqueando o acesso ao Firebase.";
+                 solution = "Verifique sua conexão com a internet e se não há firewalls bloqueando os domínios do Google/Firebase.";
+            } else {
                  errorMessage += ` Detalhe: ${error.message}`;
-                 solution = "O servidor está no ar, mas retornou um erro inesperado. Verifique os logs do PocketBase no seu servidor para mais detalhes."
+                 solution = "Isso pode indicar um problema na configuração inicial do Firebase ou nas regras de segurança."
             }
             
             setTestResult(`${errorMessage} ${solution}`);
@@ -155,20 +161,19 @@ export default function DeveloperPage() {
 
                 <Card className="mb-6">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><LinkIcon /> Teste de Conexão com API</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><LinkIcon /> Teste de Conexão com Firebase</CardTitle>
                         <CardDescription>
-                            Verifique a conexão com o backend do PocketBase. A URL configurada no app é usada para os testes.
-                             O teste verifica o endpoint <strong>/api/health</strong>.
+                            Verifique a conexão com o backend do Firebase. O Project ID configurado é usado para o teste.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex w-full max-w-md items-center space-x-2">
                             <Input
-                                type="url"
-                                placeholder="URL da API"
-                                value={apiUrl}
+                                type="text"
+                                placeholder="Firebase Project ID"
+                                value={apiUrl || ''}
                                 onChange={(e) => setApiUrl(e.target.value)}
-                                disabled={testStatus === 'loading'}
+                                disabled
                             />
                             <Button onClick={handleTestConnection} disabled={testStatus === 'loading'}>
                                 {testStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -198,9 +203,6 @@ export default function DeveloperPage() {
                                         <AlertTitle>Erro de Conexão</AlertTitle>
                                         <AlertDescription>
                                             {testResult}
-                                            <div className="mt-2 text-xs font-mono p-2 bg-slate-100 rounded">
-                                                <p>Consulte o arquivo <code className="font-bold">POCKETBASE_SETUP.md</code> na raiz do projeto para um guia detalhado de solução de problemas de CORS e Nginx.</p>
-                                            </div>
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -217,7 +219,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
+                            <p className="text-xs text-muted-foreground">Monitore no painel do Firebase.</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -227,7 +229,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                              <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
+                            <p className="text-xs text-muted-foreground">Monitore no painel do Firebase.</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -237,7 +239,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
+                            <p className="text-xs text-muted-foreground">N/A (Serverless)</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -247,7 +249,7 @@ export default function DeveloperPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">-</div>
-                            <p className="text-xs text-muted-foreground">Monitore no painel do seu provedor de VPS.</p>
+                            <p className="text-xs text-muted-foreground">N/A (Serverless)</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -255,7 +257,7 @@ export default function DeveloperPage() {
                 <div className="grid gap-6 md:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Status das Coleções da API</CardTitle>
+                            <CardTitle>Status das Coleções do Firestore</CardTitle>
                              <CardDescription>
                                  Testado com as credenciais do usuário logado.
                              </CardDescription>
@@ -271,7 +273,7 @@ export default function DeveloperPage() {
                                 <TableBody>
                                     {endpointStates.map(({ name, status, error }) => (
                                         <TableRow key={name}>
-                                            <TableCell className="font-mono text-xs">{`/api/collections/${name}`}</TableCell>
+                                            <TableCell className="font-mono text-xs">{`/`}{name}</TableCell>
                                             <TableCell>
                                                 {status === 'loading' && <Badge variant="secondary"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Verificando...</Badge>}
                                                 {status === 'success' && <Badge className="bg-green-100 text-green-800"><CheckCircle className="mr-1 h-3 w-3" /> Operacional</Badge>}
@@ -302,7 +304,7 @@ export default function DeveloperPage() {
                              )}
                              {!isRefreshing && !logErrorMessage && logs.length > 0 && logs.map(log => (
                                 <p key={log.id}>
-                                    <span className="text-cyan-400">[{new Date(log.created).toLocaleString('pt-BR')}]</span>
+                                    <span className="text-cyan-400">[{log.createdAt ? new Date(log.createdAt.toDate()).toLocaleString('pt-BR') : ''}]</span>
                                     <span className="text-violet-400 mx-2">{log.expand?.driver?.name || 'Motorista desconhecido'}:</span>
                                     <span className="text-slate-300">{log.status}</span>
                                 </p>

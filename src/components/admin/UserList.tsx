@@ -14,17 +14,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
   
-export interface User extends RecordModel {
+export interface User {
+    id: string;
     name: string;
     email: string;
     avatar: string;
     phone: string;
     role: string[];
-
     driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
     driver_vehicle_model?: string;
     driver_vehicle_plate?: string;
@@ -35,6 +35,7 @@ export interface User extends RecordModel {
     driver_fixed_rate?: number;
     driver_km_rate?: number;
     driver_accepts_rural?: boolean;
+    disabled?: boolean;
 }
 
 interface UserListProps {
@@ -53,15 +54,17 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setIsLoading(true);
         setError(null);
         try {
-            const filter = roleFilter ? `role ~ "${roleFilter}"` : '';
-            const records = await pb.collection('users').getFullList<User>({
-                sort: '-created',
-                filter: filter,
-            }, { admin: true }); // Força a requisição como admin para ver todos os usuários
-            setUsers(records);
+            const usersRef = collection(db, 'users');
+            const q = roleFilter 
+                ? query(usersRef, where('role', 'array-contains', roleFilter), orderBy('name'))
+                : query(usersRef, orderBy('name'));
+
+            const querySnapshot = await getDocs(q);
+            const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(userList);
         } catch (err: any) {
             console.error("Failed to fetch users:", err);
-            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor.");
+            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras do Firestore.");
             setUsers([]); 
         } finally {
             setIsLoading(false);
@@ -116,7 +119,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar>
-                    <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar) : ''} data-ai-hint="user portrait"/>
+                    <AvatarImage src={user.avatar || ''} data-ai-hint="user portrait"/>
                     <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">

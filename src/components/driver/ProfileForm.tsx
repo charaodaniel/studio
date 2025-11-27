@@ -15,14 +15,16 @@ import { Switch } from '../ui/switch';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import pb from '@/lib/pocketbase';
+import { auth, db, storage } from '@/lib/firebase';
 import type { User } from '../admin/UserList';
-import type { RecordModel } from 'pocketbase';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-interface DocumentRecord extends RecordModel {
+interface DocumentRecord {
+    id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    file: string;
+    fileUrl: string;
     is_verified: boolean;
 }
 
@@ -34,10 +36,15 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
     useEffect(() => {
         const fetchDocument = async () => {
             try {
-                const record = await pb.collection('driver_documents').getFirstListItem<DocumentRecord>(`driver="${driverId}" && document_type="${docType}"`);
-                setDocument(record);
+                const q = query(collection(db, "driver_documents"), where("driver", "==", driverId), where("document_type", "==", docType));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const docData = querySnapshot.docs[0].data() as DocumentRecord;
+                    setDocument({ ...docData, id: querySnapshot.docs[0].id });
+                } else {
+                    setDocument(null);
+                }
             } catch (error) {
-                // It's ok if not found
                 setDocument(null);
             }
         };
@@ -46,25 +53,34 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
 
     const handleFileSave = async (newImage: string) => {
         try {
-            const formData = new FormData();
             const blob = await(await fetch(newImage)).blob();
-            formData.append('file', blob, `${docType}-${driverId}.png`);
-            formData.append('driver', driverId);
-            formData.append('document_type', docType);
+            const storageRef = ref(storage, `driver_documents/${driverId}/${docType}-${Date.now()}.png`);
+            
+            await uploadBytes(storageRef, blob);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            const docData = {
+                driver: driverId,
+                document_type: docType,
+                fileUrl: downloadURL,
+                is_verified: false, // Always requires re-verification
+                updatedAt: new Date().toISOString(),
+            };
 
             if (document?.id) {
-                await pb.collection('driver_documents').update(document.id, formData);
+                await setDoc(doc(db, "driver_documents", document.id), docData, { merge: true });
             } else {
-                await pb.collection('driver_documents').create(formData);
+                await addDoc(collection(db, "driver_documents"), { ...docData, createdAt: new Date().toISOString() });
             }
             toast({ title: `${label} atualizado com sucesso!`});
             onUpdate(); // Trigger parent re-fetch
         } catch(error) {
+            console.error("Error saving document: ", error);
             toast({ variant: 'destructive', title: `Erro ao salvar ${label}`, description: "Tente novamente." });
         }
     }
     
-    const docUrl = document ? pb.getFileUrl(document, document.file) : null;
+    const docUrl = document?.fileUrl;
 
     return (
         <div className="space-y-2">
@@ -145,9 +161,16 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   }
 
   const handleSave = async (section: string) => {
+    if (!auth.currentUser) return;
     try {
-        const updatedRecord = await pb.collection('users').update<User>(user.id, formData);
-        onUpdate(updatedRecord); // Update parent state
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), formData);
+        
+        // Fetch updated user to refresh parent state
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+             onUpdate({ ...userDoc.data(), id: userDoc.id } as User);
+        }
+       
         toast({
           title: 'Sucesso!',
           description: `Suas alterações na seção de ${section} foram salvas.`,
@@ -162,7 +185,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   };
   
   const handleLogout = () => {
-    pb.authStore.clear();
+    auth.signOut();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -172,6 +195,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth.currentUser) return;
     if (!newPassword.password || !newPassword.confirmPassword) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Preencha ambos os campos de senha.' });
         return;
@@ -180,16 +204,12 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
         toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
         return;
     }
-    try {
-        await pb.collection('users').update(user.id, {
-            password: newPassword.password,
-            passwordConfirm: newPassword.confirmPassword,
-        });
-        toast({ title: 'Senha Alterada!', description: 'Sua senha foi alterada com sucesso.' });
-        setNewPassword({ password: '', confirmPassword: '' });
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Tente novamente.' });
-    }
+    // Firebase doesn't have a direct password update for security reasons.
+    // The user needs to re-authenticate for this. For now, we'll just show a message.
+     toast({
+        title: 'Funcionalidade em Breve',
+        description: 'A alteração de senha no perfil requer re-autenticação. Esta função será adicionada.',
+      });
   };
   
   const handleCancelEdit = (section: string) => {

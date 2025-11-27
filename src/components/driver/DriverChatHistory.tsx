@@ -7,13 +7,18 @@ import { Separator } from "../ui/separator";
 import { MessageSquare, WifiOff, Loader2 } from "lucide-react";
 import { RideChat } from "./NegotiationChat";
 import { useState, useEffect, useCallback } from "react";
-import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { User } from "../admin/UserList";
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
-interface ChatRecord extends RecordModel {
+interface ChatRecord {
+  id: string;
   participants: string[];
   last_message: string;
+  ride: string;
+  updatedAt: any;
   expand: {
     participants: User[];
   }
@@ -25,41 +30,74 @@ export function DriverChatHistory() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchChats = useCallback(async () => {
-    if (!pb.authStore.isValid) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
     setIsLoading(true);
     setError(null);
 
-    try {
-        const currentUser = pb.authStore.model;
-        if (!currentUser) return;
-        
-        const records = await pb.collection('chats').getFullList<ChatRecord>({ 
-            filter: `participants.id ?= "${currentUser.id}"`,
-            sort: '-updated',
-            expand: 'participants' 
-        });
-        setChats(records);
-    } catch (err: any) {
+    const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.uid));
+    
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        try {
+            const chatsData: ChatRecord[] = [];
+            for (const chatDoc of querySnapshot.docs) {
+                const data = chatDoc.data();
+                const participantsData: User[] = [];
+
+                for (const participantId of data.participants) {
+                    const userDoc = await getDoc(doc(db, 'users', participantId));
+                    if (userDoc.exists()) {
+                        participantsData.push({ id: userDoc.id, ...userDoc.data() } as User);
+                    }
+                }
+                
+                chatsData.push({
+                    id: chatDoc.id,
+                    participants: data.participants,
+                    last_message: data.lastMessage,
+                    ride: data.rideId,
+                    updatedAt: data.updatedAt,
+                    expand: {
+                        participants: participantsData,
+                    },
+                });
+            }
+            
+            chatsData.sort((a, b) => b.updatedAt?.toMillis() - a.updatedAt?.toMillis());
+            setChats(chatsData);
+
+        } catch (err) {
+            console.error("Failed to process chat updates:", err);
+            setError("Não foi possível carregar as conversas.");
+            setChats([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, (err) => {
         console.error("Failed to fetch chats:", err);
         setError("Não foi possível carregar as conversas.");
-        setChats([]);
-    } finally {
         setIsLoading(false);
-    }
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
-    fetchChats();
-    const handleUpdate = (e: { record: ChatRecord }) => {
-        if (pb.authStore.model && e.record.participants.includes(pb.authStore.model.id)) {
-            fetchChats();
+    let unsubscribe: (() => void) | undefined;
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+            fetchChats().then(cb => unsubscribe = cb);
+        } else {
+            setIsLoading(false);
+            setChats([]);
         }
-    };
-    
-    pb.collection('chats').subscribe('*', handleUpdate);
+    });
 
     return () => {
-        pb.collection('chats').unsubscribe('*');
+        authUnsubscribe();
+        if (unsubscribe) {
+            unsubscribe();
+        }
     };
   }, [fetchChats]);
 
@@ -88,10 +126,10 @@ export function DriverChatHistory() {
     return (
         <ul className="px-4">
             {chats.map((chat, index) => {
-                const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+                const otherUser = chat.expand.participants.find(p => p.id !== auth.currentUser?.uid);
                 if (!otherUser) return null;
 
-                const avatarUrl = otherUser.avatar ? pb.getFileUrl(otherUser, otherUser.avatar) : '';
+                const avatarUrl = otherUser.avatar;
 
                 return (
                     <li key={chat.id}>
@@ -110,7 +148,7 @@ export function DriverChatHistory() {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-center">
                                             <p className="font-semibold">{otherUser.name}</p>
-                                            <p className="text-xs text-muted-foreground">{new Date(chat.updated).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                            <p className="text-xs text-muted-foreground">{chat.updatedAt ? new Date(chat.updatedAt.toDate()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
                                         </div>
                                         <p className="text-sm text-muted-foreground truncate">{chat.last_message || 'Nenhuma mensagem.'}</p>
                                     </div>

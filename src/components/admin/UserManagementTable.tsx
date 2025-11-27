@@ -14,8 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2, AlertTriangle } from "lucide-react";
-import { useEffect, useState } from "react";
-import pb from "@/lib/pocketbase";
+import { useEffect, useState, useCallback } from "react";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
@@ -27,12 +26,13 @@ import { ScrollArea } from "../ui/scroll-area";
 import UserProfile from "./UserProfile";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import type { RecordModel } from "pocketbase";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { format, endOfDay } from "date-fns";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, where, updateDoc, doc } from "firebase/firestore";
 
-
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     passenger: string | null;
     driver: string;
     origin_address: string;
@@ -42,11 +42,11 @@ interface RideRecord extends RecordModel {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
-    created: string;
-    updated: string;
+    createdAt: any; // Firestore Timestamp
+    updatedAt: any; // Firestore Timestamp
     expand?: {
-        driver?: RecordModel;
-        passenger?: RecordModel;
+        driver?: User;
+        passenger?: User;
     }
 }
 
@@ -67,34 +67,37 @@ const appData = {
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
 
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const records = await pb.collection('users').getFullList<User>({ sort: '-created' }, { admin: true });
-            setUsers(records);
+            const q = query(collection(db, 'users'), orderBy('name'));
+            const querySnapshot = await getDocs(q);
+            const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(userList);
         } catch (err: any) {
-            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor.");
+            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras do Firestore.");
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [fetchUsers]);
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
-            const startDate = format(dateRange.from, 'yyyy-MM-dd 00:00:00');
-            const endDate = format(endOfDay(dateRange.to), 'yyyy-MM-dd 23:59:59');
+            const ridesRef = collection(db, "rides");
+            const q = query(ridesRef,
+                where("driver", "==", driverId),
+                where("createdAt", ">=", dateRange.from),
+                where("createdAt", "<=", endOfDay(dateRange.to)),
+                orderBy("createdAt", "desc")
+            );
 
-            const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
-                sort: '-created',
-                expand: 'passenger',
-            });
-            return result;
+            const querySnapshot = await getDocs(q);
+            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideRecord));
         } catch (err: any) {
             console.error("Failed to fetch rides for report:", err);
             toast({
@@ -108,12 +111,10 @@ const appData = {
     
     const fetchAllRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
         try {
-            const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}"`,
-                sort: '-created',
-                expand: 'passenger',
-            });
-            return result;
+            const ridesRef = collection(db, "rides");
+            const q = query(ridesRef, where("driver", "==", driverId), orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideRecord));
         } catch (err: any) {
             console.error("Failed to fetch all rides for report:", err);
             toast({
@@ -146,7 +147,7 @@ const appData = {
         const rows = rides.map(ride => 
             [
                 ride.id, 
-                ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida', 
+                ride.createdAt ? new Date(ride.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Inválida', 
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -173,8 +174,7 @@ const appData = {
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         let finalY = 0;
 
-        const validDateRides = rides.filter(ride => ride.created && !isNaN(new Date(ride.created).getTime()));
-        const invalidDateRides = rides.filter(ride => !ride.created || isNaN(new Date(ride.created).getTime()));
+        const validDateRides = rides.filter(ride => ride.createdAt && ride.createdAt.toDate);
         
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
@@ -199,7 +199,7 @@ const appData = {
         };
 
         const drawFooter = () => {
-            const pageCount = doc.internal.pages.length;
+            const pageCount = (doc as any).internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 doc.setFontSize(8);
@@ -230,7 +230,7 @@ const appData = {
         if (validDateRides.length > 0) {
             const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
             const tableRows = validDateRides.map(ride => [
-                    new Date(ride.created).toLocaleString('pt-BR'),
+                    new Date(ride.createdAt.toDate()).toLocaleString('pt-BR'),
                     ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                     `${ride.origin_address} -> ${ride.destination_address}`,
                     `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
@@ -256,50 +256,7 @@ const appData = {
         } else {
              finalY = startY;
         }
-
-        if (invalidDateRides.length > 0) {
-            finalY += 10;
-            doc.setFontSize(12);
-            doc.setTextColor(40);
-            doc.setFont('helvetica', 'bold');
-            doc.text("Corridas com Data de Registro Inválida", 14, finalY);
-
-            finalY += 5;
-            doc.setFont('helvetica', 'italic');
-            doc.setFontSize(8);
-            doc.setTextColor(150);
-            const warningText = "Aviso: Corridas anteriores a 13/09/2024 podem não exibir a data correta devido a um erro no servidor.";
-            const splitText = doc.splitTextToSize(warningText, pageWidth - 28);
-            doc.text(splitText, 14, finalY);
-            finalY += (splitText.length * 3) + 2;
-
-
-            const invalidTableColumn = ["Passageiro", "Trajeto", "Valor (R$)", "Status"];
-            const invalidTableRows = invalidDateRides.map(ride => [
-                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
-                `${ride.origin_address} -> ${ride.destination_address}`,
-                `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
-                ride.status,
-            ]);
-
-            (doc as any).autoTable({
-                head: [invalidTableColumn],
-                body: invalidTableRows,
-                startY: finalY,
-                theme: 'grid',
-                headStyles: { fillColor: [249, 115, 22], textColor: 255, fontStyle: 'bold' }, // Orange header
-                styles: { cellPadding: 3, fontSize: 9 },
-                columnStyles: { 2: { halign: 'right' } },
-                 didParseCell: (data: any) => {
-                    if (data.column.dataKey === 3) {
-                        if (data.cell.raw === 'completed') data.cell.styles.textColor = '#16a34a';
-                        else if (data.cell.raw === 'canceled') data.cell.styles.textColor = '#dc2626';
-                    }
-                },
-            });
-            finalY = (doc as any).lastAutoTable.finalY || finalY;
-        }
-
+        
         // Performance Summary based only on valid rides
         const completedRides = validDateRides.filter(r => r.status === 'completed');
         const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
@@ -333,7 +290,7 @@ const appData = {
     const handleToggleUserStatus = async (user: User) => {
       const newStatus = !user.disabled;
       try {
-        await pb.collection('users').update(user.id, { disabled: newStatus });
+        await updateDoc(doc(db, 'users', user.id), { disabled: newStatus });
         toast({
           title: "Status Alterado!",
           description: `O usuário ${user.name} foi ${newStatus ? 'desativado' : 'ativado'}.`

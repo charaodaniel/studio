@@ -2,24 +2,26 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Loader2, WifiOff, FileCheck2, AlertTriangle, Check, X, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
 
-interface User extends RecordModel {
+interface User {
+    id: string;
     name: string;
 }
 
-interface DocumentRecord extends RecordModel {
+interface DocumentRecord {
+    id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    file: string;
+    fileUrl: string;
     is_verified: boolean;
     expand: {
         driver: User;
@@ -36,17 +38,28 @@ export default function DocumentVerification() {
         setIsLoading(true);
         setError(null);
         try {
-            // Adicionando `{ admin: true }` como segundo argumento força a requisição a usar
-            // privilégios de admin, contornando regras de API restritivas para usuários normais.
-            const records = await pb.collection('driver_documents').getFullList<DocumentRecord>({
-                filter: 'is_verified = false',
-                sort: 'created',
-                expand: 'driver',
-            }, { admin: true });
-            setDocuments(records);
+            const q = query(collection(db, "driver_documents"), where("is_verified", "==", false));
+            const querySnapshot = await getDocs(q);
+            
+            const docsData: DocumentRecord[] = [];
+            for (const docSnap of querySnapshot.docs) {
+                const data = docSnap.data();
+                const userDoc = await getDoc(doc(db, "users", data.driver));
+                const userData = userDoc.data() as User;
+                
+                docsData.push({
+                    id: docSnap.id,
+                    ...data,
+                    expand: {
+                        driver: { id: userDoc.id, name: userData.name }
+                    }
+                } as DocumentRecord);
+            }
+
+            setDocuments(docsData);
         } catch (err: any) {
             console.error("Failed to fetch documents:", err);
-            setError("Não foi possível carregar os documentos pendentes. Verifique as regras da API no PocketBase.");
+            setError("Não foi possível carregar os documentos pendentes. Verifique suas regras de segurança no Firebase.");
         } finally {
             setIsLoading(false);
         }
@@ -58,7 +71,7 @@ export default function DocumentVerification() {
 
     const handleApprove = async (docId: string) => {
         try {
-            await pb.collection('driver_documents').update(docId, { is_verified: true }, { admin: true });
+            await updateDoc(doc(db, "driver_documents", docId), { is_verified: true });
             toast({
                 title: 'Documento Aprovado!',
                 description: 'O documento foi marcado como verificado.',
@@ -75,7 +88,7 @@ export default function DocumentVerification() {
     
     const handleReject = async (docId: string) => {
         try {
-            await pb.collection('driver_documents').delete(docId, { admin: true });
+            await deleteDoc(doc(db, "driver_documents", docId));
             toast({
                 variant: 'destructive',
                 title: 'Documento Rejeitado!',
@@ -135,7 +148,7 @@ export default function DocumentVerification() {
                                 <DialogTrigger asChild>
                                     <div className="relative aspect-[4/3] w-full bg-muted rounded-md cursor-pointer hover:opacity-80 transition-opacity">
                                         <Image
-                                            src={pb.getFileUrl(doc, doc.file)}
+                                            src={doc.fileUrl}
                                             alt={`Documento de ${doc.expand.driver.name}`}
                                             fill
                                             className="object-contain rounded-md"
@@ -147,7 +160,7 @@ export default function DocumentVerification() {
                                         <DialogTitle>{doc.document_type} de {doc.expand.driver.name}</DialogTitle>
                                     </DialogHeader>
                                     <div className="flex justify-center p-4">
-                                        <Image src={pb.getFileUrl(doc, doc.file)} alt="Documento em tamanho maior" width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
+                                        <Image src={doc.fileUrl} alt="Documento em tamanho maior" width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
                                     </div>
                                 </DialogContent>
                             </Dialog>
