@@ -1,12 +1,9 @@
-
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Car, MapPin, WifiOff, Loader2, Calendar as CalendarIcon, RefreshCw, AlertTriangle } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import pb from "@/lib/pocketbase";
-import type { RecordModel, ListResult } from "pocketbase";
 import { Skeleton } from "../ui/skeleton";
 import { Button } from "../ui/button";
 import { addDays, format, startOfMonth, endOfDay } from 'date-fns';
@@ -16,8 +13,13 @@ import { Calendar } from "../ui/calendar";
 import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { auth, db } from "@/lib/firebase";
+import { collection, query, where, orderBy, getDocs, onSnapshot, doc } from "firebase/firestore";
+import { User } from "../admin/UserList";
 
-interface RideRecord extends RecordModel {
+
+interface RideRecord {
+    id: string;
     passenger: string;
     driver: string;
     origin_address: string;
@@ -27,10 +29,10 @@ interface RideRecord extends RecordModel {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
-    created: string;
-    updated: string;
+    createdAt: any;
+    updatedAt: any;
     expand?: {
-        driver?: RecordModel;
+        driver?: User;
     }
 }
 
@@ -44,76 +46,61 @@ export function PassengerRideHistory() {
     });
     
     const fetchRides = useCallback(async (filterOverride?: string) => {
-        if (!pb.authStore.isValid) return;
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
-            const passengerId = pb.authStore.model!.id;
-            let filter = '';
+            const passengerId = currentUser.uid;
+            let q;
             
             if (filterOverride) {
-                filter = `passenger = "${passengerId}" && (${filterOverride})`;
+                q = query(collection(db, 'rides'), where('passenger', '==', passengerId), where('createdAt', '==', null));
             } else if (dateRange?.from && dateRange?.to) {
-                const startDate = format(dateRange.from, "yyyy-MM-dd 00:00:00");
-                const endDate = format(endOfDay(dateRange.to), "yyyy-MM-dd 23:59:59");
-                filter = `passenger = "${passengerId}" && created >= "${startDate}" && created <= "${endDate}"`;
+                const startDate = dateRange.from;
+                const endDate = endOfDay(dateRange.to);
+                q = query(collection(db, 'rides'), where('passenger', '==', passengerId), where('createdAt', '>=', startDate), where('createdAt', '<=', endDate), orderBy('createdAt', 'desc'));
             } else {
                 setIsLoading(false);
                 return;
             }
 
-            const result = await pb.collection('rides').getFullList<RideRecord>({
-                filter: filter,
-                sort: '-created',
-                expand: 'driver',
-            });
+            const querySnapshot = await getDocs(q);
+            const rideRecords: RideRecord[] = [];
+            for (const docSnap of querySnapshot.docs) {
+                const ride = { id: docSnap.id, ...docSnap.data() } as RideRecord;
+                if (ride.driver) {
+                    const driverDoc = await getDoc(doc(db, 'users', ride.driver));
+                    if (driverDoc.exists()) {
+                        ride.expand = { driver: { id: driverDoc.id, ...driverDoc.data() } as User };
+                    }
+                }
+                rideRecords.push(ride);
+            }
             
-            setRides(result);
+            setRides(rideRecords);
 
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
-            let errorMessage = "Não foi possível carregar seu histórico de corridas.";
-            if (err.isAbort) {
-                errorMessage += " A requisição demorou muito.";
-            } else if (err.status === 0) {
-                errorMessage += " Verifique sua conexão com a internet ou as configurações do servidor.";
-            } else if (err.data?.message) {
-                errorMessage += ` Detalhe: ${err.data.message}`;
-            }
-            setError(errorMessage);
+            setError("Não foi possível carregar seu histórico de corridas.");
         } finally {
             setIsLoading(false);
         }
     }, [dateRange]);
 
     useEffect(() => {
-        const handleAuthChange = (token: string, model: RecordModel | null) => {
-            if (model) {
+        const unsubscribe = auth.onAuthStateChanged(user => {
+            if (user) {
                 fetchRides();
             } else {
                 setRides([]);
                 setIsLoading(false);
             }
-        };
-
-        handleAuthChange(pb.authStore.token, pb.authStore.model);
-
-        const unsubscribeAuth = pb.authStore.onChange(handleAuthChange);
-
-        const handleRidesUpdate = (e: { record: RideRecord, action: string }) => {
-            if (pb.authStore.model && e.record.passenger === pb.authStore.model.id) {
-                 fetchRides();
-            }
-        };
-
-        pb.collection('rides').subscribe('*', handleRidesUpdate);
-
-        return () => {
-            pb.collection('rides').unsubscribe('*');
-            unsubscribeAuth();
-        };
+        });
+        
+        return () => unsubscribe();
     }, [fetchRides]);
     
     const renderContent = () => {
@@ -159,9 +146,7 @@ export function PassengerRideHistory() {
         return (
             <TableBody>
                 {rides.map((ride) => {
-                    const dateStr = ride.created && !isNaN(new Date(ride.created).getTime()) 
-                        ? new Date(ride.created).toLocaleString('pt-BR') 
-                        : 'Data Inválida';
+                    const dateStr = ride.createdAt?.toDate ? new Date(ride.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Inválida';
 
                     return (
                         <TableRow key={ride.id}>
@@ -229,7 +214,7 @@ export function PassengerRideHistory() {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => fetchRides('created = null || created = ""')} disabled={isLoading}>
+                                <Button variant="outline" size="icon" onClick={() => fetchRides('createdAt = null')} disabled={isLoading}>
                                     <AlertTriangle className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>

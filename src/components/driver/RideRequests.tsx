@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,14 +9,16 @@ import { RideChat } from './NegotiationChat';
 import { useState, useEffect, useCallback } from 'react';
 import { ScrollArea } from '../ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { useRideRequestSound } from '@/hooks/useRideRequestSound';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { type User } from '../admin/UserList';
+import { db, auth } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 
-interface RideRecord extends RecordModel {
+
+interface RideRecord {
+    id: string;
     passenger: string;
     driver: string;
     origin_address: string;
@@ -31,7 +31,7 @@ interface RideRecord extends RecordModel {
     scheduled_for?: string;
     ride_description?: string;
     expand?: {
-        passenger: RecordModel;
+        passenger: User;
     }
 }
 
@@ -42,7 +42,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
         <Card className={ride.is_negotiated ? 'border-primary' : ''}>
             <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-4">
                 <Avatar>
-                    <AvatarImage src={ride.expand?.passenger?.avatar ? pb.getFileUrl(ride.expand.passenger, ride.expand.passenger.avatar) : ''} data-ai-hint="person face" />
+                    <AvatarImage src={ride.expand?.passenger?.avatar} data-ai-hint="person face" />
                     <AvatarFallback>{ride.expand?.passenger?.name.charAt(0) || 'P'}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -125,6 +125,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [passengerOnBoard, setPassengerOnBoard] = useState(false);
+    const currentUser = auth.currentUser;
 
     useEffect(() => {
         if (manualRideOverride) {
@@ -137,97 +138,127 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     }, [manualRideOverride]);
 
     const fetchRequests = useCallback(async () => {
-        if (!pb.authStore.isValid || !pb.authStore.model?.id) return;
+        if (!currentUser) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
-            const driverId = pb.authStore.model.id;
-            // Verifica se já existe uma corrida aceita
-            const acceptedFilter = `(status = "accepted" || status = "in_progress") && driver = "${driverId}"`;
-            try {
-                const alreadyAccepted = await pb.collection('rides').getFirstListItem<RideRecord>(acceptedFilter, { expand: 'passenger' });
-                setAcceptedRide(alreadyAccepted);
-                if (alreadyAccepted.status === 'in_progress') {
-                    setPassengerOnBoard(true);
-                }
-                setRequests([]); // Limpa as solicitações pendentes se uma for aceita
-                setIsLoading(false);
-                stopRideRequestSound();
-                return; 
-            } catch (err: any) {
-                if (err.status !== 404) throw err; 
-            }
+            const driverId = currentUser.uid;
+            
+            // Check for an already accepted ride first
+            const acceptedQuery = query(collection(db, 'rides'), where('driver', '==', driverId), where('status', 'in', ['accepted', 'in_progress']));
+            const acceptedSnapshot = await getDocs(acceptedQuery);
 
-            // Se não houver corrida aceita, busca novas solicitações
-            const rideFilter = `status = "requested" && driver = "${driverId}"`;
-            const rideRecords = await pb.collection('rides').getFullList<RideRecord>({
-                filter: rideFilter,
-                expand: 'passenger',
-                sort: '-created'
-            });
-
-            if (rideRecords.length > 0) {
-                playRideRequestSound();
-            } else {
-                stopRideRequestSound();
-            }
-
-            const fullRequests = await Promise.all(rideRecords.map(async (ride) => {
-                let chatId: string | null = null;
-                if (ride.is_negotiated) {
-                    try {
-                        const chatRecord = await pb.collection('chats').getFirstListItem(`ride="${ride.id}"`);
-                        chatId = chatRecord.id;
-                    } catch (e) {
-                       console.warn(`Não foi possível encontrar chat para a corrida negociada ${ride.id}`);
+            if (!acceptedSnapshot.empty) {
+                const alreadyAcceptedDoc = acceptedSnapshot.docs[0];
+                const alreadyAcceptedData = { id: alreadyAcceptedDoc.id, ...alreadyAcceptedDoc.data() } as RideRecord;
+                
+                // Expand passenger data
+                if (alreadyAcceptedData.passenger) {
+                    const passengerDoc = await getDoc(doc(db, 'users', alreadyAcceptedData.passenger));
+                    if (passengerDoc.exists()) {
+                         alreadyAcceptedData.expand = { passenger: { id: passengerDoc.id, ...passengerDoc.data() } as User };
                     }
                 }
-                return { ride, chatId };
-            }));
+                
+                setAcceptedRide(alreadyAcceptedData);
+                if (alreadyAcceptedData.status === 'in_progress') {
+                    setPassengerOnBoard(true);
+                }
+                setRequests([]);
+                setIsLoading(false);
+                stopRideRequestSound();
+                return; // Exit if an accepted ride is found
+            }
 
-            setRequests(fullRequests);
+            // If no accepted ride, listen for new requests
+            const requestedQuery = query(collection(db, 'rides'), where('driver', '==', driverId), where('status', '==', 'requested'));
+            const unsubscribe = onSnapshot(requestedQuery, async (snapshot) => {
+                 if (snapshot.docs.length > 0) {
+                    playRideRequestSound();
+                } else {
+                    stopRideRequestSound();
+                }
+
+                const fullRequests: FullRideRequest[] = await Promise.all(snapshot.docs.map(async (rideDoc) => {
+                    const rideData = { id: rideDoc.id, ...rideDoc.data() } as RideRecord;
+                    let chatId: string | null = null;
+                    
+                    if (rideData.passenger) {
+                        const passengerDoc = await getDoc(doc(db, 'users', rideData.passenger));
+                         if (passengerDoc.exists()) {
+                             rideData.expand = { passenger: { id: passengerDoc.id, ...passengerDoc.data() } as User };
+                         }
+                    }
+
+                    if (rideData.is_negotiated) {
+                        try {
+                            const chatQuery = query(collection(db, 'chats'), where('rideId', '==', rideData.id));
+                            const chatSnapshot = await getDocs(chatQuery);
+                            if (!chatSnapshot.empty) {
+                                chatId = chatSnapshot.docs[0].id;
+                            }
+                        } catch (e) {
+                           console.warn(`Could not find chat for negotiated ride ${rideData.id}`);
+                        }
+                    }
+                    return { ride: rideData, chatId };
+                }));
+
+                setRequests(fullRequests);
+                setIsLoading(false);
+            }, (err) => {
+                console.error("Error fetching ride requests:", err);
+                setError("Não foi possível buscar as solicitações de corrida.");
+                stopRideRequestSound();
+                setIsLoading(false);
+            });
+
+            return unsubscribe;
 
         } catch (err) {
             console.error(err);
             setError("Não foi possível buscar as solicitações de corrida.");
             stopRideRequestSound();
-        } finally {
             setIsLoading(false);
         }
-    }, [playRideRequestSound, stopRideRequestSound]);
+    }, [currentUser, playRideRequestSound, stopRideRequestSound]);
 
     useEffect(() => {
-        if (manualRideOverride) return;
-        fetchRequests();
-
-        const handleUpdate = (e: { record: RideRecord, action: string }) => {
-            const driverId = pb.authStore.model?.id;
-            if (driverId && e.record.driver === driverId) {
-                fetchRequests();
-            }
-        };
-
-        pb.collection('rides').subscribe('*', handleUpdate);
+        if (manualRideOverride || !currentUser) return;
+        
+        let unsubscribe: (() => void) | undefined;
+        fetchRequests().then(cb => {
+            if (cb) unsubscribe = cb;
+        });
 
         return () => {
-            pb.collection('rides').unsubscribe('*');
+            if (unsubscribe) unsubscribe();
             stopRideRequestSound();
         };
-    }, [fetchRequests, manualRideOverride, stopRideRequestSound]);
+    }, [fetchRequests, manualRideOverride, stopRideRequestSound, currentUser]);
 
 
     const handleAccept = async (ride: RideRecord) => {
-        if (!pb.authStore.model) return;
+        if (!currentUser) return;
         stopRideRequestSound();
 
         try {
-            const updatedRide = await pb.collection('rides').update<RideRecord>(ride.id, {
-                status: 'accepted'
-            }, { expand: 'passenger' });
+            const rideRef = doc(db, 'rides', ride.id);
+            await updateDoc(rideRef, { status: 'accepted' });
 
-            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${ride.expand?.passenger.name}.` });
+            const rideDoc = await getDoc(rideRef);
+            const updatedRide = {id: rideDoc.id, ...rideDoc.data()} as RideRecord;
+
+             if (updatedRide.passenger) {
+                const passengerDoc = await getDoc(doc(db, 'users', updatedRide.passenger));
+                if (passengerDoc.exists()) {
+                     updatedRide.expand = { passenger: { id: passengerDoc.id, ...passengerDoc.data() } as User };
+                }
+            }
+
+            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${updatedRide.expand?.passenger.name}.` });
             setAcceptedRide(updatedRide);
             setRequests([]); 
             setPassengerOnBoard(false);
@@ -236,14 +267,14 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
             setDriverStatus(newStatus);
         } catch (error) {
             console.error("Failed to accept ride:", error);
-            toast({ variant: "destructive", title: "Erro", description: "Esta corrida já foi aceita por outro motorista."});
+            toast({ variant: "destructive", title: "Erro", description: "Esta corrida pode já ter sido aceita ou cancelada."});
             fetchRequests();
         }
     };
     
     const handleReject = async (rideId: string) => {
         try {
-            await pb.collection('rides').update(rideId, { status: 'canceled' });
+            await updateDoc(doc(db, 'rides', rideId), { status: 'canceled' });
             toast({ variant: "destructive", title: "Corrida Rejeitada" });
             setRequests(prev => prev.filter(r => r.ride.id !== rideId));
             if (requests.length <= 1) {
@@ -258,7 +289,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     const handlePassengerOnBoard = async () => {
         if (!acceptedRide) return;
         try {
-            await pb.collection('rides').update(acceptedRide.id, { status: 'in_progress' });
+            await updateDoc(doc(db, 'rides', acceptedRide.id), { status: 'in_progress' });
             setPassengerOnBoard(true);
             toast({ title: "Passageiro a Bordo!", description: "A viagem foi iniciada." });
         } catch (error) {
@@ -270,7 +301,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (!acceptedRide) return;
         const isManual = acceptedRide.started_by === 'driver';
         try {
-            await pb.collection('rides').update(acceptedRide.id, { status: 'completed' });
+            await updateDoc(doc(db, 'rides', acceptedRide.id), { status: 'completed' });
             toast({ title: "Viagem Finalizada!", description: `A corrida foi concluída com sucesso.` });
             setAcceptedRide(null);
             setPassengerOnBoard(false);
@@ -290,7 +321,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (!acceptedRide) return;
         const isManual = acceptedRide.started_by === 'driver';
         try {
-            await pb.collection('rides').update(acceptedRide.id, { status: 'canceled' });
+            await updateDoc(doc(db, 'rides', acceptedRide.id), { status: 'canceled' });
             toast({ variant: "destructive", title: "Corrida Cancelada", description: "A corrida foi cancelada." });
             setAcceptedRide(null);
             setPassengerOnBoard(false);
@@ -321,6 +352,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
     if (acceptedRide) {
          const passengerName = acceptedRide.expand?.passenger?.name || acceptedRide.passenger_anonymous_name || "Passageiro";
+         const passengerAvatar = acceptedRide.expand?.passenger?.avatar;
          return (
              <Card className="shadow-lg border-primary">
                  <CardHeader>
@@ -330,7 +362,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                 <CardContent className="space-y-4">
                     <div className="flex flex-row items-center gap-4 space-y-0 pb-4">
                         <Avatar>
-                             <AvatarImage src={acceptedRide.expand?.passenger?.avatar ? pb.getFileUrl(acceptedRide.expand.passenger, acceptedRide.expand.passenger.avatar) : ''} data-ai-hint="person face" />
+                             <AvatarImage src={passengerAvatar} data-ai-hint="person face" />
                             <AvatarFallback>{passengerName.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -423,8 +455,6 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     }
     
     if(requests.length === 0) {
-        const currentUser = pb.authStore.model as User | null;
-
         return (
             <div className="text-center text-muted-foreground p-8 border rounded-lg bg-card space-y-4">
                 <CardTitle>Nenhuma solicitação no momento</CardTitle>
