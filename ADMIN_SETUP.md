@@ -1,42 +1,53 @@
-# Guia: Como Criar o Primeiro Administrador
+# Guia: Como Criar o Primeiro Administrador (Firebase)
 
-Para gerenciar sua aplicação, você precisa de uma conta de administrador. No PocketBase, por motivos de segurança, a criação do **primeiro administrador** é um processo manual feito diretamente no painel de controle do seu backend.
+Para gerenciar sua aplicação, o primeiro passo é criar uma conta de **Administrador**. Diferente dos outros usuários, a criação do primeiro admin é um processo manual feito diretamente no painel do Firebase. Isso garante que apenas você tenha o controle inicial da plataforma.
 
-Este guia mostra como fazer isso de forma simples.
+Este guia mostra como fazer isso.
 
 ---
 
 ## Passo a Passo
 
-### 1. Acesse seu Painel PocketBase
+### 1. Crie o Usuário na Autenticação Firebase
 
-Abra o endereço do seu painel administrativo no navegador. Ele geralmente fica no caminho `/_/` do seu domínio.
+1.  Acesse o [**Firebase Console**](https://console.firebase.google.com/) e navegue até o seu projeto.
+2.  No menu lateral (seção **Build**), clique em **Authentication**.
+3.  Vá para a aba **Users** e clique no botão **+ Add user**.
 
-Exemplo de URL:
-**`https://seu-servidor-pocketbase.com/_/`**
+    ![Botão Add User](https://placehold.co/400x150/E3F2FD/1E3A8A?text=Botão+Add+User)
 
-### 2. Vá para a Seção de Administradores
+4.  Preencha os campos:
+    *   **Email**: `seu-email-de-admin@exemplo.com`
+    *   **Password**: Crie uma senha forte (mínimo 6 caracteres).
+    *   Clique em **Add user**.
 
-No menu lateral esquerdo, clique em **Admins**.
+    O Firebase criará o usuário e atribuirá a ele um **User UID** (Identificador Único de Usuário). **Copie este UID**, pois você precisará dele na próxima etapa.
 
-![Menu Admins](https://placehold.co/300x200/E3F2FD/1E3A8A?text=Menu+Admins)
+### 2. Crie o Documento do Administrador no Firestore
 
-### 3. Crie o Novo Administrador
+Agora, vamos dar a esse usuário o perfil de Administrador no banco de dados.
 
-Clique no botão **+ New Admin** (ou "+ Novo Administrador") no canto superior direito.
+1.  No menu lateral (seção **Build**), clique em **Firestore Database**.
+2.  Se a coleção `users` ainda não existir, clique em **+ Start collection** e nomeie-a como `users`.
+3.  Clique em **+ Add document**.
+4.  No campo **Document ID**, **cole o UID** que você copiou no passo anterior.
+5.  Agora, adicione os seguintes campos ao documento:
 
-![Botão New Admin](https://placehold.co/400x150/E3F2FD/1E3A8A?text=Botão+New+Admin)
+| Field (Campo) | Type (Tipo) | Value (Valor) |
+| :--- | :--- | :--- |
+| `name` | `string` | Seu Nome de Admin |
+| `email` | `string` | `seu-email-de-admin@exemplo.com` |
+| `role` | `array` | `["Admin"]` (Escreva Admin e clique "Add") |
+| `disabled` | `boolean` | `false` |
+| `createdAt` | `timestamp` | Escolha a data e hora atuais |
+| `uid` | `string` | Cole o mesmo UID novamente |
 
-### 4. Preencha os Dados
+6.  Clique em **Save**.
 
-Preencha os campos com o email e a senha que você deseja usar para sua conta principal.
+### 3. Faça Login e Crie Outros Usuários
 
--   **Email**: `seu-email-de-admin@exemplo.com`
--   **Password**: Escolha uma senha forte.
--   **Password Confirm**: Repita a senha.
+Pronto! Seu administrador está criado.
 
-Clique em **Create** (ou "Criar").
-
-### 5. Pronto!
-
-Com o administrador criado, você agora pode usar essas credenciais para fazer login no aplicativo através do **ícone de escudo (🛡️)** no canto superior direito, que abre o formulário de "Acesso Administrativo".
+1.  Acesse seu aplicativo.
+2.  Use o formulário de **"Acesso Administrativo"** para fazer login com o email e a senha que você acabou de criar.
+3.  Uma vez logado, navegue até o painel administrativo, onde você poderá usar a interface para adicionar facilmente outros usuários de teste (Passageiros, Motoristas, etc.) sem precisar repetir este processo manual.
