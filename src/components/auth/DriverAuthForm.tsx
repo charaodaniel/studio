@@ -10,10 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Logo from '../shared/Logo';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
+import { auth, db } from '@/lib/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export default function DriverAuthForm() {
   const { toast } = useToast();
@@ -32,21 +34,26 @@ export default function DriverAuthForm() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
-  const hasRole = (userRole: string | string[], roleToCheck: string): boolean => {
-    if (Array.isArray(userRole)) {
-        return userRole.includes(roleToCheck);
+  const hasRole = (userDoc: any, roleToCheck: string): boolean => {
+    const roles = userDoc.data()?.role;
+    if (Array.isArray(roles)) {
+      return roles.includes(roleToCheck);
     }
-    return userRole === roleToCheck;
+    return false;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const user = userCredential.user;
 
-      if (!hasRole(authData.record.role, 'Motorista')) {
-        pb.authStore.clear();
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists() || !hasRole(userDoc, 'Motorista')) {
+        await auth.signOut();
         toast({
           variant: 'destructive',
           title: 'Acesso Negado',
@@ -56,7 +63,7 @@ export default function DriverAuthForm() {
         return;
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${userDoc.data().name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/driver');
 
@@ -76,16 +83,19 @@ export default function DriverAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     
-    const data = {
-        "email": registerEmail,
-        "password": registerPassword,
-        "passwordConfirm": registerPassword,
-        "name": registerName,
-        "role": ["Motorista"]
-    };
-
     try {
-      await pb.collection('users').create(data);
+      const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
+      const user = userCredential.user;
+
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        name: registerName,
+        email: registerEmail,
+        role: ["Motorista"],
+        driver_status: 'offline',
+        createdAt: new Date().toISOString()
+      });
+
       toast({ title: 'Conta de Motorista Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
       setRegisterName('');
       setRegisterEmail('');
@@ -94,10 +104,10 @@ export default function DriverAuthForm() {
         
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
-        if (error.data?.data?.email?.message) {
-            description = `Erro no email: ${error.data.data.email.message}`;
-        } else if (error.data?.data?.password?.message) {
-            description = `Erro na senha: ${error.data.data.password.message}`;
+        if (error.code === 'auth/email-already-in-use') {
+            description = 'Este endereço de e-mail já está em uso por outra conta.';
+        } else if (error.code === 'auth/weak-password') {
+            description = 'A senha é muito fraca. Tente uma senha com no mínimo 6 caracteres.';
         }
         toast({
             variant: 'destructive',

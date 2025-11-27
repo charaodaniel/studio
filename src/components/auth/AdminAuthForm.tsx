@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/shared/Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import pb from '@/lib/pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
-import { POCKETBASE_URL } from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function AdminAuthForm() {
   const [email, setEmail] = useState('');
@@ -21,48 +22,52 @@ export default function AdminAuthForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Authenticate against the 'users' collection
-      const authData = await pb.collection('users').authWithPassword(email, password);
-      
-      // After successful authentication, check if the user has the 'Admin' role.
-      // With multi-select, `role` is an array.
-      if (!authData.record.role.includes('Admin')) {
-        pb.authStore.clear(); // Important: clear the auth store if the role is wrong
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // After successful authentication, check if the user has the 'Admin' role in Firestore.
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists() && userDoc.data().role.includes('Admin')) {
+        toast({
+          title: "Login bem-sucedido!",
+          description: "Bem-vindo ao painel de administração.",
+        });
+
+        // Close dialog and redirect
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        router.push('/admin');
+      } else {
+        // If no role or not an admin, sign them out.
+        await auth.signOut();
         toast({
             title: "Acesso Negado",
             description: "Você não tem permissão de Administrador.",
             variant: "destructive",
         });
-        setIsLoading(false);
-        return;
       }
-
-      toast({
-        title: "Login bem-sucedido!",
-        description: "Bem-vindo ao painel de administração.",
-      });
-
-      // Close dialog and redirect
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      router.push('/admin');
 
     } catch (error: any) {
       let description = "Email ou senha de administrador inválidos. Por favor, tente novamente.";
-      
-      if (error.status === 0) {
-        description = `Não foi possível conectar à API em ${POCKETBASE_URL}. Verifique a conexão do servidor e as configurações de CORS.`;
-      } else if (error.status === 404) {
-         description = `O endpoint de autenticação não foi encontrado (404). Verifique se seu proxy reverso (Nginx, Caddy) está configurado para encaminhar todas as rotas /api/* para o PocketBase.`;
-      } else if (error.status === 401 || error.status === 403) {
-        description = "Credenciais de administrador inválidas.";
-      } else if (error.data?.message) {
-          description = `Erro do servidor: ${error.data.message}`;
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          description = "Credenciais de administrador inválidas.";
+          break;
+        case 'auth/network-request-failed':
+          description = "Não foi possível conectar aos servidores de autenticação. Verifique sua conexão com a internet.";
+          break;
+        default:
+          console.error('Firebase admin login error:', error);
+          description = `Ocorreu um erro inesperado: ${error.message}`;
+          break;
       }
       
       toast({
@@ -70,7 +75,6 @@ export default function AdminAuthForm() {
         description: description,
         variant: "destructive",
       });
-      console.error('Failed to login as admin:', error);
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +101,7 @@ export default function AdminAuthForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
+              autoComplete="email"
             />
           </div>
           <div className="space-y-2">
@@ -120,6 +125,7 @@ export default function AdminAuthForm() {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
                     className="pr-10"
+                    autoComplete="current-password"
                 />
                 <Button
                     type="button"

@@ -8,9 +8,11 @@ import Logo from '@/components/shared/Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import pb from '@/lib/pocketbase';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import ForgotPasswordForm from './ForgotPasswordForm';
+import { auth, db } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function OperatorAuthForm() {
   const [email, setEmail] = useState('');
@@ -20,21 +22,26 @@ export default function OperatorAuthForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
-  const hasRole = (userRole: string | string[], roleToCheck: string): boolean => {
-    if (Array.isArray(userRole)) {
-        return userRole.includes(roleToCheck);
+  const hasRole = (userDoc: any, roleToCheck: string): boolean => {
+    const roles = userDoc.data()?.role;
+    if (Array.isArray(roles)) {
+        return roles.includes(roleToCheck);
     }
-    return userRole === roleToCheck;
+    return false;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      if (!hasRole(authData.record.role, 'Atendente')) {
-        pb.authStore.clear();
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists() || !hasRole(userDoc, 'Atendente')) {
+        await auth.signOut();
         toast({
           variant: 'destructive',
           title: 'Acesso Negado',
@@ -44,7 +51,7 @@ export default function OperatorAuthForm() {
         return;
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${authData.record.name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${userDoc.data()?.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/operator');
 

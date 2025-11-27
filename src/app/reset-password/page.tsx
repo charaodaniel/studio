@@ -8,31 +8,46 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
 import Logo from '@/components/shared/Logo';
 import { Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
-import Link from 'next/link';
+import { auth } from '@/lib/firebase';
+import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 
 function ResetPasswordComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const [token, setToken] = useState<string | null>(null);
+  const [oobCode, setOobCode] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   
   useEffect(() => {
-    const urlToken = searchParams.get('token');
-    if (urlToken) {
-      setToken(urlToken);
+    const code = searchParams.get('oobCode');
+    if (code) {
+      verifyPasswordResetCode(auth, code).then(email => {
+        setOobCode(code);
+        setIsLoading(false);
+        toast({
+          title: "Código Verificado",
+          description: `Você está redefinindo a senha para ${email}.`
+        })
+      }).catch(error => {
+        toast({
+            title: "Link Inválido ou Expirado",
+            description: "O link de redefinição de senha não é válido. Pode ter sido usado ou expirado. Por favor, tente solicitar um novo.",
+            variant: "destructive",
+            duration: 7000
+        });
+        router.push('/');
+      })
     } else {
         toast({
-            title: "Token Inválido",
-            description: "O link de redefinição de senha parece estar incompleto. Por favor, tente solicitar novamente.",
+            title: "Código não encontrado",
+            description: "O link de redefinição de senha parece estar incompleto.",
             variant: "destructive",
             duration: 7000
         });
@@ -42,12 +57,12 @@ function ResetPasswordComponent() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Token de redefinição não encontrado.' });
+    if (!oobCode) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Código de redefinição não encontrado.' });
         return;
     }
-    if (password.length < 8) {
-        toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 8 caracteres.' });
+    if (password.length < 6) {
+        toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 6 caracteres.' });
         return;
     }
     if (password !== passwordConfirm) {
@@ -57,7 +72,7 @@ function ResetPasswordComponent() {
     
     setIsLoading(true);
     try {
-        await pb.collection('users').confirmPasswordReset(token, password, passwordConfirm);
+        await confirmPasswordReset(auth, oobCode, password);
         toast({
             title: "Senha Redefinida com Sucesso!",
             description: "Você já pode fazer login com sua nova senha.",
@@ -65,8 +80,8 @@ function ResetPasswordComponent() {
         router.push('/'); 
     } catch (error: any) {
         let description = "Não foi possível redefinir sua senha. O link pode ter expirado.";
-        if (error.data?.message) {
-            description = `Erro do servidor: ${error.data.message}`;
+        if (error.code === 'auth/invalid-action-code') {
+            description = `O link de redefinição é inválido ou já foi utilizado.`;
         }
         toast({
             title: "Falha ao Redefinir Senha",
@@ -140,7 +155,7 @@ function ResetPasswordComponent() {
                             </Button>
                         </div>
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading || !token}>
+                    <Button type="submit" className="w-full" disabled={isLoading || !oobCode}>
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Salvar Nova Senha
                     </Button>
