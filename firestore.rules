@@ -17,6 +17,7 @@ service cloud.firestore {
     }
 
     function isUserRole(role) {
+      // Use hasAny for roles stored in an array
       return isSignedIn() && getUserData(request.auth.uid).role.hasAny([role]);
     }
     
@@ -30,6 +31,7 @@ service cloud.firestore {
 
     // Collection: users
     match /users/{userId} {
+      allow list: if true; // Allows anyone to list users, will be filtered by queries in the app
       allow read: if true; // Publicly readable for names, avatars etc.
       allow create: if true; // Anyone can create a user (register)
       allow update: if isOwner(userId) || isAdmin();
@@ -44,7 +46,7 @@ service cloud.firestore {
                             isAdmin() || 
                             isOperator()
                           );
-      allow create: if isSignedIn() || request.resource.data.passenger_anonymous_name != null;
+      allow create: if (isSignedIn() && request.resource.data.passenger == request.auth.uid) || request.resource.data.passenger_anonymous_name != null;
       allow update: if isSignedIn() && (
                           isOwner(resource.data.driver) || 
                           isOwner(resource.data.passenger) || 
@@ -93,7 +95,7 @@ service cloud.firestore {
      // Collection: driver_status_logs
     match /driver_status_logs/{logId} {
       allow read, list: if isAdmin() || isOperator();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && isUserRole('Motorista');
       allow update, delete: if false; // Immutable logs
     }
   }
