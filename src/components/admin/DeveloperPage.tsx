@@ -136,7 +136,12 @@ export default function DeveloperPage() {
             if (error.code && error.code.includes('auth/network-request-failed')) {
                  errorMessage += " Causa provável: Problema de rede ou firewall bloqueando o acesso ao Firebase.";
                  solution = "Verifique sua conexão com a internet e se não há firewalls bloqueando os domínios do Google/Firebase.";
-            } else {
+            } else if (error.code && error.code.includes('permission-denied')) {
+                setTestStatus('success');
+                setTestResult(`Conexão com o Firebase (${apiUrl}) bem-sucedida, mas as regras de segurança atuais negaram a leitura de teste. A conexão de rede está OK.`);
+                return;
+            }
+            else {
                  errorMessage += ` Detalhe: ${error.message}`;
                  solution = "Isso pode indicar um problema na configuração inicial do Firebase ou nas regras de segurança."
             }
