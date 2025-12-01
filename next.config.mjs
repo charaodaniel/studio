@@ -1,21 +1,15 @@
+import nextPwa from "@ducanh2912/next-pwa";
 
-const withPWA = require("@ducanh2912/next-pwa").default({
+const withPWA = nextPwa({
   dest: "public",
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
 });
 
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
