@@ -44,10 +44,11 @@ Este protótipo precisa de um backend PocketBase para funcionar. Recomendamos us
 
 #### Passo 1: Obtenha seu Backend no PocketHost
 
-1.  Acesse [**PocketHost.io**](https://pockethost.io/) e crie uma conta.
+1.  Acesse [**PocketHost.io**](https://pockethost.io/) e crie uma conta (você pode usar sua conta do GitHub).
 2.  No painel, crie um novo projeto. O PocketHost irá gerar uma URL para a sua API (ex: `https://seu-app.pockethost.io`). **Copie esta URL.**
+    *   *Se tiver dúvidas sobre como gerar o Token do GitHub necessário, consulte o guia `GITHUB_TOKEN_GUIDE.md`.*
 
-#### Passo 2: Configure as Variáveis de Ambiente
+#### Passo 2: Configure as Variáveis de Ambiente (Local)
 
 1.  Na raiz do seu projeto, crie um arquivo chamado `.env.local`.
 2.  Adicione a URL do seu backend PocketBase a este arquivo:
@@ -78,6 +79,14 @@ npm run dev
 ```
 
 O aplicativo estará disponível em `http://localhost:9002`. Agora você pode criar usuários (passageiros, motoristas) e usar todas as funcionalidades.
+
+### 5. Configurar para Produção (Vercel)
+
+Para que o aplicativo publicado na Vercel se conecte ao backend, você precisa configurar a variável de ambiente lá também.
+
+1.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
+2.  Adicione uma variável com o **Name** `NEXT_PUBLIC_POCKETBASE_URL` e o **Value** sendo a URL do seu PocketHost (a mesma do arquivo `.env.local`).
+3.  Salve e faça um **Redeploy** do seu projeto para que a variável seja aplicada.
 
 ---
 
