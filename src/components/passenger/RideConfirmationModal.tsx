@@ -174,7 +174,7 @@ export default function RideConfirmationModal({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={()={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
                     <Button onClick={handleConfirmRide} disabled={isLoading}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Confirmar e Chamar
