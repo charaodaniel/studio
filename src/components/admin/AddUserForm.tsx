@@ -18,9 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
-import { auth, db } from "@/lib/firebase"
-import { createUserWithEmailAndPassword } from "firebase/auth"
-import { setDoc, doc } from "firebase/firestore"
+import { readFileFromRepo, saveFileToRepo } from "@/lib/github-service";
 
 const formSchema = z.object({
   name: z.string().min(2, "O nome precisa ter pelo menos 2 caracteres."),
@@ -29,7 +27,7 @@ const formSchema = z.object({
   role: z.enum(["Passageiro", "Motorista", "Atendente", "Admin"], {
     required_error: "Você precisa selecionar um perfil.",
   }),
-  password: z.string().min(8, "A senha deve ter no mínimo 8 caracteres."),
+  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres."),
 })
 
 interface AddUserFormProps {
@@ -52,30 +50,36 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         setIsLoading(true);
-        const originalAuthUser = auth.currentUser;
         
         try {
-            // Create a temporary user in Firebase Auth to get a UID
-            const tempUserCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-            const newUser = tempUserCredential.user;
+            const { content: dbContent, sha } = await readFileFromRepo('db.json');
+            if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
+
+            const emailExists = dbContent.users.some((user: any) => user.email === values.email);
+            if (emailExists) {
+                throw new Error('Este e-mail já está em uso por outra conta.');
+            }
+
+            const newUserId = `usr_${new Date().getTime()}`;
 
             const userData = {
-                uid: newUser.uid,
+                id: newUserId,
                 name: values.name,
                 email: values.email,
+                password: values.password, // IMPORTANT: Storing plain text password. Not secure!
                 phone: values.phone || '',
                 role: [values.role],
                 disabled: false,
                 createdAt: new Date().toISOString(),
             };
 
-            // Add driver specific fields if role is Motorista
             if (values.role === 'Motorista') {
                 (userData as any).driver_status = 'offline';
             }
 
-            // Save the user data to Firestore
-            await setDoc(doc(db, "users", newUser.uid), userData);
+            dbContent.users.push(userData);
+
+            await saveFileToRepo('db.json', dbContent, `feat: Add user ${values.name}`, sha);
 
             toast({
                 title: "Usuário Adicionado!",
@@ -89,24 +93,13 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
 
         } catch (error: any) {
-             let description = 'Ocorreu um erro ao criar o usuário.';
-            if (error.code === 'auth/email-already-in-use') {
-                description = 'Este e-mail já está em uso por outra conta.';
-            } else if (error.code === 'auth/weak-password') {
-                description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
-            }
+             let description = error.message || 'Ocorreu um erro ao criar o usuário.';
             toast({
                 variant: 'destructive',
                 title: 'Falha ao Adicionar Usuário',
                 description: description,
             });
         } finally {
-            // Re-authenticate the original admin user if they were signed out
-            // This is a simplified approach. A more robust solution would use Admin SDK in a Cloud Function.
-            if (auth.currentUser?.uid !== originalAuthUser?.uid) {
-                // In a real app you might need to re-sign in the admin.
-                // For this context, we assume the admin's session persists or is handled.
-            }
             setIsLoading(false);
         }
     }
@@ -197,3 +190,5 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
         </Form>
     )
 }
+
+    

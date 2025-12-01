@@ -12,15 +12,14 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import { db, auth } from '@/lib/firebase';
-import { doc, getDocs, updateDoc, collection, query, where } from 'firebase/firestore';
+import { readFileFromRepo, saveFileToRepo } from '@/lib/github-service';
 
 
 interface DocumentRecord {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string; // This holds the Base64 Data URI
+    fileUrl: string; // This can be a URL or a Base64 Data URI
     is_verified: boolean;
 }
 
@@ -30,14 +29,9 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
     useEffect(() => {
         const fetchDocs = async () => {
             if (!user) return;
-            try {
-                const q = query(collection(db, "driver_documents"), where("driver", "==", user.id), where("is_verified", "==", true));
-                const querySnapshot = await getDocs(q);
-                const docsData = querySnapshot.docs.map(d => ({ ...d.data(), id: d.id } as DocumentRecord));
-                setDocuments(docsData);
-            } catch (error) {
-                console.error("Failed to fetch verified documents:", error);
-            }
+            // This is a placeholder. In a real db, you'd query this.
+            // For now, we'll assume no documents are available as they are not in db.json
+            setDocuments([]);
         };
         fetchDocs();
     }, [user]);
@@ -110,15 +104,25 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
   const handleSave = async () => {
     try {
-      await updateDoc(doc(db, 'users', user.id), formData);
-      toast({
-        title: 'Sucesso!',
-        description: 'Os dados do usuário foram atualizados.',
-      });
-      setIsEditing(false);
-      if (onUserUpdate) {
-        onUserUpdate();
-      }
+        const { content: dbContent, sha } = await readFileFromRepo('db.json');
+        if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
+
+        const userIndex = dbContent.users.findIndex((u: User) => u.id === user.id);
+        if (userIndex === -1) throw new Error("Usuário não encontrado.");
+
+        // Merge existing user data with form data
+        dbContent.users[userIndex] = { ...dbContent.users[userIndex], ...formData };
+        
+        await saveFileToRepo('db.json', dbContent, `feat: Update profile for user ${user.name}`, sha);
+        
+        toast({
+            title: 'Sucesso!',
+            description: 'Os dados do usuário foram atualizados.',
+        });
+        setIsEditing(false);
+        if (onUserUpdate) {
+            onUserUpdate();
+        }
     } catch (error) {
       console.error("Failed to update user:", error);
       toast({ variant: 'destructive', title: 'Erro ao Salvar', description: 'Não foi possível atualizar o usuário.' });
@@ -135,11 +139,27 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
         return;
     }
-    toast({
-        title: 'Funcionalidade Indisponível',
-        description: 'A alteração de senha de outro usuário não é permitida por motivos de segurança.',
-        variant: 'destructive'
-    });
+    
+    try {
+        const { content: dbContent, sha } = await readFileFromRepo('db.json');
+        if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
+
+        const userIndex = dbContent.users.findIndex((u: User) => u.id === user.id);
+        if (userIndex === -1) throw new Error("Usuário não encontrado.");
+
+        dbContent.users[userIndex].password = newPassword.password;
+
+        await saveFileToRepo('db.json', dbContent, `feat: Update password for user ${user.name}`, sha);
+
+        toast({
+            title: 'Senha Alterada!',
+            description: 'A senha do usuário foi atualizada.',
+        });
+        setNewPassword({ password: '', confirmPassword: '' });
+
+    } catch(err) {
+        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar a senha.' });
+    }
   };
 
   const handleCall = () => {
@@ -155,13 +175,11 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSearch = () => {
-    // For now, this is a placeholder. A more advanced implementation
-    // would involve a global state or search provider to filter the main table.
      toast({
         title: 'Busca de Histórico',
         description: `Para ver o histórico de ${user.name}, vá para a aba "Gerenciar" e use a busca.`,
       });
-      onBack(); // Close the modal to allow navigation
+      onBack(); 
   }
 
   const avatarUrl = user.avatar || '';
@@ -272,7 +290,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
               <Card>
                  <CardContent className="p-0">
                     <ViewDocumentsModal user={user}>
-                        {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "CNH, CRLV, etc.", undefined, false, () => {})}
+                        {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "Funcionalidade desativada temporariamente", undefined, false, () => {})}
                     </ViewDocumentsModal>
                 </CardContent>
               </Card>
@@ -311,3 +329,5 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     </div>
   );
 }
+
+    
