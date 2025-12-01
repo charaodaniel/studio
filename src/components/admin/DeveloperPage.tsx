@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Loader2, Info, RefreshCw } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Loader2, Info, RefreshCw, Code, MoreHorizontal, EyeOff } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import Link from "next/link";
@@ -149,6 +149,14 @@ export default function DeveloperPage() {
             setTestResult(`${errorMessage} ${solution}`);
         }
     };
+    
+    const envVars = [
+        { name: 'ADMIN_USER', value: '••••••••••••', type: 'secret', updated: 'Updated Oct 10' },
+        { name: 'GITHUB_REPO', value: 'charaodaniel/Escritorio-Martins', type: 'system', updated: 'Added Oct 10' },
+        { name: 'GITHUB_TOKEN', value: 'github_pat_11ALKU...••••••••••', type: 'secret', updated: 'Added Oct 10' },
+        { name: 'ADMIN_PASS', value: '••••••••••••', type: 'secret', updated: 'Added Oct 10' }
+    ]
+
 
     return (
         <div className="bg-slate-50 min-h-screen">
@@ -215,6 +223,38 @@ export default function DeveloperPage() {
                         )}
                     </CardContent>
                 </Card>
+
+                 <Card className="mb-6 bg-black text-gray-300 border-gray-800">
+                    <CardHeader>
+                        <CardTitle className="text-white">Variáveis de Ambiente (Exemplo)</CardTitle>
+                        <CardDescription className="text-gray-400">Esta é uma representação de como as variáveis são gerenciadas na Vercel.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        {envVars.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border border-gray-800 rounded-md bg-gray-900/50">
+                            <div className="flex items-center gap-4">
+                                <Code className="text-gray-500"/>
+                                <div>
+                                    <p className="font-mono text-sm text-white">{item.name}</p>
+                                    <p className="text-xs text-gray-400">All Environments</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                                <div className="hidden md:flex items-center gap-2 font-mono text-sm px-3 py-1 bg-gray-800 rounded-md">
+                                    {item.type === 'secret' ? <EyeOff className="text-gray-500"/> : <LinkIcon className="text-gray-500"/>}
+                                    <span className="text-gray-400">{item.value}</span>
+                                </div>
+                                <p className="hidden lg:block text-sm text-gray-400">{item.updated}</p>
+                                <div className="hidden sm:block w-6 h-6 rounded-full bg-gradient-to-br from-purple-600 to-blue-500"></div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:bg-gray-800 hover:text-white">
+                                    <MoreHorizontal className="h-5 w-5"/>
+                                </Button>
+                            </div>
+                        </div>
+                        ))}
+                    </CardContent>
+                </Card>
+
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
                     <Card>
