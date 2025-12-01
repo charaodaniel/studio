@@ -7,10 +7,11 @@ import { Car, Star, Phone, MessageSquare, Shield, CheckCircle2 } from 'lucide-re
 import type { RideDetails } from './PassengerDashboard';
 import { Progress } from '../ui/progress';
 import { useState, useEffect } from 'react';
-import pb from '@/lib/pocketbase';
 import { RideChat } from '../driver/NegotiationChat';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -54,8 +55,11 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
       const findChat = async () => {
         if (rideId) {
           try {
-            const result = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
-            setChatId(result.id);
+            const q = query(collection(db, "chats"), where("ride", "==", rideId));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                setChatId(querySnapshot.docs[0].id);
+            }
           } catch(e) {
             console.warn("Could not find chat for this ride", e);
           }

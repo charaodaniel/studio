@@ -24,12 +24,6 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
-       {
-        protocol: 'https',
-        hostname: process.env.NEXT_PUBLIC_POCKETBASE_HOSTNAME,
-        port: '',
-        pathname: '/api/files/**',
-      },
     ],
   },
 };

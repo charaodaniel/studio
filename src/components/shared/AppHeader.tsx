@@ -4,8 +4,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, LogIn } from 'lucide-react';
-import pb from '@/lib/pocketbase';
+import { Download, LogIn, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
   Dialog,
@@ -15,8 +14,10 @@ import {
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import LoginOptionsModal from '../auth/LoginOptionsModal';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
-// Define the interface for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
   readonly userChoice: Promise<{
@@ -25,7 +26,6 @@ interface BeforeInstallPromptEvent extends Event {
   }>;
   prompt(): Promise<void>;
 }
-
 
 export function AppHeader({
   title,
@@ -36,15 +36,21 @@ export function AppHeader({
 }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    setIsLoggedIn(pb.authStore.isValid);
-    return pb.authStore.onChange(() => {
-      setIsLoggedIn(pb.authStore.isValid);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setIsLoggedIn(!!user);
+        if (user) {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+                setCurrentUser(userDoc.data());
+            }
+        } else {
+            setCurrentUser(null);
+        }
     });
-  }, []);
 
-  useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);
@@ -58,6 +64,7 @@ export function AppHeader({
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
+      unsubscribe();
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -79,10 +86,9 @@ export function AppHeader({
     });
   };
 
-
   const renderLogoLink = () => {
-    if (showDriverAvatar) {
-      const avatarUrl = pb.authStore.model?.avatar ? pb.getFileUrl(pb.authStore.model, pb.authStore.model.avatar, { 'thumb': '48x48' }) : 'https://placehold.co/48x48.png';
+    if (showDriverAvatar && currentUser) {
+      const avatarUrl = currentUser.avatar || '';
       return (
         <Link href="/" className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -90,7 +96,7 @@ export function AppHeader({
               src={avatarUrl}
               data-ai-hint="person portrait"
             />
-            <AvatarFallback>C</AvatarFallback>
+            <AvatarFallback>{currentUser.name?.substring(0, 1) || 'U'}</AvatarFallback>
           </Avatar>
           <div className="w-28">
             <Logo />
@@ -126,8 +132,8 @@ export function AppHeader({
              <Dialog>
                 <DialogTrigger asChild>
                     <Button>
-                        <LogIn className="mr-2 h-4 w-4" />
-                        {isLoggedIn ? "Meu Perfil" : "Login"}
+                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={currentUser.avatar}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
+                      {isLoggedIn ? "Meu Perfil" : "Login"}
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="p-0">

@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, History, MessageSquare, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import pb from '@/lib/pocketbase';
 import { Dialog, DialogTrigger } from '../ui/dialog';
 import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { Button } from '../ui/button';
@@ -14,7 +13,7 @@ import { Input } from '../ui/input';
 import { LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, updatePassword } from 'firebase/auth';
 import type { User } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { PassengerRideHistory } from './PassengerRideHistory';
@@ -36,18 +35,24 @@ export function PassengerProfilePage() {
 
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (pb.authStore.model) {
-        setUser(pb.authStore.model as User);
-      }
-      setIsLoading(false);
-    }
-    fetchUser();
-    pb.authStore.onChange(fetchUser, true);
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+                setUser({ id: userDoc.id, ...userDoc.data() } as User);
+            }
+        } else {
+            // Se não estiver logado, redirecione para a home
+            router.push('/');
+        }
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const handleLogout = () => {
-    pb.authStore.clear();
+    auth.signOut();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -57,9 +62,9 @@ export function PassengerProfilePage() {
   
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-    if (newPassword.length < 8) {
-      toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 8 caracteres.' });
+    if (!auth.currentUser) return;
+    if (newPassword.length < 6) {
+      toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 6 caracteres.' });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -69,12 +74,16 @@ export function PassengerProfilePage() {
 
     setIsSaving(true);
     try {
-      await pb.collection('users').update(user.id, { password: newPassword, passwordConfirm: confirmPassword });
+      await updatePassword(auth.currentUser, newPassword);
       toast({ title: 'Senha Alterada!', description: 'Sua senha foi atualizada com sucesso.' });
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar sua senha. Tente novamente.' });
+    } catch (error: any) {
+      let description = 'Não foi possível alterar sua senha.';
+      if (error.code === 'auth/requires-recent-login') {
+        description = 'Para sua segurança, faça login novamente antes de alterar a senha.';
+      }
+      toast({ variant: 'destructive', title: 'Erro ao alterar senha', description });
     } finally {
       setIsSaving(false);
     }
@@ -83,12 +92,10 @@ export function PassengerProfilePage() {
   const handleAvatarSave = async (newImageAsDataUrl: string) => {
     if (!user) return;
     try {
-      const blob = await (await fetch(newImageAsDataUrl)).blob();
-      const formData = new FormData();
-      formData.append('avatar', blob);
-
-      const updatedUser = await pb.collection('users').update(user.id, formData);
-      setUser(updatedUser as User);
+      await updateDoc(doc(db, 'users', user.id), {
+        avatar: newImageAsDataUrl
+      });
+      setUser(prev => prev ? { ...prev, avatar: newImageAsDataUrl } : null);
       toast({ title: 'Avatar atualizado com sucesso!' });
     } catch (error) {
       console.error(error);
@@ -113,7 +120,7 @@ export function PassengerProfilePage() {
       )
   }
 
-  const avatarUrl = user.avatar ? pb.getFileUrl(user, user.avatar, { 'thumb': '128x128' }) : `https://placehold.co/128x128.png?text=${user.name.substring(0, 2).toUpperCase()}`;
+  const avatarUrl = user.avatar;
 
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">

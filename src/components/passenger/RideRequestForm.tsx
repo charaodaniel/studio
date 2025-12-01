@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -7,12 +6,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Locate, ArrowRight, Loader2, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { MapPin, Locate, ArrowRight, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
+import { auth } from '@/lib/firebase';
 
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
@@ -28,12 +27,16 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
+        const unsubscribe = auth.onAuthStateChanged(user => {
+            setIsLoggedIn(!!user);
+        });
+        return () => unsubscribe();
     }, []);
 
-    const isLoggedIn = isClient && pb.authStore.isValid;
     const canRequest = isLoggedIn || !!anonymousUserName;
 
     const handleGetCurrentLocation = () => {
@@ -128,8 +131,10 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
             <div className="space-y-2">
                  <Dialog>
                     <DialogTrigger asChild>
-                        <Button className="w-full" size="lg" disabled={isSearching || !canRequest}>
-                            Ver Motoristas <ArrowRight className="ml-2 h-4 w-4"/>
+                        <Button className="w-full" size="lg" disabled={isSearching || !canRequest || !origin || !destination}>
+                            {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSearching ? 'Procurando...' : 'Ver Motoristas'}
+                            {!isSearching && <ArrowRight className="ml-2 h-4 w-4"/>}
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">

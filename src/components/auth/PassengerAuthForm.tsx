@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,38 +7,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CardContent, CardFooter } from '@/components/ui/card';
-import pb from '@/lib/pocketbase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, PenSquare, ShieldCheck, History, MessageSquare, Loader2, Eye, EyeOff } from 'lucide-react';
-import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { LogOut, PenSquare, Loader2, Eye, EyeOff } from 'lucide-react';
+import { DialogHeader, DialogTitle, DialogDescription, Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import type { RecordModel } from 'pocketbase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import type { User as FirebaseUser } from 'firebase/auth';
-
-interface AppUser extends RecordModel {
-    name: string;
-    email: string;
-    avatar: string;
-    role: string[];
-}
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import type { User as AppUser } from '../admin/UserList';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 export default function PassengerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid);
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(pb.authStore.model as AppUser);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('login');
-
 
   // States for login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-
 
   // States for registration form
   const [registerName, setRegisterName] = useState('');
@@ -48,22 +39,38 @@ export default function PassengerAuthForm() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   useEffect(() => {
-    return pb.authStore.onChange((token, model) => {
-      setIsLoggedIn(pb.authStore.isValid);
-      setCurrentUser(model as AppUser);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setCurrentUser({ id: user.uid, ...userDoc.data() } as AppUser);
+        } else {
+            setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setIsAuthLoading(false);
     });
+
+    return () => unsubscribe();
   }, []);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await pb.collection('users').authWithPassword(loginEmail, loginPassword);
-      if (!pb.authStore.model?.role.includes('Passageiro')) {
-        pb.authStore.clear();
-        throw new Error('Acesso negado. Este formulário é apenas para passageiros.');
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const user = userCredential.user;
+
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+      if (!userDoc.exists() || !userDoc.data().role.includes('Passageiro')) {
+          await auth.signOut();
+          throw new Error('Acesso negado. Este formulário é apenas para passageiros.');
       }
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${pb.authStore.model?.name}!` });
+      
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${userDoc.data().name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     } catch (error: any) {
       toast({
@@ -71,7 +78,6 @@ export default function PassengerAuthForm() {
         title: 'Falha no Login',
         description: error.message || 'Email ou senha inválidos. Por favor, tente novamente.'
       });
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -81,17 +87,18 @@ export default function PassengerAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     
-    const data = {
-        "email": registerEmail,
-        "emailVisibility": true,
-        "password": registerPassword,
-        "passwordConfirm": registerPassword,
-        "name": registerName,
-        "role": ["Passageiro"]
-    };
-
     try {
-        await pb.collection('users').create(data);
+        const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
+        const user = userCredential.user;
+
+        await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            name: registerName,
+            email: registerEmail,
+            role: ["Passageiro"],
+            createdAt: new Date().toISOString()
+        });
+
         toast({ title: 'Conta Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
         setRegisterName('');
         setRegisterEmail('');
@@ -99,17 +106,16 @@ export default function PassengerAuthForm() {
         setActiveTab('login');
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
-        if (error.data?.data?.email?.message) {
-            description = `Erro no email: ${error.data.data.email.message}`;
-        } else if (error.data?.data?.password?.message) {
-             description = `Erro na senha: ${error.data.data.password.message}`;
+        if (error.code === 'auth/email-already-in-use') {
+            description = 'Este endereço de e-mail já está em uso por outra conta.';
+        } else if (error.code === 'auth/weak-password') {
+            description = 'A senha é muito fraca. Tente uma senha com no mínimo 6 caracteres.';
         }
         toast({
             variant: 'destructive',
             title: 'Falha no Registro',
             description: description,
         });
-        console.error(error);
     } finally {
         setIsLoading(false);
     }
@@ -117,7 +123,7 @@ export default function PassengerAuthForm() {
 
 
   const handleLogout = () => {
-    pb.authStore.clear();
+    auth.signOut();
     toast({ title: 'Logout Realizado', description: 'Você foi desconectado com sucesso.' });
     router.push('/');
   };
@@ -127,8 +133,16 @@ export default function PassengerAuthForm() {
     router.push('/passenger');
   }
 
-  if (isLoggedIn && currentUser) {
-    const avatarUrl = currentUser.avatar ? pb.getFileUrl(currentUser, currentUser.avatar, { 'thumb': '100x100' }) : '';
+  if (isAuthLoading) {
+    return (
+        <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
+
+  if (currentUser) {
+    const avatarUrl = currentUser.avatar || '';
     return (
       <ScrollArea className="max-h-[80vh] h-full">
         <div className="w-full">
@@ -181,7 +195,17 @@ export default function PassengerAuthForm() {
                   <Input id="email-login" type="email" placeholder="seu@email.com" required disabled={isLoading} value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password-login">Senha</Label>
+                  <div className="flex items-center">
+                    <Label htmlFor="password-login">Senha</Label>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <button type="button" className="ml-auto inline-block text-sm underline">Esqueceu sua senha?</button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <ForgotPasswordForm />
+                        </DialogContent>
+                     </Dialog>
+                  </div>
                    <div className="relative">
                         <Input
                             id="password-login"

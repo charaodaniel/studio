@@ -15,7 +15,7 @@ Este documento serve como guia central para desenvolvedores, detalhando a arquit
 -   **UI Library:** [React](https://react.dev/)
 -   **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Componentes:** [ShadCN/UI](https://ui.shadcn.com/)
--   **Backend:** [PocketBase](https://pocketbase.io/) (via [PocketHost](https://pockethost.io/))
+-   **Backend:** [Firebase](https://firebase.google.com/) (Authentication & Firestore)
 -   **Geração de Relatórios:** [jsPDF](https://github.com/parallax/jsPDF) & [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable)
 -   **Notificações Sonoras:** [Howler.js](https://howlerjs.com/)
 
@@ -28,7 +28,8 @@ Siga os passos abaixo para executar o projeto localmente.
 ### 1. Pré-requisitos
 
 -   [Node.js](https://nodejs.org/) (versão 18 ou superior)
--   Um gerenciador de pacotes Node, como `npm`, `pnpm` ou `yarn`.
+-   Um gerenciador de pacotes Node, como `npm`.
+-   Uma conta Google para usar o Firebase.
 
 ### 2. Clonar o Repositório e Instalar Dependências
 
@@ -38,89 +39,76 @@ cd <NOME_DA_PASTA_DO_PROJETO>
 npm install
 ```
 
-### 3. Configurar o Backend (PocketBase)
+### 3. Configurar o Backend (Firebase)
 
-Este protótipo precisa de um backend PocketBase para funcionar. Recomendamos usar o **PocketHost**, que oferece uma camada gratuita e automatiza a hospedagem.
+Este protótipo usa o Firebase como backend. A configuração é gratuita e não exige cartão de crédito.
 
-#### Passo 1: Obtenha seu Backend no PocketHost
+#### Passo 1: Crie um Projeto no Firebase
 
-1.  Acesse [**PocketHost.io**](https://pockethost.io/) e crie uma conta (você pode usar sua conta do GitHub).
-2.  No painel, crie um novo projeto. O PocketHost irá gerar uma URL para a sua API (ex: `https://seu-app.pockethost.io`). **Copie esta URL.**
-    *   *Se tiver dúvidas sobre como gerar o Token do GitHub necessário, consulte o guia `GITHUB_TOKEN_GUIDE.md`.*
+1.  Acesse o [**Firebase Console**](https://console.firebase.google.com/) e faça login com sua conta Google.
+2.  Clique em **"Adicionar projeto"** e siga as instruções para criar um novo projeto. Não é necessário ativar o Google Analytics.
 
-#### Passo 2: Configure as Variáveis de Ambiente (Local)
+#### Passo 2: Configure seu Aplicativo Web no Firebase
+
+1.  Dentro do seu novo projeto, clique no ícone da web **</>** para "Adicionar um app da Web".
+2.  Dê um nome ao seu aplicativo (ex: "CEOLIN Web") e clique em **"Registrar app"**.
+3.  O Firebase exibirá um objeto de configuração chamado `firebaseConfig`. **Copie este objeto inteiro.**
+
+    ![Configuração do Firebase](https://placehold.co/800x400/E3F2FD/1E3A8A?text=Copie+o+objeto+firebaseConfig)
+
+#### Passo 3: Configure as Variáveis de Ambiente (Local)
 
 1.  Na raiz do seu projeto, crie um arquivo chamado `.env.local`.
-2.  Adicione a URL do seu backend PocketBase a este arquivo:
+2.  Cole as chaves do objeto `firebaseConfig` neste arquivo, adicionando o prefixo `NEXT_PUBLIC_` a cada uma:
 
     ```bash
     # .env.local
-    NEXT_PUBLIC_POCKETBASE_URL=https://seu-app.pockethost.io
+    NEXT_PUBLIC_FIREBASE_API_KEY="AIza..."
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="seu-projeto.firebaseapp.com"
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID="seu-projeto"
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="seu-projeto.appspot.com"
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123..."
+    NEXT_PUBLIC_FIREBASE_APP_ID="1:123...:web:..."
+    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="G-..."
     ```
-    
-    *Substitua `https://seu-app.pockethost.io` pela URL que você copiou.*
 
-#### Passo 3: Configure o Banco de Dados no PocketBase
+#### Passo 4: Ative os Serviços do Firebase
 
-1.  Acesse o painel de administrador do seu PocketBase. A URL é a mesma da sua API, mas com `/_/` no final (ex: `https://seu-app.pockethost.io/_/`).
-2.  Faça login com os dados de administrador que você configurou no PocketHost.
-3.  Vá para **Settings > Import collections**.
-4.  Clique em **Load from file** e selecione o arquivo `pocketbase_schema.json` que está na raiz deste projeto.
-5.  Clique em **Import**.
+1.  No console do Firebase, no menu lateral (seção **Build**), clique em **Authentication**.
+2.  Clique em **"Primeiros passos"** e, na aba **"Provedores de login"**, ative o provedor **"E-mail/senha"**.
+3.  Volte ao menu lateral, clique em **Firestore Database**.
+4.  Clique em **"Criar banco de dados"**, escolha o modo de **Produção** e selecione um local para o servidor (recomendo `southamerica-east1` para o Brasil).
 
-Isso irá configurar todas as coleções (`users`, `rides`, `chats`, etc.) com os campos e regras necessários. **Nenhuma etapa manual de configuração de regras é necessária**, pois elas são importadas junto com o schema.
+#### Passo 5: Configure as Regras de Segurança do Firestore
 
-### 4. Executar o Projeto Localmente
+1.  Ainda no Firestore, vá para a aba **"Regras"**.
+2.  Apague todo o conteúdo existente e cole o conteúdo do arquivo `firestore.rules` (que está na raiz deste projeto) no editor.
+3.  Clique em **"Publicar"**.
 
-Com o backend configurado, inicie o servidor de desenvolvimento:
+### 4. Crie o Primeiro Administrador
+
+Para gerenciar o sistema, você precisa criar o primeiro administrador manualmente. Siga as instruções detalhadas no arquivo `ADMIN_SETUP.md`.
+
+### 5. Execute o Projeto Localmente
 
 ```bash
 npm run dev
 ```
 
-O aplicativo estará disponível em `http://localhost:9002`. Agora você pode criar usuários (passageiros, motoristas) e usar todas as funcionalidades.
+O aplicativo estará disponível em `http://localhost:9002`.
 
-### 5. Configurar para Produção (Vercel)
-
-Para que o aplicativo publicado na Vercel se conecte ao backend, você precisa configurar a variável de ambiente lá também.
+### 6. Configurar para Produção (Vercel)
 
 1.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
-2.  Adicione uma variável com o **Name** `NEXT_PUBLIC_POCKETBASE_URL` e o **Value** sendo a URL do seu PocketHost (a mesma do arquivo `.env.local`).
-3.  Salve e faça um **Redeploy** do seu projeto para que a variável seja aplicada.
+2.  Adicione cada uma das variáveis do seu arquivo `.env.local` (com o mesmo nome `NEXT_PUBLIC_...` e valor).
+3.  Salve e faça um **Redeploy** do seu projeto.
 
 ---
 
 ## ✨ Funcionalidades Implementadas
 
-O protótipo atual é um MVP (Produto Mínimo Viável) robusto, com a interface completa e a lógica funcional para as seguintes funcionalidades:
+O protótipo é um MVP robusto com lógica funcional para:
 
-### Para o Passageiro
--   Interface de Solicitação de Corrida (Urbana e Interior), com opção de **agendamento**.
--   Visualização e seleção de motoristas disponíveis.
--   Formulários de Login, Cadastro e Recuperação de Senha.
--   Painel de Perfil com Histórico, Conversas e Segurança.
--   Acompanhamento do Status da Corrida.
--   Comunicação via Chat.
-
-### Para o Motorista
--   Painel completo com abas para Solicitações, Conversas, Histórico e Perfil.
--   Gerenciamento de Status (Online, Offline, Em Viagem).
--   **Registro de Corridas Manuais** e **Corridas Rápidas**.
--   Exportação de Relatórios em PDF e CSV.
--   Upload de Documentos (CNH, CRLV) e fotos.
--   Navegação via Waze/Google Maps.
--   Chat de Negociação para corridas de interior.
-
-### Para o Administrador e Atendente
--   Painel de Gerenciamento de usuários, documentos e conversas de suporte.
--   Listas rápidas de usuários com atalhos para iniciar conversas.
--   Painel do Desenvolvedor para monitoramento da saúde da API.
-
----
-
-## ➡️ Próximos Passos para Produção
-
-1.  **Integração com Gateway de Pagamento (Crítico)**
-2.  **Integração com API de Mapas Real** (Google Maps, Mapbox)
-3.  **Sistema de Avaliação (Estrelas)**
-4.  **Notificações Push** (via OneSignal ou similar)
+-   **Passageiro**: Solicitação de corrida, agendamento, login/cadastro, perfil, chat.
+-   **Motorista**: Painel de solicitações, gerenciamento de status, registro de corridas, exportação de relatórios, upload de documentos, chat.
+-   **Administrador e Atendente**: Gerenciamento de usuários, documentos, e conversas de suporte.

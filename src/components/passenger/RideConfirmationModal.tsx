@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,10 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { MapPin, DollarSign, Loader2, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
 import { type User as Driver } from '../admin/UserList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { auth, db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 
 interface RideConfirmationModalProps {
     isOpen: boolean;
@@ -50,7 +50,9 @@ export default function RideConfirmationModal({
 
     const handleConfirmRide = async () => {
         setIsLoading(true);
-        if (!pb.authStore.isValid && !passengerAnonymousName) {
+        const currentUser = auth.currentUser;
+
+        if (!currentUser && !passengerAnonymousName) {
             toast({
                 variant: 'destructive',
                 title: 'Erro de Identificação',
@@ -72,7 +74,7 @@ export default function RideConfirmationModal({
 
         try {
             const rideData: { [key: string]: any } = {
-                passenger: pb.authStore.model?.id,
+                passenger: currentUser?.uid,
                 driver: driver.id,
                 origin_address: origin,
                 destination_address: destination,
@@ -81,6 +83,7 @@ export default function RideConfirmationModal({
                 started_by: "passenger",
                 fare: isNegotiated ? 0 : (calculatedFare || 0),
                 passenger_anonymous_name: passengerAnonymousName,
+                createdAt: new Date(),
             };
 
             if (scheduledFor) {
@@ -88,13 +91,14 @@ export default function RideConfirmationModal({
                 rideData.ride_description = `Viagem agendada para ${format(scheduledFor, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`;
             }
 
-            const rideRecord = await pb.collection('rides').create(rideData, { expand: 'driver' });
+            const rideRecordRef = await addDoc(collection(db, 'rides'), rideData);
 
-            if (isNegotiated) {
-                await pb.collection('chats').create({
-                    participants: [pb.authStore.model?.id, driver.id],
-                    ride: rideRecord.id,
+            if (isNegotiated && currentUser) {
+                await addDoc(collection(db, 'chats'), {
+                    participants: [currentUser.uid, driver.id],
+                    ride: rideRecordRef.id,
                     last_message: `Solicitação de corrida para: ${destination}`,
+                    updatedAt: new Date(),
                 });
             }
             
@@ -102,10 +106,11 @@ export default function RideConfirmationModal({
                 title: "Corrida Solicitada!",
                 description: `Sua solicitação foi enviada para ${driver.name}.`,
             });
-            onConfirm(rideRecord.id);
+            onConfirm(rideRecordRef.id);
 
         } catch (error: any) {
-            const errorMessage = error.data?.data?.driver?.message || 'Não foi possível criar sua solicitação. Verifique os dados e tente novamente.';
+            console.error('Failed to create ride:', error);
+            const errorMessage = 'Não foi possível criar sua solicitação. Verifique os dados e tente novamente.';
             toast({
                 variant: "destructive",
                 title: "Erro ao Solicitar Corrida",
@@ -169,7 +174,7 @@ export default function RideConfirmationModal({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
+                    <Button variant="outline" onClick={()={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
                     <Button onClick={handleConfirmRide} disabled={isLoading}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Confirmar e Chamar

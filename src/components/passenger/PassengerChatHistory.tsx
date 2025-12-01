@@ -1,20 +1,22 @@
 
-
 'use client';
 import { ScrollArea } from "../ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
 import { MessageSquare, WifiOff, Loader2 } from "lucide-react";
-import pb from "@/lib/pocketbase";
 import { RideChat } from "../driver/NegotiationChat";
 import { useState, useEffect, useCallback } from "react";
-import type { RecordModel } from "pocketbase";
 import { User } from "../admin/UserList";
+import { auth, db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
-interface ChatRecord extends RecordModel {
+
+interface ChatRecord {
+  id: string;
   participants: string[];
-  lastMessage: string;
-  rideId: string;
+  last_message: string;
+  ride: string;
+  updatedAt: any;
   expand: {
     participants: User[];
   }
@@ -26,34 +28,78 @@ export function PassengerChatHistory() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchChats = useCallback(async () => {
-    if (!pb.authStore.isValid) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
     setError(null);
-    try {
-      const result = await pb.collection('chats').getFullList({
-        filter: `participants.id ?= "${pb.authStore.model?.id}"`,
-        sort: '-updated',
-        expand: 'participants'
-      });
-      setChats(result as unknown as ChatRecord[]);
-    } catch(err: any) {
-      setError('Não foi possível carregar as conversas.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
+
+    const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.uid));
+    
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        try {
+            const chatsData: ChatRecord[] = [];
+            for (const chatDoc of querySnapshot.docs) {
+                const data = chatDoc.data();
+                const participantsData: User[] = [];
+
+                for (const participantId of data.participants) {
+                    const userDoc = await getDoc(doc(db, 'users', participantId));
+                    if (userDoc.exists()) {
+                        participantsData.push({ id: userDoc.id, ...userDoc.data() } as User);
+                    }
+                }
+                
+                chatsData.push({
+                    id: chatDoc.id,
+                    participants: data.participants,
+                    last_message: data.last_message,
+                    ride: data.ride,
+                    updatedAt: data.updatedAt,
+                    expand: {
+                        participants: participantsData,
+                    },
+                });
+            }
+            
+            chatsData.sort((a, b) => b.updatedAt?.toMillis() - a.updatedAt?.toMillis());
+            setChats(chatsData);
+
+        } catch (err) {
+            console.error("Failed to process chat updates:", err);
+            setError("Não foi possível carregar as conversas.");
+            setChats([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, (err) => {
+        console.error("Failed to fetch chats:", err);
+        setError("Não foi possível carregar as conversas.");
+        setIsLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
-    fetchChats();
-    const unsubscribe = pb.collection('chats').subscribe('*', e => {
-        if(e.record.participants.includes(pb.authStore.model?.id)) {
-            fetchChats();
+    let unsubscribe: (() => void) | undefined;
+    const authUnsubscribe = auth.onAuthStateChanged((user) => {
+        if (user) {
+            fetchChats().then(cb => unsubscribe = cb);
+        } else {
+            setIsLoading(false);
+            setChats([]);
         }
     });
+
     return () => {
-      pb.collection('chats').unsubscribe();
-    }
+        authUnsubscribe();
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    };
   }, [fetchChats]);
 
   const renderContent = () => {
@@ -81,16 +127,16 @@ export function PassengerChatHistory() {
     return (
         <ul className="px-4">
             {chats.map((chat, index) => {
-                const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+                const otherUser = chat.expand.participants.find(p => p.id !== auth.currentUser?.uid);
                 if (!otherUser) return null;
 
-                const avatarUrl = otherUser.avatar ? pb.getFileUrl(otherUser, otherUser.avatar, { 'thumb': '100x100' }) : '';
+                const avatarUrl = otherUser.avatar;
 
                 return (
                     <li key={chat.id}>
                         <RideChat 
                             chatId={chat.id}
-                            rideId={chat.rideId} // Assuming ride id is stored in chat
+                            rideId={chat.ride} // Assuming ride id is stored in chat
                             passengerName={otherUser.name} // This will be driver's name from passenger's perspective
                             isNegotiation={false}
                         >
@@ -103,9 +149,9 @@ export function PassengerChatHistory() {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-center">
                                             <p className="font-semibold">{otherUser.name}</p>
-                                            <p className="text-xs text-muted-foreground">{new Date(chat.updated).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                            <p className="text-xs text-muted-foreground">{chat.updatedAt ? new Date(chat.updatedAt.toDate()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
                                         </div>
-                                        <p className="text-sm text-muted-foreground truncate">{chat.lastMessage || 'Nenhuma mensagem.'}</p>
+                                        <p className="text-sm text-muted-foreground truncate">{chat.last_message || 'Nenhuma mensagem.'}</p>
                                     </div>
                                 </div>
                             </button>

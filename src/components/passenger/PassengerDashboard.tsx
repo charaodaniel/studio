@@ -1,12 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import RideRequestForm from './RideRequestForm';
 import RideStatusCard from './RideStatusCard';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { Card, CardContent } from '../ui/card';
@@ -17,18 +14,23 @@ import { Star, Car, Send } from 'lucide-react';
 import type { User as Driver } from '../admin/UserList';
 import RideConfirmationModal from './RideConfirmationModal';
 import { cn } from '@/lib/utils';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, onSnapshot, getDoc, doc, updateDoc } from 'firebase/firestore';
 
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     status: RideStatus;
     is_negotiated: boolean;
     passenger_anonymous_name?: string;
+    passenger: string;
     expand?: {
         driver: DriverRecord;
     }
 }
 
-interface DriverRecord extends RecordModel {
+interface DriverRecord {
     id: string;
     name: string;
     avatar: string;
@@ -56,7 +58,6 @@ const getStatusVariant = (status?: string) => {
         case 'rural-trip':
             return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         case 'offline':
-        default:
             return 'bg-red-100 text-red-800 border-red-200';
     }
 };
@@ -87,31 +88,49 @@ export default function PassengerDashboard() {
   // State for the form
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
 
-  const fetchActiveRide = useCallback(async () => {
-    if (!pb.authStore.model) return;
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
+        setCurrentUser(user);
+        if (user) {
+            fetchActiveRide(user.uid);
+        }
+    });
+    return unsubscribe;
+  }, []);
 
-    try {
-      const result = await pb.collection('rides').getFirstListItem(
-        `passenger="${pb.authStore.model.id}" && (status="accepted" || status="in_progress")`,
-        { expand: 'driver' }
-      );
-      setActiveRide(result as RideRecord);
-    } catch (error) {
-      // It's normal to not find a ride, so we don't log this error
-    }
+  const fetchActiveRide = useCallback(async (userId: string) => {
+    const q = query(collection(db, 'rides'), where('passenger', '==', userId), where('status', 'in', ['accepted', 'in_progress']));
+    
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+        if (!snapshot.empty) {
+            const rideDoc = snapshot.docs[0];
+            const rideData = { id: rideDoc.id, ...rideDoc.data() } as RideRecord;
+
+            const driverDoc = await getDoc(doc(db, 'users', rideData.expand?.driver.id || ''));
+            const driverData = driverDoc.data() as DriverRecord;
+
+            setActiveRide({ ...rideData, expand: { driver: driverData } });
+            setRideStatus(rideData.status);
+            setRideDetails({
+                driverName: driverData.name || 'Motorista',
+                driverAvatar: driverData.avatar || '',
+                driverPhone: driverData.phone || '',
+                vehicleModel: driverData.driver_vehicle_model || 'Não informado',
+                licensePlate: driverData.driver_vehicle_plate || 'Não informado',
+                eta: '5 min'
+            });
+        } else {
+            setActiveRide(null);
+            setRideStatus('idle');
+            setRideDetails(null);
+        }
+    });
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
-    fetchActiveRide();
-    pb.authStore.onChange(fetchActiveRide, true);
-    
-    // Realtime subscription for ride updates
-    const subscribeToRides = async () => {
-        await pb.collection('rides').subscribe('*', handleRideUpdate);
-    }
-    subscribeToRides();
-
     // Ask for location permission
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -129,72 +148,86 @@ export default function PassengerDashboard() {
         )
     }
 
-    const fetchDrivers = async () => {
-        setIsLoadingDrivers(true);
-        try {
-            const result = await pb.collection('users').getFullList({
-                filter: 'role = "Motorista" && disabled != true && driver_status = "online"',
-            });
-            setDrivers(result as Driver[]);
-        } catch (error) {
-            console.error(error);
-            toast({variant: 'destructive', title: 'Erro ao buscar motoristas'});
-        } finally {
-            setIsLoadingDrivers(false);
-        }
-    }
-    fetchDrivers();
+    const driversQuery = query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'), where('disabled', '!=', true), where('driver_status', '==', 'online'));
+    const unsubscribeDrivers = onSnapshot(driversQuery, (snapshot) => {
+        const driverList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Driver));
+        setDrivers(driverList);
+        setIsLoadingDrivers(false);
+    }, (error) => {
+        console.error(error);
+        toast({variant: 'destructive', title: 'Erro ao buscar motoristas'});
+        setIsLoadingDrivers(false);
+    });
 
-    const subscribeToDrivers = async () => {
-        await pb.collection('users').subscribe('*', fetchDrivers);
-    };
-    subscribeToDrivers();
-
-    return () => {
-        pb.collection('rides').unsubscribe();
-        pb.collection('users').unsubscribe();
-    }
-  }, [fetchActiveRide, toast]);
-  
-
-  const handleRideUpdate = ({ action, record }: { action: string, record: RideRecord }) => {
-    if (record.passenger !== pb.authStore.model?.id) return;
-
-    if (action === 'update') {
-        setActiveRide(prev => {
-            if (prev && prev.id === record.id) {
-                 if (record.status === 'accepted') {
-                    setRideStatus('accepted');
-                    setRideDetails({
-                        driverName: record.expand?.driver.name || 'Motorista',
-                        driverAvatar: record.expand?.driver.avatar ? pb.getFileUrl(record.expand.driver, record.expand.driver.avatar, { 'thumb': '100x100' }) : '',
-                        driverPhone: record.expand?.driver.phone || '',
-                        vehicleModel: record.expand?.driver.driver_vehicle_model || 'Não informado',
-                        licensePlate: record.expand?.driver.driver_vehicle_plate || 'Não informado',
-                        eta: '5 min' // Placeholder
-                    });
-                    playNotification();
-                    toast({title: "Corrida Aceita!", description: `${record.expand?.driver.name} está a caminho.`})
-                } else if (record.status === 'in_progress') {
-                    setRideStatus('in_progress');
-                } else if (record.status === 'completed') {
-                    handleCompleteRide();
-                } else if (record.status === 'canceled') {
-                    handleCancelRide(false); // No need to update db again
-                     toast({title: "Corrida Cancelada", description: "A corrida foi cancelada.", variant: 'destructive'})
-                }
-                return record;
-            }
-            return prev;
+    let rideUnsubscribe: (() => void) | null = null;
+    if (currentUser?.uid) {
+        fetchActiveRide(currentUser.uid).then(unsub => {
+            if (unsub) rideUnsubscribe = unsub;
         });
     }
-  };
+
+    return () => {
+        unsubscribeDrivers();
+        if (rideUnsubscribe) rideUnsubscribe();
+    }
+  }, [currentUser, fetchActiveRide, toast]);
+  
+
+  const handleRideUpdate = useCallback((updatedRide: RideRecord) => {
+    setActiveRide(updatedRide);
+    
+    if (updatedRide.status === 'accepted' && rideStatus !== 'accepted') {
+        const driverData = updatedRide.expand?.driver;
+        if (driverData) {
+            setRideStatus('accepted');
+            setRideDetails({
+                driverName: driverData.name || 'Motorista',
+                driverAvatar: driverData.avatar || '',
+                driverPhone: driverData.phone || '',
+                vehicleModel: driverData.driver_vehicle_model || 'Não informado',
+                licensePlate: driverData.driver_vehicle_plate || 'Não informado',
+                eta: '5 min' // Placeholder
+            });
+            playNotification();
+            toast({title: "Corrida Aceita!", description: `${driverData.name} está a caminho.`});
+        }
+    } else if (updatedRide.status === 'in_progress') {
+        setRideStatus('in_progress');
+    } else if (updatedRide.status === 'completed') {
+        handleCompleteRide();
+    } else if (updatedRide.status === 'canceled') {
+        handleCancelRide(false); // No need to update db again
+        toast({title: "Corrida Cancelada", description: "A corrida foi cancelada.", variant: 'destructive'});
+    }
+}, [playNotification, rideStatus, toast]);
+
+  useEffect(() => {
+    if (!activeRide?.id) return;
+    
+    const unsubscribe = onSnapshot(doc(db, 'rides', activeRide.id), async (docSnap) => {
+      if (docSnap.exists()) {
+        const rideData = { id: docSnap.id, ...docSnap.data() } as RideRecord;
+        
+        if (rideData.driver) {
+             const driverDoc = await getDoc(doc(db, 'users', rideData.driver));
+             if (driverDoc.exists()) {
+                rideData.expand = { driver: driverDoc.data() as DriverRecord };
+             }
+        }
+        handleRideUpdate(rideData);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeRide?.id, handleRideUpdate]);
 
 
   const onRideRequest = (rideId: string) => {
     setRideStatus('searching');
-    pb.collection('rides').getOne(rideId).then(ride => {
-        setActiveRide(ride as RideRecord);
+    getDoc(doc(db, 'rides', rideId)).then(rideSnap => {
+        if (rideSnap.exists()) {
+            setActiveRide(rideSnap.data() as RideRecord);
+        }
     }).catch(error => {
         console.error(error);
         setRideStatus('idle');
@@ -204,7 +237,7 @@ export default function PassengerDashboard() {
 
   const handleCancelRide = async (updateDb = true) => {
     if (updateDb && activeRide) {
-        await pb.collection('rides').update(activeRide.id, { status: 'canceled' });
+        await updateDoc(doc(db, 'rides', activeRide.id), { status: 'canceled' });
         toast({
             title: 'Corrida Cancelada',
             description: 'Sua solicitação foi cancelada.',
@@ -239,7 +272,7 @@ export default function PassengerDashboard() {
           <RideRequestForm
             onRideRequest={onRideRequest}
             isSearching={rideStatus === 'searching'}
-            anonymousUserName={pb.authStore.model ? null : 'Anônimo'}
+            anonymousUserName={currentUser ? null : 'Anônimo'}
             origin={origin}
             setOrigin={setOrigin}
             destination={destination}
@@ -270,7 +303,7 @@ export default function PassengerDashboard() {
                         <CardContent className="p-4 flex-grow">
                             <div className="flex flex-col items-center text-center gap-2">
                                 <Avatar className="h-16 w-16 mb-2">
-                                    <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                                    <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
                                     <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <p className="font-bold">{driver.name}</p>
@@ -311,7 +344,7 @@ export default function PassengerDashboard() {
                 destination={destination}
                 isNegotiated={false} // This view logic defaults to non-negotiated. The form handles negotiation.
                 onConfirm={onRideRequest}
-                passengerAnonymousName={pb.authStore.model ? null : "Passageiro Anônimo"}
+                passengerAnonymousName={currentUser ? null : "Passageiro Anônimo"}
             />
         )}
     </div>
