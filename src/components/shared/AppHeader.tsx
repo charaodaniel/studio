@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Download, LogIn } from 'lucide-react';
+import pb from '@/lib/pocketbase';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
   Dialog,
@@ -33,7 +34,15 @@ export function AppHeader({
   title: string;
   showDriverAvatar?: boolean;
 }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    setIsLoggedIn(pb.authStore.isValid);
+    return pb.authStore.onChange(() => {
+      setIsLoggedIn(pb.authStore.isValid);
+    });
+  }, []);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -73,11 +82,12 @@ export function AppHeader({
 
   const renderLogoLink = () => {
     if (showDriverAvatar) {
+      const avatarUrl = pb.authStore.model?.avatar ? pb.getFileUrl(pb.authStore.model, pb.authStore.model.avatar, { 'thumb': '48x48' }) : 'https://placehold.co/48x48.png';
       return (
         <Link href="/" className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
             <AvatarImage
-              src={'https://placehold.co/48x48.png'}
+              src={avatarUrl}
               data-ai-hint="person portrait"
             />
             <AvatarFallback>C</AvatarFallback>
@@ -117,7 +127,7 @@ export function AppHeader({
                 <DialogTrigger asChild>
                     <Button>
                         <LogIn className="mr-2 h-4 w-4" />
-                        Login
+                        {isLoggedIn ? "Meu Perfil" : "Login"}
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="p-0">

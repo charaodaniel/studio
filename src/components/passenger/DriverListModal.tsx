@@ -7,12 +7,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Star, Car, Info, Send, WifiOff, Loader2 } from "lucide-react";
+import pb from "@/lib/pocketbase";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, DialogHeader } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Image from 'next/image';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import type { User as Driver } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '../ui/badge';
@@ -64,15 +63,16 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setIsLoading(true);
         setError(null);
         try {
-            const driversQuery = scheduledFor 
-                ? query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'), where('disabled', '==', false))
-                : query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'), where('disabled', '==', false), where('driver_status', '==', 'online'));
-            
-            const querySnapshot = await getDocs(driversQuery);
-            const allDrivers = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Driver));
-            setDrivers(allDrivers);
+            // For scheduled rides, we show all drivers. For immediate rides, only online ones.
+            const filter = scheduledFor 
+                ? 'role = "Motorista" && disabled != true' 
+                : 'role = "Motorista" && disabled != true && driver_status = "online"';
+                
+            const result = await pb.collection('users').getFullList({
+                filter: filter,
+            });
+            setDrivers(result as Driver[]);
         } catch (err: any) {
-            console.error("Failed to fetch drivers:", err);
             setError("Não foi possível carregar os motoristas. Verifique a conexão.");
         } finally {
             setIsLoading(false);
@@ -81,15 +81,12 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
 
     useEffect(() => {
         fetchDrivers();
-        
-        const q = query(collection(db, "users"), where("role", "array-contains", "Motorista"));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unsubscribe = pb.collection('users').subscribe('*', () => {
             fetchDrivers();
         });
-
         return () => {
-            unsubscribe();
-        };
+             pb.collection('users').unsubscribe();
+        }
     }, [fetchDrivers]);
 
     const handleToggle = (driverId: string) => {
@@ -148,12 +145,12 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                                     <Dialog>
                                         <DialogTrigger asChild>
                                                 <Avatar className="h-12 w-12 cursor-pointer">
-                                                <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
+                                                <AvatarImage src={driver.avatar ? pb.getFileUrl(driver, driver.avatar, { 'thumb': '100x100' }) : ''} data-ai-hint="driver portrait" />
                                                 <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                         </DialogTrigger>
                                         <DialogContent className="p-0 max-w-xs">
-                                            <Image src={driver.avatar || 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
+                                            <Image src={driver.avatar ? pb.getFileUrl(driver, driver.avatar) : 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
                                         </DialogContent>
                                     </Dialog>
                                     
@@ -183,7 +180,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                                             </p>
                                             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                                                 {driver.driver_vehicle_photo && (
-                                                    <Image src={driver.driver_vehicle_photo} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
+                                                    <Image src={pb.getFileUrl(driver, driver.driver_vehicle_photo)} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
                                                 )}
                                             </div>
                                         </div>

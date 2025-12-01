@@ -8,21 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CardContent, CardFooter } from '@/components/ui/card';
+import pb from '@/lib/pocketbase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, PenSquare, ShieldCheck, History, MessageSquare, Loader2, Eye, EyeOff } from 'lucide-react';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/lib/firebase';
+import type { RecordModel } from 'pocketbase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { User as FirebaseUser } from 'firebase/auth';
 
-interface AppUser {
-    uid: string;
+interface AppUser extends RecordModel {
     name: string;
-    email: string | null;
+    email: string;
     avatar: string;
     role: string[];
 }
@@ -30,8 +29,8 @@ interface AppUser {
 export default function PassengerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(pb.authStore.model as AppUser);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
 
@@ -49,61 +48,30 @@ export default function PassengerAuthForm() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
-        if (user) {
-            const userDocRef = doc(db, 'users', user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                setCurrentUser({
-                    uid: user.uid,
-                    name: userData.name,
-                    email: user.email,
-                    avatar: userData.avatar || '',
-                    role: userData.role || [],
-                });
-                setIsLoggedIn(true);
-            } else {
-                 // Handle case where auth user exists but no firestore doc, e.g. sign out
-                auth.signOut();
-            }
-        } else {
-            setCurrentUser(null);
-            setIsLoggedIn(false);
-        }
+    return pb.authStore.onChange((token, model) => {
+      setIsLoggedIn(pb.authStore.isValid);
+      setCurrentUser(model as AppUser);
     });
-
-    return () => unsubscribe();
   }, []);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-      const user = userCredential.user;
-      
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists() || !userDoc.data().role.includes('Passageiro')) {
-        await auth.signOut();
-        toast({
-          variant: 'destructive',
-          title: 'Acesso Negado',
-          description: 'Este formulário é apenas para passageiros. Use o formulário apropriado se você for motorista ou admin.',
-        });
-      } else {
-         toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${userDoc.data().name}!` });
-         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+      if (!pb.authStore.model?.role.includes('Passageiro')) {
+        pb.authStore.clear();
+        throw new Error('Acesso negado. Este formulário é apenas para passageiros.');
       }
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${pb.authStore.model?.name}!` });
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'Email ou senha inválidos. Por favor, tente novamente.'
+        description: error.message || 'Email ou senha inválidos. Por favor, tente novamente.'
       });
-      console.error("Login failed:", error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -113,19 +81,17 @@ export default function PassengerAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
-        const user = userCredential.user;
+    const data = {
+        "email": registerEmail,
+        "emailVisibility": true,
+        "password": registerPassword,
+        "passwordConfirm": registerPassword,
+        "name": registerName,
+        "role": ["Passageiro"]
+    };
 
-        const userDocRef = doc(db, "users", user.uid);
-        await setDoc(userDocRef, {
-            uid: user.uid,
-            name: registerName,
-            email: registerEmail,
-            role: ["Passageiro"],
-            createdAt: new Date().toISOString(),
-        });
-        
+    try {
+        await pb.collection('users').create(data);
         toast({ title: 'Conta Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
         setRegisterName('');
         setRegisterEmail('');
@@ -133,17 +99,17 @@ export default function PassengerAuthForm() {
         setActiveTab('login');
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
-        if (error.code === 'auth/email-already-in-use') {
-            description = 'Este endereço de e-mail já está em uso por outra conta.';
-        } else if (error.code === 'auth/weak-password') {
-             description = 'A senha é muito fraca. Tente uma senha mais forte.';
+        if (error.data?.data?.email?.message) {
+            description = `Erro no email: ${error.data.data.email.message}`;
+        } else if (error.data?.data?.password?.message) {
+             description = `Erro na senha: ${error.data.data.password.message}`;
         }
         toast({
             variant: 'destructive',
             title: 'Falha no Registro',
             description: description,
         });
-        console.error("Registration failed:", error);
+        console.error(error);
     } finally {
         setIsLoading(false);
     }
@@ -151,7 +117,7 @@ export default function PassengerAuthForm() {
 
 
   const handleLogout = () => {
-    auth.signOut();
+    pb.authStore.clear();
     toast({ title: 'Logout Realizado', description: 'Você foi desconectado com sucesso.' });
     router.push('/');
   };
@@ -162,6 +128,7 @@ export default function PassengerAuthForm() {
   }
 
   if (isLoggedIn && currentUser) {
+    const avatarUrl = currentUser.avatar ? pb.getFileUrl(currentUser, currentUser.avatar, { 'thumb': '100x100' }) : '';
     return (
       <ScrollArea className="max-h-[80vh] h-full">
         <div className="w-full">
@@ -173,7 +140,7 @@ export default function PassengerAuthForm() {
           </DialogHeader>
           <div className="flex flex-col items-center space-y-4 p-4 border-b">
             <Avatar className="h-24 w-24 cursor-pointer">
-                <AvatarImage src={currentUser.avatar || `https://placehold.co/100x100.png?text=${currentUser.name.substring(0,2)}`} data-ai-hint="user avatar" alt={currentUser.name} />
+                <AvatarImage src={avatarUrl} data-ai-hint="user avatar" alt={currentUser.name} />
                 <AvatarFallback>{currentUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="text-center">

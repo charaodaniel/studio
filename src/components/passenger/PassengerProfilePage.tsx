@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, History, MessageSquare, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import pb from '@/lib/pocketbase';
 import { Dialog, DialogTrigger } from '../ui/dialog';
 import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { Button } from '../ui/button';
@@ -35,21 +36,18 @@ export function PassengerProfilePage() {
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUser({ id: userDoc.id, ...userDoc.data() } as User);
-        }
+    const fetchUser = async () => {
+      if (pb.authStore.model) {
+        setUser(pb.authStore.model as User);
       }
       setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
+    fetchUser();
+    pb.authStore.onChange(fetchUser, true);
   }, []);
 
   const handleLogout = () => {
-    auth.signOut();
+    pb.authStore.clear();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -70,26 +68,31 @@ export function PassengerProfilePage() {
     }
 
     setIsSaving(true);
-    toast({
-        title: 'Funcionalidade em Breve',
-        description: 'A alteração de senha requer uma nova autenticação. Esta funcionalidade será implementada em breve.',
-    });
-    setIsSaving(false);
+    try {
+      await pb.collection('users').update(user.id, { password: newPassword, passwordConfirm: confirmPassword });
+      toast({ title: 'Senha Alterada!', description: 'Sua senha foi atualizada com sucesso.' });
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar sua senha. Tente novamente.' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAvatarSave = async (newImageAsDataUrl: string) => {
     if (!user) return;
     try {
-        await updateDoc(doc(db, 'users', user.id), {
-            avatar: newImageAsDataUrl,
-        });
+      const blob = await (await fetch(newImageAsDataUrl)).blob();
+      const formData = new FormData();
+      formData.append('avatar', blob);
 
-        setUser(prev => prev ? { ...prev, avatar: newImageAsDataUrl } : null);
-        
-        toast({ title: 'Avatar atualizado com sucesso!' });
+      const updatedUser = await pb.collection('users').update(user.id, formData);
+      setUser(updatedUser as User);
+      toast({ title: 'Avatar atualizado com sucesso!' });
     } catch (error) {
-        console.error("Failed to update avatar:", error);
-        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
     }
   }
   
@@ -110,7 +113,7 @@ export function PassengerProfilePage() {
       )
   }
 
-  const avatarUrl = user.avatar || `https://placehold.co/128x128.png?text=${user.name.substring(0, 2).toUpperCase()}`;
+  const avatarUrl = user.avatar ? pb.getFileUrl(user, user.avatar, { 'thumb': '128x128' }) : `https://placehold.co/128x128.png?text=${user.name.substring(0, 2).toUpperCase()}`;
 
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">

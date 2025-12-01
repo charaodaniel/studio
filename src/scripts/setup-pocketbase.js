@@ -1,69 +1,57 @@
-{
-  "name": "nextn",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "next dev --turbopack -p 9002",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@ducanh2912/next-pwa": "^10.2.7",
-    "@hookform/resolvers": "^4.1.3",
-    "@radix-ui/react-accordion": "^1.2.3",
-    "@radix-ui/react-alert-dialog": "^1.1.6",
-    "@radix-ui/react-avatar": "^1.1.3",
-    "@radix-ui/react-checkbox": "^1.1.4",
-    "@radix-ui/react-collapsible": "^1.1.11",
-    "@radix-ui/react-dialog": "^1.1.6",
-    "@radix-ui/react-dropdown-menu": "^2.1.6",
-    "@radix-ui/react-label": "^2.1.2",
-    "@radix-ui/react-menubar": "^1.1.6",
-    "@radix-ui/react-popover": "^1.1.6",
-    "@radix-ui/react-progress": "^1.1.2",
-    "@radix-ui/react-radio-group": "^1.2.3",
-    "@radix-ui/react-scroll-area": "^1.2.3",
-    "@radix-ui/react-select": "^2.1.6",
-    "@radix-ui/react-separator": "^1.1.2",
-    "@radix-ui/react-slider": "^1.2.3",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-switch": "^1.1.3",
-    "@radix-ui/react-tabs": "^1.1.3",
-    "@radix-ui/react-toast": "^1.2.6",
-    "@radix-ui/react-tooltip": "^1.1.8",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "date-fns": "^3.6.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^11.9.1",
-    "howler": "^2.2.4",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
-    "lucide-react": "^0.475.0",
-    "next": "15.3.3",
-    "patch-package": "^8.0.0",
-    "pocketbase": "^0.21.5",
-    "react": "^18.3.1",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.54.2",
-    "recharts": "^2.15.1",
-    "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@types/howler": "^2.2.11",
-    "@types/jspdf": "^2.0.0",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "isomorphic-fetch": "^3.0.0",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5"
-  }
+
+import PocketBase from 'pocketbase';
+import 'isomorphic-fetch';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+async function setupPocketBase() {
+    const POCKETBASE_URL = process.env.POCKETBASE_URL;
+    const POCKETBASE_ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL;
+    const POCKETBASE_ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD;
+
+    if (!POCKETBASE_URL || !POCKETBASE_ADMIN_EMAIL || !POCKETBASE_ADMIN_PASSWORD) {
+        console.error("Please provide POCKETBASE_URL, POCKETBASE_ADMIN_EMAIL, and POCKETBASE_ADMIN_PASSWORD in your environment variables.");
+        return;
+    }
+    
+    console.log("Connecting to PocketBase at:", POCKETBASE_URL);
+    const pb = new PocketBase(POCKETBASE_URL);
+
+    try {
+        console.log("Authenticating as admin...");
+        await pb.admins.authWithPassword(POCKETBASE_ADMIN_EMAIL, POCKETBASE_ADMIN_PASSWORD);
+        console.log("Admin authentication successful.");
+
+        const schemaPath = path.resolve(__dirname, '../../pocketbase_schema.json');
+        console.log("Reading schema from:", schemaPath);
+        const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+
+        console.log("Starting schema import...");
+        const collections = await pb.collections.list(1, 50);
+
+        for (const collection of schema) {
+            const existing = collections.items.find(c => c.name === collection.name);
+            if (existing) {
+                console.log(`Updating collection: ${collection.name}`);
+                await pb.collections.update(existing.id, collection);
+            } else {
+                console.log(`Creating collection: ${collection.name}`);
+                await pb.collections.create(collection);
+            }
+        }
+
+        console.log("Schema setup complete!");
+
+    } catch (err) {
+        console.error("An error occurred during setup:", err);
+         if (err.data) {
+            console.error("Error details:", JSON.stringify(err.data, null, 2));
+        }
+    }
 }
+
+setupPocketBase();

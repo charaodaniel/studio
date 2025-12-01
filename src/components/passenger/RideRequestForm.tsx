@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase';
+import pb from '@/lib/pocketbase';
 
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
@@ -33,7 +33,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
         setIsClient(true);
     }, []);
 
-    const isLoggedIn = isClient && auth.currentUser;
+    const isLoggedIn = isClient && pb.authStore.isValid;
     const canRequest = isLoggedIn || !!anonymousUserName;
 
     const handleGetCurrentLocation = () => {
