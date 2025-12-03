@@ -16,7 +16,7 @@ Este documento serve como guia central para desenvolvedores, detalhando a arquit
 - **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
 - **Componentes:** [ShadCN/UI](https://ui.shadcn.com/)
 - **Backend:** [PocketBase](https://pocketbase.io/)
-- **Hospedagem de Backend (Sugerida):** [PocketHost.io](https://pockethost.io/) (Serviço gratuito para hospedar PocketBase)
+- **Hospedagem de Backend (Sugerida):** [PocketHost.io](https://pockethost.io/) (Serviço gratuito para hospedar PocketBase) ou servidor próprio.
 - **Geração de Relatórios:** [jsPDF](https://github.com/parallax/jsPDF) & [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable)
 - **Notificações Sonoras:** [Howler.js](https://howlerjs.com/)
 
@@ -42,17 +42,12 @@ npm install
 
 ### 3. Configurar o Backend (PocketBase)
 
-Este aplicativo precisa de um backend PocketBase para funcionar. Você tem duas opções:
+Este aplicativo precisa de um backend PocketBase para funcionar. 
 
-#### Opção A: Usar o PocketHost (Recomendado para Produção)
-
-O PocketHost é um serviço gratuito que hospeda seu backend PocketBase na nuvem.
-
-1.  Siga o guia detalhado em `POCKETBASE_SETUP.md` para criar seu backend no PocketHost.
-2.  Ao final, o PocketHost fornecerá uma **URL da sua API**. Guarde-a.
+#### Opção A: Usar um Servidor Próprio (Ex: `mobmv.shop`)
+Se você já tem o PocketBase rodando em um servidor, você só precisa da URL dele.
 
 #### Opção B: Rodar o PocketBase Localmente (Para Desenvolvimento)
-
 1.  Baixe o executável do [PocketBase](https://pocketbase.io/docs/) para o seu sistema operacional.
 2.  Descompacte e execute o arquivo.
 3.  Abra seu terminal e rode o comando: `./pocketbase serve`
@@ -65,21 +60,21 @@ Na raiz do seu projeto, crie um arquivo chamado `.env.local` e adicione a URL do
 ```bash
 # .env.local
 
-# Se estiver usando o PocketHost, cole a URL fornecida por eles.
-# Exemplo: NEXT_PUBLIC_POCKETBASE_URL="https://seu-app.pockethost.io"
+# Para produção, use seu domínio.
+NEXT_PUBLIC_POCKETBASE_URL="https://mobmv.shop"
 
-# Se estiver rodando localmente, use o endereço local.
-NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
+# Para rodar localmente, comente a linha de cima e descomente a de baixo.
+# NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
 ```
 
 **Importante:** Nunca envie o arquivo `.env.local` para o GitHub. Ele já está no `.gitignore`.
 
 ### 5. Configurar as Coleções e Regras no PocketBase
 
-Seja no PocketHost ou localmente, você precisa configurar o banco de dados.
+Seja no seu servidor ou localmente, você precisa configurar o banco de dados.
 
 1.  Acesse o painel de administrador do seu PocketBase.
-    *   **PocketHost:** `https://seu-app.pockethost.io/_/`
+    *   **Produção:** `https://mobmv.shop/_/`
     *   **Local:** `http://127.0.0.1:8090/_/`
 2.  Siga as instruções detalhadas no arquivo `POCKETBASE_API.md` para importar as coleções e configurar as regras de acesso.
 
@@ -99,8 +94,8 @@ O aplicativo estará disponível em `http://localhost:3000`.
 
 1.  Publique seu projeto na Vercel.
 2.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
-3.  Adicione a variável de ambiente com a URL do seu PocketHost:
-    *   `NEXT_PUBLIC_POCKETBASE_URL` = `https://seu-app.pockethost.io`
+3.  Adicione a variável de ambiente com a URL do seu servidor de produção:
+    *   `NEXT_PUBLIC_POCKETBASE_URL` = `https://mobmv.shop`
 4.  Faça um **Redeploy** para aplicar as variáveis.
 
 ---
