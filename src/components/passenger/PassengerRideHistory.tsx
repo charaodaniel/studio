@@ -13,18 +13,17 @@ import { Calendar } from "../ui/calendar";
 import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { auth, db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, onSnapshot } from "firebase/firestore";
+import pb from "@/lib/pocketbase";
+import type { RecordModel } from "pocketbase";
 
-interface RideRecord {
-    id: string;
+interface RideRecord extends RecordModel {
     passenger: string;
     driver: string;
     origin_address: string;
     destination_address: string;
     status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
     fare: number;
-    createdAt: any; // Firestore Timestamp
+    created: string; // Firestore Timestamp
     expand?: {
         driver: {
             name: string;
@@ -42,34 +41,32 @@ export function PassengerRideHistory() {
     });
     
     const fetchRides = useCallback(async () => {
-        const currentUser = auth.currentUser;
+        const currentUser = pb.authStore.model;
         if (!currentUser) return;
         
         setIsLoading(true);
         setError(null);
         
         try {
-            const passengerId = currentUser.uid;
-            let q;
+            const passengerId = currentUser.id;
+            let filter;
 
             if (dateRange?.from && dateRange?.to) {
-                const startDate = dateRange.from;
-                const endDate = endOfDay(dateRange.to);
-                q = query(collection(db, 'rides'), where('passenger', '==', passengerId), where('createdAt', '>=', startDate), where('createdAt', '<=', endDate), orderBy('createdAt', 'desc'));
+                const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
+                const endDate = endOfDay(dateRange.to).toISOString();
+                filter = `passenger = "${passengerId}" && created >= "${startDate}" && created <= "${endDate}"`;
             } else {
                  setIsLoading(false);
                  return;
             }
 
-            const querySnapshot = await getDocs(q);
-            const rideRecords: RideRecord[] = [];
-            for (const docSnap of querySnapshot.docs) {
-                const ride = { id: docSnap.id, ...docSnap.data() } as RideRecord;
-                // You can expand driver data here if needed, similar to other components
-                rideRecords.push(ride);
-            }
+            const records = await pb.collection('rides').getFullList<RideRecord>({
+                filter,
+                sort: '-created',
+                expand: 'driver',
+            });
             
-            setRides(rideRecords);
+            setRides(records);
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
             setError("Não foi possível carregar seu histórico de corridas.");
@@ -79,16 +76,7 @@ export function PassengerRideHistory() {
     }, [dateRange]);
 
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(user => {
-            if (user) {
-                fetchRides();
-            } else {
-                setRides([]);
-                setIsLoading(false);
-            }
-        });
-        
-        return () => unsubscribe();
+        fetchRides();
     }, [fetchRides]);
     
     const renderContent = () => {
@@ -134,7 +122,7 @@ export function PassengerRideHistory() {
         return (
             <TableBody>
                 {rides.map((ride) => {
-                    const dateStr = ride.createdAt?.toDate ? new Date(ride.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Inválida';
+                    const dateStr = ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida';
 
                     return (
                         <TableRow key={ride.id}>

@@ -12,13 +12,17 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, updatePassword } from 'firebase/auth';
+import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { PassengerRideHistory } from './PassengerRideHistory';
 import { PassengerChatHistory } from './PassengerChatHistory';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import type { RecordModel } from 'pocketbase';
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
 
 
 export function PassengerProfilePage() {
@@ -35,24 +39,17 @@ export function PassengerProfilePage() {
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            if (userDoc.exists()) {
-                setUser({ id: userDoc.id, ...userDoc.data() } as User);
-            }
-        } else {
-            // Se não estiver logado, redirecione para a home
-            router.push('/');
-        }
-        setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    const currentUser = pb.authStore.model as User | null;
+    if (currentUser) {
+        setUser(currentUser);
+    } else {
+        router.push('/');
+    }
+    setIsLoading(false);
   }, [router]);
 
   const handleLogout = () => {
-    auth.signOut();
+    pb.authStore.clear();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -62,7 +59,7 @@ export function PassengerProfilePage() {
   
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser) return;
+    if (!user) return;
     if (newPassword.length < 6) {
       toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 6 caracteres.' });
       return;
@@ -74,15 +71,18 @@ export function PassengerProfilePage() {
 
     setIsSaving(true);
     try {
-      await updatePassword(auth.currentUser, newPassword);
+      await pb.collection('users').update(user.id, {
+          password: newPassword,
+          passwordConfirm: confirmPassword,
+      });
       toast({ title: 'Senha Alterada!', description: 'Sua senha foi atualizada com sucesso.' });
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
       let description = 'Não foi possível alterar sua senha.';
-      if (error.code === 'auth/requires-recent-login') {
-        description = 'Para sua segurança, faça login novamente antes de alterar a senha.';
-      }
+       if (error.status === 400) {
+          description = 'A senha atual pode estar incorreta ou a nova senha não atende aos requisitos.'
+       }
       toast({ variant: 'destructive', title: 'Erro ao alterar senha', description });
     } finally {
       setIsSaving(false);
@@ -91,12 +91,18 @@ export function PassengerProfilePage() {
 
   const handleAvatarSave = async (newImageAsDataUrl: string) => {
     if (!user) return;
+
     try {
-      await updateDoc(doc(db, 'users', user.id), {
-        avatar: newImageAsDataUrl
-      });
-      setUser(prev => prev ? { ...prev, avatar: newImageAsDataUrl } : null);
-      toast({ title: 'Avatar atualizado com sucesso!' });
+        const response = await fetch(newImageAsDataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], "avatar.png", { type: blob.type });
+
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        const updatedRecord = await pb.collection('users').update(user.id, formData);
+        setUser(updatedRecord as User);
+        toast({ title: 'Avatar atualizado com sucesso!' });
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
@@ -120,7 +126,7 @@ export function PassengerProfilePage() {
       )
   }
 
-  const avatarUrl = user.avatar;
+  const avatarUrl = user.avatar ? getAvatarUrl(user, user.avatar) : '';
 
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">

@@ -13,16 +13,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from '../ui/scroll-area';
 import { Input } from '../ui/input';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, onSnapshot, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 import type { User } from '../admin/UserList';
 
-interface MessageRecord {
-    id: string;
+interface MessageRecord extends RecordModel {
     chat: string;
     sender: string;
     text: string;
-    createdAt: Timestamp;
+    created: string;
     expand: {
         sender: User;
     }
@@ -49,52 +48,40 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [proposedFare, setProposedFare] = useState('');
   const [isPassenger, setIsPassenger] = useState(false);
-  const currentUser = auth.currentUser;
+  const currentUser = pb.authStore.model;
 
   useEffect(() => {
-    const checkUserRole = async () => {
-        if(currentUser) {
-            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-            if (userDoc.exists() && userDoc.data().role.includes('Passageiro')) {
-                setIsPassenger(true);
-            }
-        }
+    if (currentUser?.role.includes('Passageiro')) {
+        setIsPassenger(true);
     }
-    checkUserRole();
   }, [currentUser]);
 
 
   const findOrCreateChat = useCallback(async () => {
-    if (!rideId || !currentUser) return null;
+    if (!rideId) return null;
     
     try {
-      const q = query(collection(db, "chats"), where("rideId", "==", rideId));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const chatDoc = querySnapshot.docs[0];
-        setCurrentChatId(chatDoc.id);
-        return chatDoc.id;
-      } else {
-        const rideDoc = await getDoc(doc(db, 'rides', rideId));
-        const rideData = rideDoc.data();
-        if (!rideData?.passenger) {
-             toast({ variant: 'destructive', title: 'Erro', description: 'Esta corrida não tem um passageiro definido.' });
-             return null;
+      const existingChat = await pb.collection('chats').getFirstListItem(`ride = "${rideId}"`);
+      setCurrentChatId(existingChat.id);
+      return existingChat.id;
+    } catch(error) {
+        // Chat doesn't exist, create it
+        if (currentUser) {
+            try {
+                const ride = await pb.collection('rides').getOne(rideId);
+                const chatData = {
+                    participants: [currentUser.id, ride.driver],
+                    ride: rideId,
+                };
+                const newChat = await pb.collection('chats').create(chatData);
+                setCurrentChatId(newChat.id);
+                return newChat.id;
+            } catch(createError) {
+                console.error("Failed to create chat:", createError);
+                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar o chat.' });
+                return null;
+            }
         }
-        const chatData = {
-          participants: [currentUser.uid, rideData.passenger],
-          rideId: rideId,
-          lastMessage: '',
-          updatedAt: serverTimestamp(),
-        };
-        const newChatRef = await addDoc(collection(db, "chats"), chatData);
-        setCurrentChatId(newChatRef.id);
-        return newChatRef.id;
-      }
-    } catch(createError) {
-        console.error("Failed to create/find chat:", createError);
-        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar o chat.' });
         return null;
     }
   }, [rideId, toast, currentUser]);
@@ -106,8 +93,19 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
         setIsLoading(false);
         return;
     }
-    // This will be handled by the onSnapshot listener
-    setIsLoading(false);
+    try {
+      const records = await pb.collection('messages').getFullList<MessageRecord>({
+        filter: `chat = "${id}"`,
+        sort: 'created',
+        expand: 'sender',
+      });
+      setMessages(records);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+      setMessages([]);
+    } finally {
+        setIsLoading(false);
+    }
   }, []);
 
   const handleOpen = async (open: boolean) => {
@@ -125,34 +123,18 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   useEffect(() => {
     if (!currentChatId) return;
 
-    const q = query(collection(db, "messages"), where("chat", "==", currentChatId), orderBy("createdAt", "asc"));
-    
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const newMessages: MessageRecord[] = [];
-        for (const messageDoc of querySnapshot.docs) {
-            const data = messageDoc.data();
-            const senderDoc = await getDoc(doc(db, 'users', data.sender));
-            newMessages.push({
-                id: messageDoc.id,
-                ...data,
-                expand: {
-                    sender: { id: senderDoc.id, ...senderDoc.data() } as User
-                }
-            } as MessageRecord);
-        }
-
-        if (newMessages.length > messages.length && messages.length > 0) {
+    const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', (e) => {
+        if (e.action === 'create' && e.record.chat === currentChatId) {
             playNotification();
+            fetchMessages(currentChatId); // Re-fetch all on new message
         }
-
-        setMessages(newMessages);
     });
 
     return () => {
-        unsubscribe();
+        pb.collection('messages').unsubscribe();
     };
 
-  }, [currentChatId, playNotification, messages.length]);
+  }, [currentChatId, fetchMessages, playNotification]);
 
   useEffect(() => {
       if (scrollAreaRef.current) {
@@ -167,16 +149,14 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     setIsSending(true);
 
     try {
-        await addDoc(collection(db, "messages"), {
+        await pb.collection('messages').create({
             chat: currentChatId,
-            sender: currentUser.uid,
+            sender: currentUser.id,
             text: text,
-            createdAt: serverTimestamp(),
         });
 
-        await updateDoc(doc(db, "chats", currentChatId), {
-            lastMessage: text,
-            updatedAt: serverTimestamp(),
+        await pb.collection('chats').update(currentChatId, {
+            last_message: text,
         });
 
     } catch (error) {
@@ -202,7 +182,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     setIsSending(true);
     try {
         // Update ride fare, but don't accept it yet.
-        await updateDoc(doc(db, 'rides', rideId), { fare: fareValue });
+        await pb.collection('rides').update(rideId, { fare: fareValue });
         
         // Send a message to the chat
         const proposalMessage = `Proposta de R$ ${fareValue.toFixed(2).replace('.',',')} enviada. Aguardando aceite do passageiro.`;
@@ -222,7 +202,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   const handleAccept = async () => {
     try {
         if (isPassenger) {
-            await updateDoc(doc(db, 'rides', rideId), {
+            await pb.collection('rides').update(rideId, {
                 status: 'accepted',
             });
              toast({ title: "Proposta Aceita!", description: `Aguarde o motorista iniciar a viagem.` });
@@ -263,7 +243,7 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
                         {isLoading && <div className="text-center p-8"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>}
                         {!isLoading && messages.map((msg) => {
                             const sender = msg.expand.sender;
-                            const isMe = sender.id === currentUser?.uid;
+                            const isMe = sender.id === currentUser?.id;
                             return (
                                 <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                                     <Avatar className="w-8 h-8 border">

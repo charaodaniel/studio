@@ -25,11 +25,11 @@ import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { auth, db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, addDoc, getDoc, onSnapshot } from "firebase/firestore";
+import pb from "@/lib/pocketbase";
+import type { RecordModel } from "pocketbase";
 
-interface RideRecord {
-    id: string;
+
+interface RideRecord extends RecordModel {
     passenger: string | null;
     driver: string;
     origin_address: string;
@@ -39,8 +39,8 @@ interface RideRecord {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
-    createdAt: any;
-    updatedAt: any;
+    created: string;
+    updated: string;
     scheduled_for?: string;
     ride_description?: string;
     expand?: {
@@ -80,17 +80,8 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     const [scheduledTime, setScheduledTime] = useState<string>('');
 
     useEffect(() => {
-        const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (userDoc.exists()) {
-                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as UserData);
-                }
-            } else {
-                setCurrentUser(null);
-            }
-        });
-        return () => unsubscribeAuth();
+        const user = pb.authStore.model as UserData | null;
+        setCurrentUser(user);
     }, []);
 
     const fetchRides = useCallback(async (filterOverride?: string) => {
@@ -101,33 +92,26 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
         
         try {
             const driverId = currentUser.id;
-            let q;
+            let filter;
             
             if (filterOverride) {
-                 q = query(collection(db, 'rides'), where('driver', '==', driverId), where('createdAt', '==', null)); // Placeholder for complex overrides
+                 filter = filterOverride;
             } else if (dateRange?.from && dateRange?.to) {
-                const startDate = dateRange.from;
-                const endDate = endOfDay(dateRange.to);
-                q = query(collection(db, 'rides'), where('driver', '==', driverId), where('createdAt', '>=', startDate), where('createdAt', '<=', endDate), orderBy('createdAt', 'desc'));
+                const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
+                const endDate = endOfDay(dateRange.to).toISOString();
+                filter = `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`;
             } else {
                  setIsLoading(false);
                  return;
             }
             
-            const querySnapshot = await getDocs(q);
-            const rideRecords: RideRecord[] = [];
-            for (const docSnap of querySnapshot.docs) {
-                const ride = { id: docSnap.id, ...docSnap.data() } as RideRecord;
-                if(ride.passenger) {
-                    const passengerDoc = await getDoc(doc(db, 'users', ride.passenger));
-                    if (passengerDoc.exists()) {
-                        ride.expand = { passenger: { id: passengerDoc.id, ...passengerDoc.data() } as UserData };
-                    }
-                }
-                rideRecords.push(ride);
-            }
+            const records = await pb.collection('rides').getFullList<RideRecord>({
+                filter,
+                sort: '-created',
+                expand: 'passenger',
+            });
             
-            setRides(rideRecords);
+            setRides(records);
 
         } catch (err: any) {
             console.error("Failed to fetch rides:", err);
@@ -149,20 +133,12 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     const fetchAllRides = async (): Promise<RideRecord[]> => {
         if (!currentUser) return [];
         try {
-            const q = query(collection(db, 'rides'), where('driver', '==', currentUser.id), orderBy('createdAt', 'desc'));
-            const querySnapshot = await getDocs(q);
-            const ridesList: RideRecord[] = [];
-             for (const docSnap of querySnapshot.docs) {
-                const ride = { id: docSnap.id, ...docSnap.data() } as RideRecord;
-                if(ride.passenger) {
-                    const passengerDoc = await getDoc(doc(db, 'users', ride.passenger));
-                    if (passengerDoc.exists()) {
-                        ride.expand = { passenger: { id: passengerDoc.id, ...passengerDoc.data() } as UserData };
-                    }
-                }
-                ridesList.push(ride);
-            }
-            return ridesList;
+            const records = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver="${currentUser.id}"`,
+                sort: '-created',
+                expand: 'passenger'
+            });
+            return records;
         } catch (error) {
             toast({ variant: 'destructive', title: "Erro ao buscar histórico completo." });
             return [];
@@ -186,7 +162,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
         const rows = ridesToExport.map(ride => 
             [
                 ride.id, 
-                ride.createdAt ? new Date(ride.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Inválida',
+                ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida',
                 ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
@@ -208,9 +184,8 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         let finalY = 0;
-        const validDateRides = ridesToExport.filter(ride => ride.createdAt && ride.createdAt.toDate);
+        const validDateRides = ridesToExport.filter(ride => ride.created);
         
-        // ... (rest of PDF generation logic is complex and can be kept as is, assuming it works with the data structure)
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(22);
@@ -251,7 +226,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
          if (validDateRides.length > 0) {
             const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
             const tableRows = validDateRides.map(ride => [
-                    new Date(ride.createdAt.toDate()).toLocaleString('pt-BR'),
+                    new Date(ride.created).toLocaleString('pt-BR'),
                     ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? currentUser?.name : 'N/A'),
                     `${ride.origin_address} -> ${ride.destination_address}`,
                     `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
@@ -346,7 +321,6 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 status: isScheduling ? 'requested' : 'accepted',
                 started_by: 'driver',
                 is_negotiated: false,
-                createdAt: new Date(),
             };
 
             if (isScheduling && fullScheduledDate) {
@@ -354,15 +328,14 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 rideData.ride_description = `Viagem agendada para ${format(fullScheduledDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Passageiro: ${newRide.passengerName}. Valor: R$ ${newRide.value}`;
             }
 
-            const newRideRef = await addDoc(collection(db, 'rides'), rideData);
-            const createdRide = { id: newRideRef.id, ...rideData } as RideRecord;
+            const createdRide = await pb.collection('rides').create(rideData);
     
             if (isScheduling) {
                 toast({ title: 'Corrida Agendada!', description: 'A corrida agendada foi adicionada às suas solicitações.' });
                 fetchRides();
             } else {
                 toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
-                onManualRideStart(createdRide);
+                onManualRideStart(createdRide as RideRecord);
             }
 
             setNewRide({ origin: '', destination: '', value: '', passengerName: '' });
@@ -403,14 +376,12 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 fare: fare,
                 is_negotiated: false,
                 passenger_anonymous_name: 'Passageiro (Rápida)',
-                createdAt: new Date(),
             };
 
-            const newRideRef = await addDoc(collection(db, 'rides'), rideData);
-            const newRide = { id: newRideRef.id, ...rideData } as RideRecord;
+            const newRide = await pb.collection('rides').create(rideData);
 
             toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está pronta para começar." });
-            onManualRideStart(newRide);
+            onManualRideStart(newRide as RideRecord);
             setDriverStatus('urban-trip');
 
         } catch (error) {
@@ -461,7 +432,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
         return (
             <TableBody>
                 {rides.map((ride) => {
-                    const dateStr = ride.createdAt?.toDate ? new Date(ride.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Inválida';
+                    const dateStr = ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida';
 
                     return (
                         <TableRow key={ride.id}>
@@ -545,7 +516,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => fetchRides('createdAt = null')} disabled={isLoading}>
+                                <Button variant="outline" size="icon" onClick={() => fetchRides('created = null')} disabled={isLoading}>
                                     <AlertTriangle className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>

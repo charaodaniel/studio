@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,8 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase';
+import pb from '@/lib/pocketbase';
+
 
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
@@ -31,9 +33,9 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
 
     useEffect(() => {
         setIsClient(true);
-        const unsubscribe = auth.onAuthStateChanged(user => {
-            setIsLoggedIn(!!user);
-        });
+        const unsubscribe = pb.authStore.onChange(token => {
+            setIsLoggedIn(!!token);
+        }, true);
         return () => unsubscribe();
     }, []);
 

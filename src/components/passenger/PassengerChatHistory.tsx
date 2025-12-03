@@ -1,4 +1,5 @@
 
+
 'use client';
 import { ScrollArea } from "../ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -6,21 +7,26 @@ import { Separator } from "../ui/separator";
 import { MessageSquare, WifiOff, Loader2 } from "lucide-react";
 import { RideChat } from "../driver/NegotiationChat";
 import { useState, useEffect, useCallback } from "react";
+import pb from '@/lib/pocketbase';
 import { User } from "../admin/UserList";
-import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import type { RecordModel } from "pocketbase";
 
 
-interface ChatRecord {
+interface ChatRecord extends RecordModel {
   id: string;
   participants: string[];
   last_message: string;
   ride: string;
-  updatedAt: any;
+  updated: string;
   expand: {
     participants: User[];
   }
 }
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
 
 export function PassengerChatHistory() {
   const [chats, setChats] = useState<ChatRecord[]>([]);
@@ -28,7 +34,7 @@ export function PassengerChatHistory() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchChats = useCallback(async () => {
-    const currentUser = auth.currentUser;
+    const currentUser = pb.authStore.model;
     if (!currentUser) {
         setIsLoading(false);
         return;
@@ -36,70 +42,33 @@ export function PassengerChatHistory() {
     setIsLoading(true);
     setError(null);
 
-    const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.uid));
-    
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        try {
-            const chatsData: ChatRecord[] = [];
-            for (const chatDoc of querySnapshot.docs) {
-                const data = chatDoc.data();
-                const participantsData: User[] = [];
-
-                for (const participantId of data.participants) {
-                    const userDoc = await getDoc(doc(db, 'users', participantId));
-                    if (userDoc.exists()) {
-                        participantsData.push({ id: userDoc.id, ...userDoc.data() } as User);
-                    }
-                }
-                
-                chatsData.push({
-                    id: chatDoc.id,
-                    participants: data.participants,
-                    last_message: data.last_message,
-                    ride: data.ride,
-                    updatedAt: data.updatedAt,
-                    expand: {
-                        participants: participantsData,
-                    },
-                });
-            }
-            
-            chatsData.sort((a, b) => b.updatedAt?.toMillis() - a.updatedAt?.toMillis());
-            setChats(chatsData);
-
-        } catch (err) {
-            console.error("Failed to process chat updates:", err);
-            setError("Não foi possível carregar as conversas.");
-            setChats([]);
-        } finally {
-            setIsLoading(false);
-        }
-    }, (err) => {
+    try {
+        const records = await pb.collection('chats').getFullList<ChatRecord>({
+            filter: `participants.id ?~ "${currentUser.id}" && role = "Passageiro"`,
+            sort: '-updated',
+            expand: 'participants'
+        });
+        setChats(records);
+    } catch(err: any) {
         console.error("Failed to fetch chats:", err);
         setError("Não foi possível carregar as conversas.");
+        setChats([]);
+    } finally {
         setIsLoading(false);
-    });
-
-    return unsubscribe;
+    }
   }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    const authUnsubscribe = auth.onAuthStateChanged((user) => {
-        if (user) {
-            fetchChats().then(cb => unsubscribe = cb);
-        } else {
-            setIsLoading(false);
-            setChats([]);
+    fetchChats();
+    const unsubscribe = pb.collection('chats').subscribe('*', (e) => {
+        if (e.record.participants?.includes(pb.authStore.model?.id)) {
+            fetchChats();
         }
     });
 
     return () => {
-        authUnsubscribe();
-        if (unsubscribe) {
-            unsubscribe();
-        }
-    };
+        pb.collection('chats').unsubscribe();
+    }
   }, [fetchChats]);
 
   const renderContent = () => {
@@ -127,10 +96,10 @@ export function PassengerChatHistory() {
     return (
         <ul className="px-4">
             {chats.map((chat, index) => {
-                const otherUser = chat.expand.participants.find(p => p.id !== auth.currentUser?.uid);
+                const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
                 if (!otherUser) return null;
 
-                const avatarUrl = otherUser.avatar;
+                const avatarUrl = otherUser.avatar ? getAvatarUrl(otherUser, otherUser.avatar) : '';
 
                 return (
                     <li key={chat.id}>
@@ -149,7 +118,7 @@ export function PassengerChatHistory() {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-center">
                                             <p className="font-semibold">{otherUser.name}</p>
-                                            <p className="text-xs text-muted-foreground">{chat.updatedAt ? new Date(chat.updatedAt.toDate()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
+                                            <p className="text-xs text-muted-foreground">{chat.updated ? new Date(chat.updated).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
                                         </div>
                                         <p className="text-sm text-muted-foreground truncate">{chat.last_message || 'Nenhuma mensagem.'}</p>
                                     </div>

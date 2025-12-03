@@ -10,8 +10,7 @@ import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -55,11 +54,8 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
       const findChat = async () => {
         if (rideId) {
           try {
-            const q = query(collection(db, "chats"), where("ride", "==", rideId));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                setChatId(querySnapshot.docs[0].id);
-            }
+            const chatRecord = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
+            setChatId(chatRecord.id);
           } catch(e) {
             console.warn("Could not find chat for this ride", e);
           }

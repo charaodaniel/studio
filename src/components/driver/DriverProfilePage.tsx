@@ -15,12 +15,15 @@ import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
 import { Skeleton } from '../ui/skeleton';
 import { type User } from '../admin/UserList';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
-interface RideRecord {
-    id: string;
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
+
+interface RideRecord extends RecordModel {
     passenger: string;
     driver: string;
     origin_address: string;
@@ -45,30 +48,24 @@ export function DriverProfilePage() {
   const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            if (userDoc.exists()) {
-                const userData = { id: userDoc.id, ...userDoc.data() } as User;
-                setUser(userData);
-                 try {
-                  // This is a placeholder for ride count. A more performant way would be a counter in Firestore.
-                  // const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('driver', '==', userData.id), where('status', '==', 'completed')));
-                  // setCompletedRidesCount(ridesSnapshot.size);
-                  setCompletedRidesCount(0); // Placeholder
-                } catch (error) {
-                  console.error("Failed to fetch rides count:", error);
-                  setCompletedRidesCount(0);
-                }
+    const currentUser = pb.authStore.model as User | null;
+    if (currentUser) {
+        setUser(currentUser);
+        pb.collection('rides').getFullList({
+            filter: `driver = "${currentUser.id}" && status = "completed"`,
+        })
+        .then(rides => setCompletedRidesCount(rides.length))
+        .catch(() => setCompletedRidesCount(0));
+    }
+    setIsLoading(false);
 
-            } else {
-                setUser(null);
-            }
-        } else {
-            setUser(null);
+    const unsubscribe = pb.authStore.onChange(() => {
+        const updatedUser = pb.authStore.model as User | null;
+        setUser(updatedUser);
+        if (!updatedUser) {
+            setIsLoading(false);
         }
-        setIsLoading(false);
-    });
+    }, true);
     
     return () => unsubscribe();
   }, []);
@@ -77,8 +74,8 @@ export function DriverProfilePage() {
     if (!user) return;
     
     try {
-        await updateDoc(doc(db, 'users', user.id), { driver_status: newStatus });
-        setUser(prev => prev ? { ...prev, driver_status: newStatus as User['driver_status'] } : null);
+        const updatedUser = await pb.collection('users').update(user.id, { driver_status: newStatus });
+        setUser(updatedUser as User);
 
         toast({
           title: 'Status Atualizado',
@@ -91,10 +88,9 @@ export function DriverProfilePage() {
         });
 
         try {
-            await addDoc(collection(db, 'driver_status_logs'), {
+            await pb.collection('driver_status_logs').create({
                 driver: user.id,
                 status: newStatus,
-                createdAt: new Date(),
             });
         } catch (logError) {
              console.error("Failed to create status log (non-critical):", logError);
@@ -119,11 +115,18 @@ export function DriverProfilePage() {
 
   const handleAvatarSave = async (newImageAsDataUrl: string) => {
     if (!user) return;
+
     try {
-        await updateDoc(doc(db, 'users', user.id), {
-            avatar: newImageAsDataUrl
-        });
-        setUser(prev => prev ? { ...prev, avatar: newImageAsDataUrl } : null);
+        // Convert data URL to Blob
+        const response = await fetch(newImageAsDataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], "avatar.png", { type: blob.type });
+
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        const updatedRecord = await pb.collection('users').update(user.id, formData);
+        setUser(updatedRecord as User);
         toast({ title: 'Avatar atualizado com sucesso!' });
     } catch (error) {
         console.error("Failed to update avatar:", error);
@@ -132,7 +135,7 @@ export function DriverProfilePage() {
   }
 
 
-  const avatarUrl = user?.avatar || `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
+  const avatarUrl = user?.avatar ? getAvatarUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
 
   if (isLoading || !user) {

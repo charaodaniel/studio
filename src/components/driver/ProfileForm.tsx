@@ -13,15 +13,18 @@ import { Switch } from '../ui/switch';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { auth, db } from '@/lib/firebase';
+import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, setDoc } from 'firebase/firestore';
+import type { RecordModel } from 'pocketbase';
 
-interface DocumentRecord {
-    id: string;
+const getFileUrl = (collectionId: string, recordId: string, filename: string) => {
+    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${collectionId}/${recordId}/${filename}`;
+}
+
+interface DocumentRecord extends RecordModel {
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string; // This will now store a Base64 Data URI
+    file: string; // filename
     is_verified: boolean;
 }
 
@@ -33,14 +36,8 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
     useEffect(() => {
         const fetchDocument = async () => {
             try {
-                const q = query(collection(db, "driver_documents"), where("driver", "==", driverId), where("document_type", "==", docType));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const docData = querySnapshot.docs[0].data() as DocumentRecord;
-                    setDocument({ ...docData, id: querySnapshot.docs[0].id });
-                } else {
-                    setDocument(null);
-                }
+                const doc = await pb.collection('driver_documents').getFirstListItem<DocumentRecord>(`driver="${driverId}" && document_type="${docType}"`);
+                setDocument(doc);
             } catch (error) {
                 setDocument(null);
             }
@@ -50,25 +47,21 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
 
     const handleFileSave = async (newImageAsDataUrl: string) => {
         try {
-            const docData = {
-                driver: driverId,
-                document_type: docType,
-                fileUrl: newImageAsDataUrl, // Save the Base64 Data URI directly
-                is_verified: false, // Always requires re-verification
-                updatedAt: new Date().toISOString(),
-            };
+            const response = await fetch(newImageAsDataUrl);
+            const blob = await response.blob();
+            const file = new File([blob], `${docType}.png`, { type: blob.type });
 
-            // Find if a document already exists to update it, or create a new one.
-            const q = query(collection(db, "driver_documents"), where("driver", "==", driverId), where("document_type", "==", docType));
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-                const existingDocId = querySnapshot.docs[0].id;
-                await updateDoc(doc(db, "driver_documents", existingDocId), docData);
+            const formData = new FormData();
+            formData.append('driver', driverId);
+            formData.append('document_type', docType);
+            formData.append('file', file);
+            formData.append('is_verified', 'false'); // Always requires re-verification
+
+            if (document) {
+                await pb.collection('driver_documents').update(document.id, formData);
             } else {
-                await addDoc(collection(db, "driver_documents"), { ...docData, createdAt: new Date().toISOString() });
+                await pb.collection('driver_documents').create(formData);
             }
-
             toast({ title: `${label} atualizado com sucesso!`});
             onUpdate(); // Trigger parent re-fetch
         } catch(error) {
@@ -77,7 +70,7 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
         }
     }
     
-    const docUrl = document?.fileUrl;
+    const docUrl = document ? getFileUrl(document.collectionId, document.id, document.file) : null;
 
     return (
         <div className="space-y-2">
@@ -156,15 +149,10 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   }
 
   const handleSave = async (section: string) => {
-    if (!auth.currentUser) return;
+    if (!pb.authStore.model) return;
     try {
-        await updateDoc(doc(db, 'users', auth.currentUser.uid), formData);
-        
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists()) {
-             onUpdate({ ...userDoc.data(), id: userDoc.id } as User);
-        }
-       
+        const updatedRecord = await pb.collection('users').update(pb.authStore.model.id, formData);
+        onUpdate(updatedRecord as User);
         toast({
           title: 'Sucesso!',
           description: `Suas alterações na seção de ${section} foram salvas.`,
@@ -179,7 +167,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   };
   
   const handleLogout = () => {
-    auth.signOut();
+    pb.authStore.clear();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -189,7 +177,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser) return;
+    if (!user) return;
     if (!newPassword.password || !newPassword.confirmPassword) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Preencha ambos os campos de senha.' });
         return;
@@ -199,10 +187,16 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
         return;
     }
     
-     toast({
-        title: 'Funcionalidade em Breve',
-        description: 'A alteração de senha no perfil requer re-autenticação. Esta função será adicionada.',
-      });
+    try {
+        await pb.collection('users').update(user.id, {
+            password: newPassword.password,
+            passwordConfirm: newPassword.confirmPassword
+        });
+        toast({ title: 'Senha Alterada!', description: 'Sua senha foi atualizada com sucesso.' });
+        setNewPassword({password: '', confirmPassword: ''});
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar a senha. Verifique os requisitos.' });
+    }
   };
   
   const handleCancelEdit = (section: string) => {
