@@ -10,15 +10,15 @@ Este documento serve como guia central para desenvolvedores, detalhando a arquit
 
 ## 🚀 Tecnologias Utilizadas
 
--   **Framework:** [Next.js](https://nextjs.org/) (com App Router)
--   **Linguagem:** [TypeScript](https://www.typescriptlang.org/)
--   **UI Library:** [React](https://react.dev/)
--   **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
--   **Componentes:** [ShadCN/UI](https://ui.shadcn.com/)
--   **Backend:** [GitHub as a Database](https://docs.github.com/en/rest) (usando a API do GitHub)
--   **API Wrapper:** [Octokit](https://github.com/octokit/octokit.js)
--   **Geração de Relatórios:** [jsPDF](https://github.com/parallax/jsPDF) & [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable)
--   **Notificações Sonoras:** [Howler.js](https://howlerjs.com/)
+- **Framework:** [Next.js](https://nextjs.org/) (com App Router)
+- **Linguagem:** [TypeScript](https://www.typescriptlang.org/)
+- **UI Library:** [React](https://react.dev/)
+- **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
+- **Componentes:** [ShadCN/UI](https://ui.shadcn.com/)
+- **Backend:** [PocketBase](https://pocketbase.io/)
+- **Hospedagem de Backend (Sugerida):** [PocketHost.io](https://pockethost.io/) (Serviço gratuito para hospedar PocketBase)
+- **Geração de Relatórios:** [jsPDF](https://github.com/parallax/jsPDF) & [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable)
+- **Notificações Sonoras:** [Howler.js](https://howlerjs.com/)
 
 ---
 
@@ -28,9 +28,9 @@ Siga os passos abaixo para executar o projeto localmente e em produção (Vercel
 
 ### 1. Pré-requisitos
 
--   [Node.js](https://nodejs.org/) (versão 18 ou superior)
--   Um gerenciador de pacotes Node, como `npm`.
--   Uma conta no [GitHub](https://github.com/).
+- [Node.js](https://nodejs.org/) (versão 18 ou superior)
+- Um gerenciador de pacotes Node, como `npm`.
+- Uma conta no [GitHub](https://github.com/) (para clonar e hospedar o código).
 
 ### 2. Clonar o Repositório e Instalar Dependências
 
@@ -40,60 +40,74 @@ cd <NOME_DA_PASTA_DO_PROJETO>
 npm install
 ```
 
-### 3. Configurar o Backend (GitHub as a Database)
+### 3. Configurar o Backend (PocketBase)
 
-Este protótipo usa a API do GitHub para ler e escrever dados em um arquivo `db.json` no próprio repositório. Para que isso funcione, você precisa gerar um Token de Acesso Pessoal (PAT) e configurar as variáveis de ambiente.
+Este aplicativo precisa de um backend PocketBase para funcionar. Você tem duas opções:
 
-#### Passo 1: Gere um Token de Acesso Pessoal no GitHub
+#### Opção A: Usar o PocketHost (Recomendado para Produção)
 
-Siga as instruções detalhadas no arquivo `GITHUB_TOKEN_GUIDE.md` para criar um token com as permissões corretas (escopo `repo`). **Copie este token e guarde-o em um local seguro.**
+O PocketHost é um serviço gratuito que hospeda seu backend PocketBase na nuvem.
 
-#### Passo 2: Configure as Variáveis de Ambiente (Local)
+1.  Siga o guia detalhado em `POCKETBASE_SETUP.md` para criar seu backend no PocketHost.
+2.  Ao final, o PocketHost fornecerá uma **URL da sua API**. Guarde-a.
 
-Na raiz do seu projeto, crie um arquivo chamado `.env.local` e adicione as seguintes variáveis:
+#### Opção B: Rodar o PocketBase Localmente (Para Desenvolvimento)
+
+1.  Baixe o executável do [PocketBase](https://pocketbase.io/docs/) para o seu sistema operacional.
+2.  Descompacte e execute o arquivo.
+3.  Abra seu terminal e rode o comando: `./pocketbase serve`
+4.  O servidor estará disponível em `http://127.0.0.1:8090`.
+
+### 4. Configurar as Variáveis de Ambiente
+
+Na raiz do seu projeto, crie um arquivo chamado `.env.local` e adicione a URL do seu backend PocketBase.
 
 ```bash
 # .env.local
 
-# Token de acesso pessoal do GitHub que você gerou
-GITHUB_TOKEN="github_pat_..."
+# Se estiver usando o PocketHost, cole a URL fornecida por eles.
+# Exemplo: NEXT_PUBLIC_POCKETBASE_URL="https://seu-app.pockethost.io"
 
-# O dono do repositório (seu nome de usuário no GitHub)
-GITHUB_REPO_OWNER="seu-username"
-
-# O nome do repositório
-GITHUB_REPO_NAME="nome-do-seu-repositorio"
+# Se estiver rodando localmente, use o endereço local.
+NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
 ```
 
 **Importante:** Nunca envie o arquivo `.env.local` para o GitHub. Ele já está no `.gitignore`.
 
-### 4. Execute o Projeto Localmente
+### 5. Configurar as Coleções e Regras no PocketBase
+
+Seja no PocketHost ou localmente, você precisa configurar o banco de dados.
+
+1.  Acesse o painel de administrador do seu PocketBase.
+    *   **PocketHost:** `https://seu-app.pockethost.io/_/`
+    *   **Local:** `http://127.0.0.1:8090/_/`
+2.  Siga as instruções detalhadas no arquivo `POCKETBASE_API.md` para importar as coleções e configurar as regras de acesso.
+
+### 6. Crie seu Primeiro Usuário Administrador
+
+Para gerenciar o sistema, você precisa criar um usuário Admin manualmente. Siga o passo a passo em `ADMIN_SETUP.md`.
+
+### 7. Execute o Projeto Localmente
 
 ```bash
 npm run dev
 ```
 
-O aplicativo estará disponível em `http://localhost:9002`.
+O aplicativo estará disponível em `http://localhost:3000`.
 
-### 5. Configurar para Produção (Vercel)
+### 8. Configurar para Produção (Vercel)
 
-Para que o aplicativo funcione quando publicado na Vercel, você precisa adicionar as mesmas variáveis de ambiente lá.
-
-1.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
-2.  Adicione cada uma das três variáveis do seu arquivo `.env.local`:
-    *   `GITHUB_TOKEN`
-    *   `GITHUB_REPO_OWNER`
-    *   `GITHUB_REPO_NAME`
-3.  **Não adicione o prefixo `NEXT_PUBLIC_`**. Como essas variáveis contêm segredos (o token), elas devem ser acessíveis apenas no lado do servidor, e a Vercel gerencia isso automaticamente.
-4.  Salve as variáveis.
-5.  Faça um **Redeploy** do seu projeto para que as novas variáveis sejam aplicadas.
+1.  Publique seu projeto na Vercel.
+2.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
+3.  Adicione a variável de ambiente com a URL do seu PocketHost:
+    *   `NEXT_PUBLIC_POCKETBASE_URL` = `https://seu-app.pockethost.io`
+4.  Faça um **Redeploy** para aplicar as variáveis.
 
 ---
 
-## ✨ Funcionalidades (em desenvolvimento com a nova arquitetura)
+## ✨ Funcionalidades
 
-A arquitetura está sendo adaptada para usar o GitHub como banco de dados. As funcionalidades existentes serão refatoradas para usar o novo `GithubService`.
-
--   **Passageiro**: Solicitação de corrida, agendamento, etc.
--   **Motorista**: Painel de solicitações, gerenciamento de status, etc.
--   **Administrador**: Gerenciamento de usuários e dados via `db.json`.
+- **Passageiro**: Solicitação de corrida, agendamento, negociação de valor, histórico e chat.
+- **Motorista**: Painel de solicitações em tempo real, gerenciamento de status (online/offline), chat, registro de corridas manuais e geração de relatórios.
+- **Administrador**: Gerenciamento completo de usuários (motoristas, passageiros), verificação de documentos e monitoramento de conversas.
+- **Atendente**: Painel focado em suporte, com acesso às conversas e status dos motoristas.

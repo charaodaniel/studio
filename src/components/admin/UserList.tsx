@@ -14,11 +14,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
+import type { RecordModel } from 'pocketbase';
   
-export interface User {
+export interface User extends RecordModel {
     id: string;
     name: string;
     email: string;
@@ -42,6 +42,11 @@ interface UserListProps {
     roleFilter?: 'Passageiro' | 'Motorista' | 'Admin' | 'Atendente';
     onSelectUser: (user: User) => void;
 }
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -54,17 +59,15 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setIsLoading(true);
         setError(null);
         try {
-            const usersRef = collection(db, 'users');
-            const q = roleFilter 
-                ? query(usersRef, where('role', 'array-contains', roleFilter), orderBy('name'))
-                : query(usersRef, orderBy('name'));
-
-            const querySnapshot = await getDocs(q);
-            const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            const filter = roleFilter ? `role ?= "${roleFilter}"` : '';
+            const userList = await pb.collection('users').getFullList<User>({
+                sort: 'name',
+                filter: filter
+            });
             setUsers(userList);
         } catch (err: any) {
             console.error("Failed to fetch users:", err);
-            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras do Firestore.");
+            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras do PocketBase.");
             setUsers([]); 
         } finally {
             setIsLoading(false);
@@ -119,7 +122,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar>
-                    <AvatarImage src={user.avatar || ''} data-ai-hint="user portrait"/>
+                    <AvatarImage src={user.avatar ? getAvatarUrl(user, user.avatar) : ''} data-ai-hint="user portrait"/>
                     <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">

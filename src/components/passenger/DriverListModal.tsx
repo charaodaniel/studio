@@ -14,9 +14,9 @@ import type { User as Driver } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 import RideConfirmationModal from './RideConfirmationModal';
-import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 interface DriverListModalProps {
     origin: string;
@@ -26,6 +26,11 @@ interface DriverListModalProps {
     passengerAnonymousName: string | null;
     scheduledFor?: Date;
 }
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
 
 const getStatusVariant = (status?: string) => {
     switch (status) {
@@ -62,35 +67,32 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
     const fetchDrivers = useCallback(() => {
         setIsLoading(true);
         setError(null);
-
-        const filterConstraints = [
-            where('role', 'array-contains', 'Motorista'),
-            where('disabled', '!=', true)
-        ];
-
+        let filter = 'role = "Motorista" && disabled != true';
         // For immediate rides, only show online drivers.
         if (!scheduledFor) {
-            filterConstraints.push(where('driver_status', '==', 'online'));
+            filter += ' && driver_status = "online"';
         }
         
-        const q = query(collection(db, 'users'), ...filterConstraints);
-
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const driverList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Driver));
-            setDrivers(driverList);
-            setIsLoading(false);
-        }, (err) => {
-            console.error("Error fetching drivers:", err);
-            setError("Não foi possível carregar os motoristas. Verifique a conexão.");
-            setIsLoading(false);
-        });
-
-        return unsubscribe;
+        pb.collection('users').getFullList<Driver>({ filter })
+            .then(records => {
+                setDrivers(records);
+            })
+            .catch(err => {
+                console.error("Error fetching drivers:", err);
+                setError("Não foi possível carregar os motoristas. Verifique a conexão.");
+            })
+            .finally(() => setIsLoading(false));
     }, [scheduledFor]);
 
     useEffect(() => {
-        const unsubscribe = fetchDrivers();
-        return () => unsubscribe();
+        fetchDrivers();
+        pb.collection('users').subscribe('*', (e) => {
+            if (e.record.role?.includes('Motorista')) {
+                fetchDrivers();
+            }
+        });
+
+        return () => pb.collection('users').unsubscribe();
     }, [fetchDrivers]);
 
     const handleToggle = (driverId: string) => {
@@ -137,6 +139,8 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
              <div className="space-y-2">
                 {drivers.map((driver) => {
                     const isAvailable = driver.driver_status === 'online' || scheduledFor;
+                    const avatarUrl = driver.avatar ? getAvatarUrl(driver, driver.avatar) : '';
+                    const vehiclePhotoUrl = driver.driver_vehicle_photo ? getAvatarUrl(driver, driver.driver_vehicle_photo) : '';
                     return (
                         <Collapsible
                             key={driver.id}
@@ -149,12 +153,12 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                                     <Dialog>
                                         <DialogTrigger asChild>
                                                 <Avatar className="h-12 w-12 cursor-pointer">
-                                                <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
+                                                <AvatarImage src={avatarUrl} data-ai-hint="driver portrait" />
                                                 <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                         </DialogTrigger>
                                         <DialogContent className="p-0 max-w-xs">
-                                            <Image src={driver.avatar || 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
+                                            <Image src={avatarUrl || 'https://placehold.co/400x400.png'} alt={`Foto de ${driver.name}`} width={400} height={400} className="rounded-lg"/>
                                         </DialogContent>
                                     </Dialog>
                                     
@@ -183,8 +187,8 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                                                 <Car className="h-4 w-4" /> {driver.driver_vehicle_model || 'Veículo não informado'} - {driver.driver_vehicle_plate || 'Placa não informada'}
                                             </p>
                                             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                                                {driver.driver_vehicle_photo && (
-                                                    <Image src={driver.driver_vehicle_photo} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
+                                                {vehiclePhotoUrl && (
+                                                    <Image src={vehiclePhotoUrl} alt={`Veículo de ${driver.name}`} fill className="object-cover" data-ai-hint="car photo" />
                                                 )}
                                             </div>
                                         </div>

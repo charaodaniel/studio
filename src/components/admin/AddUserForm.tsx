@@ -18,7 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
-import { readFileFromRepo, saveFileToRepo } from "@/lib/github-service";
+import pb from "@/lib/pocketbase"
 
 const formSchema = z.object({
   name: z.string().min(2, "O nome precisa ter pelo menos 2 caracteres."),
@@ -28,7 +28,11 @@ const formSchema = z.object({
     required_error: "Você precisa selecionar um perfil.",
   }),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres."),
-})
+  passwordConfirm: z.string().min(6, "A senha deve ter no mínimo 6 caracteres.")
+}).refine((data) => data.password === data.passwordConfirm, {
+    message: "As senhas não coincidem",
+    path: ["passwordConfirm"],
+});
 
 interface AddUserFormProps {
     onUserAdded?: () => void;
@@ -45,6 +49,7 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             email: "",
             phone: "",
             password: "",
+            passwordConfirm: ""
         },
     });
 
@@ -52,34 +57,21 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
         setIsLoading(true);
         
         try {
-            const { content: dbContent, sha } = await readFileFromRepo('db.json');
-            if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
-
-            const emailExists = dbContent.users.some((user: any) => user.email === values.email);
-            if (emailExists) {
-                throw new Error('Este e-mail já está em uso por outra conta.');
-            }
-
-            const newUserId = `usr_${new Date().getTime()}`;
-
-            const userData = {
-                id: newUserId,
+            const userData: any = {
                 name: values.name,
                 email: values.email,
-                password: values.password, // IMPORTANT: Storing plain text password. Not secure!
+                emailVisibility: true,
+                password: values.password,
+                passwordConfirm: values.passwordConfirm,
                 phone: values.phone || '',
                 role: [values.role],
-                disabled: false,
-                createdAt: new Date().toISOString(),
             };
 
             if (values.role === 'Motorista') {
-                (userData as any).driver_status = 'offline';
+                userData.driver_status = 'offline';
             }
-
-            dbContent.users.push(userData);
-
-            await saveFileToRepo('db.json', dbContent, `feat: Add user ${values.name}`, sha);
+            
+            await pb.collection('users').create(userData);
 
             toast({
                 title: "Usuário Adicionado!",
@@ -93,7 +85,10 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
 
         } catch (error: any) {
-             let description = error.message || 'Ocorreu um erro ao criar o usuário.';
+             let description = 'Ocorreu um erro ao criar o usuário.';
+            if (error?.data?.data?.email?.message) {
+                 description = 'Este e-mail já está em uso por outra conta.';
+            }
             toast({
                 variant: 'destructive',
                 title: 'Falha ao Adicionar Usuário',
@@ -182,6 +177,19 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
                         </FormItem>
                     )}
                 />
+                <FormField
+                    control={form.control}
+                    name="passwordConfirm"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Confirmar Senha</FormLabel>
+                            <FormControl>
+                                <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Adicionar Usuário
@@ -190,5 +198,3 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
         </Form>
     )
 }
-
-    

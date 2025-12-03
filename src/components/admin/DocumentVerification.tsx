@@ -9,19 +9,19 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
-interface User {
+interface User extends RecordModel {
     id: string;
     name: string;
 }
 
-interface DocumentRecord {
+interface DocumentRecord extends RecordModel {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string; // This can be a URL or a Base64 Data URI
+    file: string; // Filename
     is_verified: boolean;
     expand: {
         driver: User;
@@ -38,35 +38,14 @@ export default function DocumentVerification() {
         setIsLoading(true);
         setError(null);
         try {
-            const q = query(collection(db, "driver_documents"), where("is_verified", "==", false));
-            const querySnapshot = await getDocs(q);
-            
-            const docsData: DocumentRecord[] = [];
-            for (const docSnap of querySnapshot.docs) {
-                const data = docSnap.data();
-                let driverName = 'Motorista Desconhecido';
-                try {
-                    const userDoc = await getDoc(doc(db, "users", data.driver));
-                    if (userDoc.exists()) {
-                        driverName = (userDoc.data() as User).name;
-                    }
-                } catch (userError) {
-                    console.warn(`Could not fetch user ${data.driver}`, userError);
-                }
-                
-                docsData.push({
-                    id: docSnap.id,
-                    ...data,
-                    expand: {
-                        driver: { id: data.driver, name: driverName }
-                    }
-                } as DocumentRecord);
-            }
-
-            setDocuments(docsData);
+            const records = await pb.collection('driver_documents').getFullList<DocumentRecord>({
+                filter: 'is_verified = false',
+                expand: 'driver',
+            });
+            setDocuments(records);
         } catch (err: any) {
             console.error("Failed to fetch documents:", err);
-            setError("Não foi possível carregar os documentos pendentes. Verifique suas regras de segurança no Firebase.");
+            setError("Não foi possível carregar os documentos pendentes. Verifique suas regras de API no PocketBase.");
         } finally {
             setIsLoading(false);
         }
@@ -76,9 +55,14 @@ export default function DocumentVerification() {
         fetchDocuments();
     }, [fetchDocuments]);
 
+    const getFileUrl = (record: DocumentRecord) => {
+        if (!record || !record.file) return '';
+        return pb.getFileUrl(record, record.file);
+    };
+
     const handleApprove = async (docId: string) => {
         try {
-            await updateDoc(doc(db, "driver_documents", docId), { is_verified: true });
+            await pb.collection('driver_documents').update(docId, { is_verified: true });
             toast({
                 title: 'Documento Aprovado!',
                 description: 'O documento foi marcado como verificado.',
@@ -95,7 +79,7 @@ export default function DocumentVerification() {
     
     const handleReject = async (docId: string) => {
         try {
-            await deleteDoc(doc(db, "driver_documents", docId));
+            await pb.collection('driver_documents').delete(docId);
             toast({
                 variant: 'destructive',
                 title: 'Documento Rejeitado!',
@@ -155,7 +139,7 @@ export default function DocumentVerification() {
                                 <DialogTrigger asChild>
                                     <div className="relative aspect-[4/3] w-full bg-muted rounded-md cursor-pointer hover:opacity-80 transition-opacity">
                                         <Image
-                                            src={doc.fileUrl}
+                                            src={getFileUrl(doc)}
                                             alt={`Documento de ${doc.expand.driver.name}`}
                                             fill
                                             className="object-contain rounded-md"
@@ -167,7 +151,7 @@ export default function DocumentVerification() {
                                         <DialogTitle>{doc.document_type} de {doc.expand.driver.name}</DialogTitle>
                                     </DialogHeader>
                                     <div className="flex justify-center p-4">
-                                        <Image src={doc.fileUrl} alt="Documento em tamanho maior" width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
+                                        <Image src={getFileUrl(doc)} alt="Documento em tamanho maior" width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
                                     </div>
                                 </DialogContent>
                             </Dialog>

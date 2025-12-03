@@ -16,23 +16,13 @@ import {
   import { type User } from "../admin/UserList";
   import { Loader2, WifiOff } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import pb from "@/lib/pocketbase";
+import type { RecordModel } from "pocketbase";
   
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-        case 'online':
-            return 'default';
-        case 'in_progress':
-        case 'urban-trip':
-        case 'rural-trip':
-            return 'secondary';
-        case 'offline':
-            return 'destructive';
-        default:
-            return 'outline';
-    }
-  }
+  const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+  };
 
   const getStatusClass = (status: string) => {
      switch (status) {
@@ -67,27 +57,30 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
     const fetchDrivers = useCallback(async () => {
         setIsLoading(true);
         setError(null);
-        
-        const q = query(collection(db, 'users'), where('role', 'array-contains', 'Motorista'));
-        
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const driverList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            setDrivers(driverList);
-            setIsLoading(false);
-        }, (err) => {
-            console.error("Failed to fetch drivers:", err);
+        try {
+            const records = await pb.collection('users').getFullList<User>({
+                filter: 'role ?= "Motorista"',
+                sort: 'name',
+            });
+            setDrivers(records);
+        } catch (err: any) {
             setError("Não foi possível carregar os motoristas.");
+        } finally {
             setIsLoading(false);
-        });
-
-        return unsubscribe;
+        }
     }, []);
 
     useEffect(() => {
-        const unsubscribePromise = fetchDrivers();
+        fetchDrivers();
+        pb.collection('users').subscribe('*', (e) => {
+            if (e.record.role?.includes('Motorista')) {
+                fetchDrivers();
+            }
+        });
+
         return () => {
-            unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
-        };
+            pb.collection('users').unsubscribe();
+        }
     }, [fetchDrivers]);
     
     const renderContent = () => {
@@ -124,7 +117,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
             <TableCell>
                 <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
+                        <AvatarImage src={driver.avatar ? getAvatarUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
                         <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{driver.name}</span>

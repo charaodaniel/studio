@@ -1,5 +1,9 @@
-// Este arquivo não é mais utilizado, pois o projeto foi migrado para o Firebase.
-// Ele é mantido para referência histórica, mas pode ser excluído com segurança.
+import PocketBase from 'pocketbase';
 
-// Toda a funcionalidade foi migrada para src/lib/firebase.ts
-export {};
+const pbUrl = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
+const pb = new PocketBase(pbUrl);
+
+// globally disable auto cancellation
+pb.autoCancellation(false);
+
+export default pb;

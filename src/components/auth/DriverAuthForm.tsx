@@ -13,9 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import { auth, db } from '@/lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
 
 export default function DriverAuthForm() {
   const { toast } = useToast();
@@ -32,28 +30,16 @@ export default function DriverAuthForm() {
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-
-  const hasRole = (userDoc: any, roleToCheck: string): boolean => {
-    const roles = userDoc.data()?.role;
-    if (Array.isArray(roles)) {
-      return roles.includes(roleToCheck);
-    }
-    return false;
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-      const user = userCredential.user;
-
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists() || !hasRole(userDoc, 'Motorista')) {
-        await auth.signOut();
+      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+      if (!authData.record.role.includes('Motorista')) {
+        pb.authStore.clear();
         toast({
           variant: 'destructive',
           title: 'Acesso Negado',
@@ -63,7 +49,7 @@ export default function DriverAuthForm() {
         return;
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${userDoc.data().name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/driver');
 
@@ -81,33 +67,37 @@ export default function DriverAuthForm() {
   
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (registerPassword !== registerPasswordConfirm) {
+        toast({ variant: 'destructive', title: 'Senhas não coincidem' });
+        return;
+    }
+
     setIsLoading(true);
     
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
-      const user = userCredential.user;
+        const data = {
+            "name": registerName,
+            "email": registerEmail,
+            "emailVisibility": true,
+            "password": registerPassword,
+            "passwordConfirm": registerPasswordConfirm,
+            "role": ["Motorista"],
+            "driver_status": 'offline',
+        };
 
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        name: registerName,
-        email: registerEmail,
-        role: ["Motorista"],
-        driver_status: 'offline',
-        createdAt: new Date().toISOString()
-      });
+        await pb.collection('users').create(data);
 
-      toast({ title: 'Conta de Motorista Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
-      setRegisterName('');
-      setRegisterEmail('');
-      setRegisterPassword('');
-      setActiveTab('login');
+        toast({ title: 'Conta de Motorista Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
+        setRegisterName('');
+        setRegisterEmail('');
+        setRegisterPassword('');
+        setRegisterPasswordConfirm('');
+        setActiveTab('login');
         
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
-        if (error.code === 'auth/email-already-in-use') {
+        if (error?.data?.data?.email?.message) {
             description = 'Este endereço de e-mail já está em uso por outra conta.';
-        } else if (error.code === 'auth/weak-password') {
-            description = 'A senha é muito fraca. Tente uma senha com no mínimo 6 caracteres.';
         }
         toast({
             variant: 'destructive',
@@ -215,6 +205,10 @@ export default function DriverAuthForm() {
                         {showRegisterPassword ? <EyeOff /> : <Eye />}
                     </Button>
                    </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-confirm-driver">Confirmar Senha</Label>
+                  <Input id="password-confirm-driver" type="password" required disabled={isLoading} value={registerPasswordConfirm} onChange={(e) => setRegisterPasswordConfirm(e.target.value)} />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

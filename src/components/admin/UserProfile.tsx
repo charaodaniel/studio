@@ -12,14 +12,19 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import { readFileFromRepo, saveFileToRepo } from '@/lib/github-service';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
 
-interface DocumentRecord {
+interface DocumentRecord extends RecordModel {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    fileUrl: string; // This can be a URL or a Base64 Data URI
+    file: string; // Filename
     is_verified: boolean;
 }
 
@@ -29,12 +34,21 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
     useEffect(() => {
         const fetchDocs = async () => {
             if (!user) return;
-            // This is a placeholder. In a real db, you'd query this.
-            // For now, we'll assume no documents are available as they are not in db.json
-            setDocuments([]);
+            try {
+                const docs = await pb.collection('driver_documents').getFullList<DocumentRecord>({
+                    filter: `driver = "${user.id}" && is_verified = true`,
+                });
+                setDocuments(docs);
+            } catch (error) {
+                console.error("Could not fetch verified documents", error);
+            }
         };
         fetchDocs();
     }, [user]);
+
+    const getFileUrl = (doc: DocumentRecord) => {
+        return pb.getFileUrl(doc, doc.file);
+    }
 
     return (
         <Dialog>
@@ -58,7 +72,7 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
                                 <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4"/>Ver Imagem</Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl">
-                                <Image src={doc.fileUrl} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
+                                <Image src={getFileUrl(doc)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
                             </DialogContent>
                            </Dialog>
                         </div>
@@ -104,17 +118,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
   const handleSave = async () => {
     try {
-        const { content: dbContent, sha } = await readFileFromRepo('db.json');
-        if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
-
-        const userIndex = dbContent.users.findIndex((u: User) => u.id === user.id);
-        if (userIndex === -1) throw new Error("Usuário não encontrado.");
-
-        // Merge existing user data with form data
-        dbContent.users[userIndex] = { ...dbContent.users[userIndex], ...formData };
-        
-        await saveFileToRepo('db.json', dbContent, `feat: Update profile for user ${user.name}`, sha);
-        
+        await pb.collection('users').update(user.id, formData);
         toast({
             title: 'Sucesso!',
             description: 'Os dados do usuário foram atualizados.',
@@ -141,16 +145,10 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     }
     
     try {
-        const { content: dbContent, sha } = await readFileFromRepo('db.json');
-        if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
-
-        const userIndex = dbContent.users.findIndex((u: User) => u.id === user.id);
-        if (userIndex === -1) throw new Error("Usuário não encontrado.");
-
-        dbContent.users[userIndex].password = newPassword.password;
-
-        await saveFileToRepo('db.json', dbContent, `feat: Update password for user ${user.name}`, sha);
-
+        await pb.collection('users').update(user.id, {
+            password: newPassword.password,
+            passwordConfirm: newPassword.confirmPassword,
+        });
         toast({
             title: 'Senha Alterada!',
             description: 'A senha do usuário foi atualizada.',
@@ -182,7 +180,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
       onBack(); 
   }
 
-  const avatarUrl = user.avatar || '';
+  const avatarUrl = user.avatar ? getAvatarUrl(user, user.avatar) : '';
 
   const renderListItem = (
     icon: React.ReactNode, 
@@ -290,7 +288,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
               <Card>
                  <CardContent className="p-0">
                     <ViewDocumentsModal user={user}>
-                        {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "Funcionalidade desativada temporariamente", undefined, false, () => {})}
+                        {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "Visualizar documentos aprovados", undefined, false, () => {})}
                     </ViewDocumentsModal>
                 </CardContent>
               </Card>
@@ -329,5 +327,3 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     </div>
   );
 }
-
-    

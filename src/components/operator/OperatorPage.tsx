@@ -10,9 +10,13 @@ import UserManagement from '../admin/UserManagement';
 import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import OperatorLists from './OperatorLists';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+  if (!record || !avatarFileName) return '';
+  return pb.getFileUrl(record, avatarFileName);
+};
 
 export function OperatorPage() {
   const [activeTab, setActiveTab] = useState("status");
@@ -21,19 +25,16 @@ export function OperatorPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setCurrentUser({ id: userDoc.id, ...userDoc.data() } as UserData);
-        }
-      } else {
-        setCurrentUser(null);
-      }
-      setIsLoading(false);
+    const user = pb.authStore.model as UserData | null;
+    setCurrentUser(user);
+    setIsLoading(false);
+
+    const removeListener = pb.authStore.onChange(() => {
+        const updatedUser = pb.authStore.model as UserData | null;
+        setCurrentUser(updatedUser);
     });
 
-    return () => unsubscribe();
+    return () => removeListener();
   }, []);
 
   const handleSelectUser = (user: UserData) => {
@@ -41,7 +42,7 @@ export function OperatorPage() {
     setActiveTab("conversations");
   };
 
-  const avatarUrl = currentUser?.avatar || '';
+  const avatarUrl = currentUser?.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : '';
   const avatarFallback = currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : <Headset className="h-10 w-10"/>;
 
   return (

@@ -14,9 +14,8 @@ import {
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import LoginOptionsModal from '../auth/LoginOptionsModal';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -27,6 +26,11 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
+
 export function AppHeader({
   title,
   showDriverAvatar = false,
@@ -34,21 +38,14 @@ export function AppHeader({
   title: string;
   showDriverAvatar?: boolean;
 }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState(pb.authStore.model);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        setIsLoggedIn(!!user);
-        if (user) {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists()) {
-                setCurrentUser(userDoc.data());
-            }
-        } else {
-            setCurrentUser(null);
-        }
+    const removeListener = pb.authStore.onChange(() => {
+      setIsLoggedIn(pb.authStore.isValid);
+      setCurrentUser(pb.authStore.model);
     });
 
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -64,7 +61,7 @@ export function AppHeader({
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      unsubscribe();
+      removeListener();
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -88,7 +85,7 @@ export function AppHeader({
 
   const renderLogoLink = () => {
     if (showDriverAvatar && currentUser) {
-      const avatarUrl = currentUser.avatar || '';
+      const avatarUrl = currentUser.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : '';
       return (
         <Link href="/" className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -132,7 +129,7 @@ export function AppHeader({
              <Dialog>
                 <DialogTrigger asChild>
                     <Button>
-                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={currentUser.avatar}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
+                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={currentUser.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : ''}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
                       {isLoggedIn ? "Meu Perfil" : "Login"}
                     </Button>
                 </DialogTrigger>

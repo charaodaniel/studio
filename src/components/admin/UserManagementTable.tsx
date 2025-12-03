@@ -27,9 +27,11 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { format, endOfDay } from "date-fns";
-import { readFileFromRepo, saveFileToRepo } from "@/lib/github-service";
+import pb from "@/lib/pocketbase";
+import type { RecordModel } from "pocketbase";
 
-interface RideRecord {
+
+interface RideRecord extends RecordModel {
     id: string;
     passenger: string | null;
     driver: string;
@@ -40,8 +42,8 @@ interface RideRecord {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
-    createdAt: any; // Firestore Timestamp
-    updatedAt: any; // Firestore Timestamp
+    created: string;
+    updated: string;
     expand?: {
         driver?: User;
         passenger?: User;
@@ -69,14 +71,10 @@ const appData = {
         setIsLoading(true);
         setError(null);
         try {
-            const { content } = await readFileFromRepo('db.json');
-            if (content && Array.isArray(content.users)) {
-                setUsers(content.users);
-            } else {
-                setUsers([]);
-            }
+            const records = await pb.collection('users').getFullList<User>({ sort: 'name' });
+            setUsers(records);
         } catch (err: any) {
-            setError("Não foi possível carregar os usuários. Verifique as configurações do repositório e o token de acesso.");
+            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras de API.");
         } finally {
             setIsLoading(false);
         }
@@ -88,16 +86,15 @@ const appData = {
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
-            const { content } = await readFileFromRepo('db.json');
-            if (!content || !Array.isArray(content.rides)) return [];
+            const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
+            const endDate = endOfDay(dateRange.to).toISOString();
 
-            const rides = content.rides.filter((ride: RideRecord) => {
-                const rideDate = new Date(ride.createdAt);
-                return ride.driver === driverId &&
-                       rideDate >= dateRange.from &&
-                       rideDate <= endOfDay(dateRange.to);
+            const records = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
+                sort: '-created',
+                expand: 'passenger',
             });
-            return rides.sort((a: RideRecord, b: RideRecord) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            return records;
         } catch (err: any) {
             console.error("Failed to fetch rides for report:", err);
             toast({
@@ -111,12 +108,12 @@ const appData = {
     
     const fetchAllRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
         try {
-            const { content } = await readFileFromRepo('db.json');
-            if (!content || !Array.isArray(content.rides)) return [];
-            
-            const rides = content.rides.filter((ride: RideRecord) => ride.driver === driverId);
-            return rides.sort((a: RideRecord, b: RideRecord) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
+            const records = await pb.collection('rides').getFullList<RideRecord>({
+                filter: `driver = "${driverId}"`,
+                sort: '-created',
+                expand: 'passenger',
+            });
+            return records;
         } catch (err: any) {
             console.error("Failed to fetch all rides for report:", err);
             toast({
@@ -149,8 +146,8 @@ const appData = {
         const rows = rides.map(ride => 
             [
                 ride.id, 
-                ride.createdAt ? new Date(ride.createdAt).toLocaleString('pt-BR') : 'Data Inválida', 
-                ride.passenger_anonymous_name || 'N/A',
+                ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida', 
+                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -176,7 +173,7 @@ const appData = {
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
         let finalY = 0;
 
-        const validDateRides = rides.filter(ride => ride.createdAt);
+        const validDateRides = rides.filter(ride => ride.created);
         
         const drawHeader = () => {
             doc.setFont('helvetica', 'bold');
@@ -232,8 +229,8 @@ const appData = {
         if (validDateRides.length > 0) {
             const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
             const tableRows = validDateRides.map(ride => [
-                    new Date(ride.createdAt).toLocaleString('pt-BR'),
-                    ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
+                    new Date(ride.created).toLocaleString('pt-BR'),
+                    ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
                     `${ride.origin_address} -> ${ride.destination_address}`,
                     `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                     ride.status,
@@ -291,16 +288,7 @@ const appData = {
     const handleToggleUserStatus = async (user: User) => {
         const newStatus = !user.disabled;
         try {
-            const { content: dbContent, sha } = await readFileFromRepo('db.json');
-            if (!dbContent || !sha) throw new Error("Não foi possível ler o banco de dados.");
-
-            const userIndex = dbContent.users.findIndex((u: User) => u.id === user.id);
-            if (userIndex === -1) throw new Error("Usuário não encontrado.");
-            
-            dbContent.users[userIndex].disabled = newStatus;
-            
-            await saveFileToRepo('db.json', dbContent, `feat: Toggle status for user ${user.name}`, sha);
-
+            await pb.collection('users').update(user.id, { disabled: newStatus });
             toast({
                 title: "Status Alterado!",
                 description: `O usuário ${user.name} foi ${newStatus ? 'desativado' : 'ativado'}.`
@@ -404,7 +392,7 @@ const appData = {
                                 </DropdownMenuItem>
                                 {hasRole(user.role, 'Motorista') && (
                                     <>
-                                        <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)} disabled>
+                                        <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
                                             <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
                                         </DropdownMenuItem>
                                         <DropdownMenuSub>
@@ -499,5 +487,3 @@ const appData = {
       </>
     );
   }
-
-    

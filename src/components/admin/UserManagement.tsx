@@ -16,27 +16,31 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, onSnapshot, orderBy, serverTimestamp, getDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 import type { User as UserData } from './UserList';
 
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
 
-interface ChatRecord {
+interface ChatRecord extends RecordModel {
   id: string;
   participants: string[];
   last_message: string;
-  updatedAt: any; // Firestore Timestamp
+  updated: string;
   expand: {
     participants: UserData[];
   }
 }
 
-interface MessageRecord {
+interface MessageRecord extends RecordModel {
     id: string;
     chat: string;
     sender: string;
     text: string;
-    createdAt: any; // Firestore Timestamp
+    created: string;
     expand: {
         sender: UserData;
     }
@@ -61,100 +65,71 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isClient, setIsClient] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
-    const currentUser = auth.currentUser;
+    const currentUser = pb.authStore.model;
 
 
     const fetchChats = useCallback(async () => {
-        if (!currentUser) return;
+        if (!pb.authStore.model) return;
         setIsLoading(true);
         setError(null);
-
-        const q = query(collection(db, "chats"), where("participants", "array-contains", currentUser.uid), orderBy("updatedAt", "desc"));
-        
-        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-            try {
-                const chatsData: ChatRecord[] = [];
-                for (const chatDoc of querySnapshot.docs) {
-                    const data = chatDoc.data();
-                    const participantsData: UserData[] = [];
-
-                    for (const participantId of data.participants) {
-                        const userDoc = await getDoc(doc(db, 'users', participantId));
-                        if (userDoc.exists()) {
-                            participantsData.push({ id: userDoc.id, ...userDoc.data() } as UserData);
-                        }
-                    }
-                    
-                    chatsData.push({
-                        id: chatDoc.id,
-                        participants: data.participants,
-                        last_message: data.last_message,
-                        updatedAt: data.updatedAt,
-                        expand: {
-                            participants: participantsData,
-                        },
-                    });
-                }
-                setChats(chatsData);
-
-            } catch (err) {
-                console.error("Failed to process chat updates:", err);
-                setError("Não foi possível carregar as conversas.");
-                setChats([]);
-            } finally {
-                setIsLoading(false);
-            }
-        }, (err) => {
+        try {
+            const result = await pb.collection('chats').getFullList<ChatRecord>({
+                sort: '-updated',
+                expand: 'participants',
+                filter: `participants.id ?= "${pb.authStore.model.id}"`,
+            });
+            setChats(result);
+        } catch (err: any) {
             console.error("Failed to fetch chats:", err);
-            setError("Não foi possível carregar as conversas.");
+            setError("Não foi possível carregar as conversas. Verifique as regras de API.");
+            setChats([]);
+        } finally {
             setIsLoading(false);
-        });
-
-        return unsubscribe;
-    }, [currentUser]);
+        }
+    }, []);
 
 
     useEffect(() => {
         setIsClient(true);
-        let unsubscribe: (() => void) | undefined;
-        fetchChats().then(cb => unsubscribe = cb);
+        fetchChats();
+        
+        const unsubscribe = pb.collection('chats').subscribe('*', (e) => {
+            if (e.record.participants.includes(pb.authStore.model?.id)) {
+                fetchChats();
+            }
+        });
         
         return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
+            pb.collection('chats').unsubscribe('*');
         };
-
     }, [fetchChats]);
 
     const fetchMessages = useCallback(async (chatId: string) => {
-        // Now handled by onSnapshot in useEffect
+        setMessages([]); // Clear old messages
+        const records = await pb.collection('messages').getFullList<MessageRecord>({
+            filter: `chat = "${chatId}"`,
+            sort: 'created',
+            expand: 'sender',
+        });
+        setMessages(records);
     }, []);
 
     useEffect(() => {
         if (!selectedChat) return;
 
-        const q = query(collection(db, "messages"), where("chat", "==", selectedChat.id), orderBy("createdAt", "asc"));
-        
-        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-            const newMessages: MessageRecord[] = [];
-            for (const messageDoc of querySnapshot.docs) {
-                const data = messageDoc.data();
-                const senderDocRef = doc(db, 'users', data.sender);
-                const senderSnap = await getDoc(senderDocRef);
-                newMessages.push({
-                    id: messageDoc.id,
-                    ...data,
-                    expand: {
-                        sender: { id: senderSnap.id, ...senderSnap.data() } as UserData
-                    }
-                } as MessageRecord);
+        fetchMessages(selectedChat.id);
+
+        const unsubscribe = pb.collection('messages').subscribe('*', (e) => {
+            if (e.record.chat === selectedChat.id) {
+                fetchMessages(selectedChat.id);
             }
-            setMessages(newMessages);
         });
-        
-        return () => unsubscribe();
-    }, [selectedChat]);
+
+        return () => {
+            pb.collection('messages').unsubscribe('*');
+        }
+
+    }, [selectedChat, fetchMessages]);
 
     useEffect(() => {
       if (scrollAreaRef.current) {
@@ -164,7 +139,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
 
     const handleSelectChat = (chat: ChatRecord) => {
         setSelectedChat(chat);
-        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
+        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
         setSelectedUser(otherUser || null);
         setIsProfileOpen(false);
     }
@@ -173,36 +148,18 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         if (preselectedUser && currentUser) {
             const findOrCreateChat = async () => {
                 try {
-                    const q = query(collection(db, "chats"), where("participants", "in", [[currentUser.uid, preselectedUser.id], [preselectedUser.id, currentUser.uid]]));
-                    const querySnapshot = await getDocs(q);
+                    const existingChats = await pb.collection('chats').getFullList<ChatRecord>({
+                        filter: `participants.id ?= "${currentUser.id}" && participants.id ?= "${preselectedUser.id}"`,
+                        expand: 'participants'
+                    });
 
-                    if (!querySnapshot.empty) {
-                        const existingChat = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as ChatRecord;
-                        // We need to expand participants manually
-                        const participantsData: UserData[] = [];
-                        for (const participantId of existingChat.participants) {
-                            const userDoc = await getDoc(doc(db, 'users', participantId));
-                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as UserData);
-                        }
-                        existingChat.expand = { participants: participantsData };
-                        handleSelectChat(existingChat);
+                    if (existingChats.length > 0) {
+                        handleSelectChat(existingChats[0]);
                     } else {
-                        const newChatRef = await addDoc(collection(db, "chats"), {
-                            participants: [currentUser.uid, preselectedUser.id],
-                            last_message: '',
-                            updatedAt: serverTimestamp(),
-                        });
-                        const newChatDoc = await getDoc(newChatRef);
-                        const newChatData = { id: newChatDoc.id, ...newChatDoc.data() } as ChatRecord;
-                        // Expand participants
-                        const participantsData: UserData[] = [];
-                        for (const participantId of newChatData.participants) {
-                            const userDoc = await getDoc(doc(db, 'users', participantId));
-                            if (userDoc.exists()) participantsData.push({ id: userDoc.id, ...userDoc.data() } as UserData);
-                        }
-                        newChatData.expand = { participants: participantsData };
-
-                        handleSelectChat(newChatData);
+                        const newChat = await pb.collection('chats').create({
+                            participants: [currentUser.id, preselectedUser.id]
+                        }, { expand: 'participants' });
+                        handleSelectChat(newChat as ChatRecord);
                         fetchChats(); // Refresh the list
                     }
                 } catch (error) {
@@ -223,17 +180,12 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         setNewMessage(''); // Clear input immediately
 
         try {
-            await addDoc(collection(db, 'messages'), {
+            await pb.collection('messages').create({
                 chat: selectedChat.id,
-                sender: currentUser.uid,
+                sender: currentUser.id,
                 text: text,
-                createdAt: serverTimestamp(),
             });
-             await updateDoc(doc(db, 'chats', selectedChat.id), {
-                last_message: text,
-                updatedAt: serverTimestamp(),
-            });
-
+            // PocketBase will automatically update the chat's 'updated' field.
         } catch (error) {
             console.error("Failed to send message:", error);
         }
@@ -247,7 +199,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         const reportHeader = `Histórico de Conversa com ${selectedUser.name}\n`;
         const reportContent = messages.map(msg => {
             const senderName = msg.expand?.sender?.name || 'Desconhecido';
-            const timestamp = msg.createdAt ? new Date(msg.createdAt.toDate()).toLocaleString('pt-BR') : 'Data Indisponível';
+            const timestamp = new Date(msg.created).toLocaleString('pt-BR');
             return `[${timestamp}] ${senderName}: ${msg.text}`;
         }).join('\n');
         
@@ -274,7 +226,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     }
     
     const filteredChats = chats.filter(chat => {
-        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
+        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
         if (!otherUser) return false;
         return otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                otherUser.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -291,8 +243,9 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             return <div className="p-4 text-center text-muted-foreground">Nenhuma conversa encontrada.</div>
         }
         return filteredChats.map((chat) => {
-              const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.uid);
+              const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
               if (!otherUser) return null;
+              const avatarUrl = otherUser.avatar ? getAvatarUrl(otherUser, otherUser.avatar) : '';
               return (
                 <div 
                   key={chat.id} 
@@ -300,7 +253,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   onClick={() => handleSelectChat(chat)}
                 >
                   <Avatar>
-                    <AvatarImage src={otherUser.avatar || ''} data-ai-hint="user portrait"/>
+                    <AvatarImage src={avatarUrl} data-ai-hint="user portrait"/>
                     <AvatarFallback>{otherUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">
@@ -356,7 +309,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   <ArrowLeft className="w-5 h-5"/>
                 </Button>
                 <Avatar>
-                  <AvatarImage src={selectedUser.avatar || ''} data-ai-hint="user portrait"/>
+                  <AvatarImage src={selectedUser.avatar ? getAvatarUrl(selectedUser, selectedUser.avatar) : ''} data-ai-hint="user portrait"/>
                   <AvatarFallback>{selectedUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
@@ -380,17 +333,20 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
               </div>
               <ScrollArea className="flex-1 p-4 sm:p-6" ref={scrollAreaRef}>
                 <div className="flex flex-col gap-4">
-                  {messages.map((msg) => (
-                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === currentUser?.uid ? 'flex-row-reverse' : ''}`}>
+                  {messages.map((msg) => {
+                     const sender = msg.expand.sender;
+                     return (
+                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === currentUser?.id ? 'flex-row-reverse' : ''}`}>
                        <Avatar className="w-8 h-8 border">
-                          <AvatarFallback>{msg.expand.sender?.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
+                          <AvatarImage src={sender.avatar ? getAvatarUrl(sender, sender.avatar) : ''} />
+                          <AvatarFallback>{sender.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
                        </Avatar>
-                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === currentUser?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
-                           <p className="font-bold">{msg.sender === currentUser?.uid ? 'Você' : msg.expand.sender.name}</p>
+                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === currentUser?.id ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
+                           <p className="font-bold">{msg.sender === currentUser?.id ? 'Você' : sender.name}</p>
                           <p>{msg.text}</p>
                       </div>
                   </div>
-                  ))}
+                  )})}
                 </div>
               </ScrollArea>
               <div className="p-4 bg-background border-t">

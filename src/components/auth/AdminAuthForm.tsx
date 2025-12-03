@@ -10,9 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
 
 export default function AdminAuthForm() {
   const [email, setEmail] = useState('');
@@ -27,14 +25,10 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const authData = await pb.collection('users').authWithPassword(email, password);
 
-      // After successful authentication, check if the user has the 'Admin' role in Firestore.
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists() && userDoc.data().role.includes('Admin')) {
+      // After successful authentication, check if the user has the 'Admin' role.
+      if (authData.record && authData.record.role.includes('Admin')) {
         toast({
           title: "Login bem-sucedido!",
           description: "Bem-vindo ao painel de administração.",
@@ -45,7 +39,7 @@ export default function AdminAuthForm() {
         router.push('/admin');
       } else {
         // If no role or not an admin, sign them out.
-        await auth.signOut();
+        pb.authStore.clear();
         toast({
             title: "Acesso Negado",
             description: "Você não tem permissão de Administrador.",
@@ -53,26 +47,10 @@ export default function AdminAuthForm() {
         });
       }
 
-    } catch (error: any) {
-      let description = "Email ou senha de administrador inválidos. Por favor, tente novamente.";
-      switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          description = "Credenciais de administrador inválidas.";
-          break;
-        case 'auth/network-request-failed':
-          description = "Não foi possível conectar aos servidores de autenticação. Verifique sua conexão com a internet.";
-          break;
-        default:
-          console.error('Firebase admin login error:', error);
-          description = `Ocorreu um erro inesperado: ${error.message}`;
-          break;
-      }
-      
+    } catch (error) {
       toast({
         title: "Falha no Login",
-        description: description,
+        description: "Email ou senha de administrador inválidos. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {

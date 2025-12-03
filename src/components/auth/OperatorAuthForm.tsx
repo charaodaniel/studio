@@ -10,9 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import { auth, db } from '@/lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
 
 export default function OperatorAuthForm() {
   const [email, setEmail] = useState('');
@@ -22,26 +20,13 @@ export default function OperatorAuthForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
-  const hasRole = (userDoc: any, roleToCheck: string): boolean => {
-    const roles = userDoc.data()?.role;
-    if (Array.isArray(roles)) {
-        return roles.includes(roleToCheck);
-    }
-    return false;
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists() || !hasRole(userDoc, 'Atendente')) {
-        await auth.signOut();
+      const authData = await pb.collection('users').authWithPassword(email, password);
+      if (!authData.record.role.includes('Atendente')) {
+        pb.authStore.clear();
         toast({
           variant: 'destructive',
           title: 'Acesso Negado',
@@ -51,7 +36,7 @@ export default function OperatorAuthForm() {
         return;
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${userDoc.data()?.name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${authData.record.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/operator');
 

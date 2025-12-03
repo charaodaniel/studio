@@ -8,8 +8,7 @@ import { Label } from '@/components/ui/label';
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MailCheck } from 'lucide-react';
-import { auth } from '@/lib/firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import pb from '@/lib/pocketbase';
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
@@ -22,16 +21,12 @@ export default function ForgotPasswordForm() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await pb.collection('users').requestPasswordReset(email);
       setIsSubmitted(true);
-    } catch (error: any) {
-      let description = "Ocorreu um erro. Verifique o e-mail e tente novamente.";
-      if (error.code === 'auth/user-not-found') {
-        description = "Nenhum usuário encontrado com este endereço de e-mail.";
-      }
+    } catch (error) {
       toast({
         title: "Falha na Solicitação",
-        description: description,
+        description: "Não foi possível solicitar a redefinição. Verifique se o e-mail está correto.",
         variant: "destructive",
       });
       console.error('Failed to request password reset:', error);

@@ -13,11 +13,15 @@ import { DialogHeader, DialogTitle, DialogDescription, Dialog, DialogContent, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
 import type { User as AppUser } from '../admin/UserList';
 import ForgotPasswordForm from './ForgotPasswordForm';
+import type { RecordModel } from 'pocketbase';
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
 
 export default function PassengerAuthForm() {
   const { toast } = useToast();
@@ -36,41 +40,35 @@ export default function PassengerAuthForm() {
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setCurrentUser({ id: user.uid, ...userDoc.data() } as AppUser);
-        } else {
-            setCurrentUser(null);
-        }
-      } else {
-        setCurrentUser(null);
-      }
+    const handleAuthChange = () => {
+      const user = pb.authStore.model as AppUser | null;
+      setCurrentUser(user);
       setIsAuthLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    handleAuthChange(); // Initial check
+    const unsubscribe = pb.authStore.onChange(handleAuthChange, true);
+    
+    return () => {
+      unsubscribe();
+    };
   }, []);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-      const user = userCredential.user;
-
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-
-      if (!userDoc.exists() || !userDoc.data().role.includes('Passageiro')) {
-          await auth.signOut();
+      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+      if (!authData.record.role.includes('Passageiro')) {
+          pb.authStore.clear();
           throw new Error('Acesso negado. Este formulário é apenas para passageiros.');
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${userDoc.data().name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     } catch (error: any) {
       toast({
@@ -85,31 +83,33 @@ export default function PassengerAuthForm() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (registerPassword !== registerPasswordConfirm) {
+        toast({ variant: 'destructive', title: 'Senhas não coincidem' });
+        return;
+    }
     setIsLoading(true);
     
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
-        const user = userCredential.user;
-
-        await setDoc(doc(db, 'users', user.uid), {
-            uid: user.uid,
+        const data = {
             name: registerName,
             email: registerEmail,
+            emailVisibility: true,
+            password: registerPassword,
+            passwordConfirm: registerPasswordConfirm,
             role: ["Passageiro"],
-            createdAt: new Date().toISOString()
-        });
+        };
 
+        await pb.collection('users').create(data);
         toast({ title: 'Conta Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
         setRegisterName('');
         setRegisterEmail('');
         setRegisterPassword('');
+        setRegisterPasswordConfirm('');
         setActiveTab('login');
     } catch (error: any) {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
-        if (error.code === 'auth/email-already-in-use') {
+        if (error?.data?.data?.email?.message) {
             description = 'Este endereço de e-mail já está em uso por outra conta.';
-        } else if (error.code === 'auth/weak-password') {
-            description = 'A senha é muito fraca. Tente uma senha com no mínimo 6 caracteres.';
         }
         toast({
             variant: 'destructive',
@@ -123,7 +123,7 @@ export default function PassengerAuthForm() {
 
 
   const handleLogout = () => {
-    auth.signOut();
+    pb.authStore.clear();
     toast({ title: 'Logout Realizado', description: 'Você foi desconectado com sucesso.' });
     router.push('/');
   };
@@ -142,7 +142,7 @@ export default function PassengerAuthForm() {
   }
 
   if (currentUser) {
-    const avatarUrl = currentUser.avatar || '';
+    const avatarUrl = currentUser.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : '';
     return (
       <ScrollArea className="max-h-[80vh] h-full">
         <div className="w-full">
@@ -271,6 +271,10 @@ export default function PassengerAuthForm() {
                             {showRegisterPassword ? <EyeOff /> : <Eye />}
                         </Button>
                     </div>
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="password-confirm-register">Confirmar Senha</Label>
+                  <Input id="password-confirm-register" type="password" required disabled={isLoading} value={registerPasswordConfirm} onChange={(e) => setRegisterPasswordConfirm(e.target.value)} />
                 </div>
               </CardContent>
               <CardFooter className="px-0 pb-0">

@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -7,8 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Car, Star, User, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 import type { User as Driver } from '../admin/UserList';
 
 interface FullDriver extends Driver {
@@ -21,6 +22,11 @@ interface MapPlaceholderProps {
   rideInProgress?: boolean;
 }
 
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
+};
+
 export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholderProps) {
   const [onlineDrivers, setOnlineDrivers] = useState<FullDriver[]>([]);
   const [userPosition, setUserPosition] = useState({ top: '50%', left: '50%' });
@@ -28,36 +34,39 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
 
   const fetchOnlineDrivers = useCallback(async () => {
     try {
-      // This will be handled by the snapshot listener
+      const records = await pb.collection('users').getFullList<Driver>({
+        filter: 'role = "Motorista" && driver_status = "online"',
+      });
+      const driversWithPosition = records.map(driver => ({
+        ...driver,
+        position: {
+          top: `${Math.random() * 80 + 10}%`,
+          left: `${Math.random() * 80 + 10}%`,
+        }
+      }));
+      setOnlineDrivers(driversWithPosition);
     } catch (error) {
       console.error("Failed to fetch online drivers:", error);
     }
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "array-contains", "Motorista"), where("driver_status", "==", "online"));
-    
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const driversWithPosition = querySnapshot.docs.map(doc => ({
-            ...(doc.data() as Driver),
-            id: doc.id,
-            position: {
-            top: `${Math.random() * 80 + 10}%`,
-            left: `${Math.random() * 80 + 10}%`,
-            }
-        }));
-        setOnlineDrivers(driversWithPosition);
-    });
-
+    fetchOnlineDrivers();
     setUserPosition({
         top: `${Math.random() * 60 + 20}%`,
         left: `${Math.random() * 60 + 20}%`,
     });
 
+    const unsubscribe = pb.collection('users').subscribe('*', e => {
+      if (e.record.role?.includes('Motorista')) {
+        fetchOnlineDrivers();
+      }
+    });
+
     return () => {
-        unsubscribe();
-    };
-  }, [refreshKey]);
+      pb.collection('users').unsubscribe();
+    }
+  }, [fetchOnlineDrivers, refreshKey]);
 
   const onRefreshLocation = () => {
       setMapRefreshKey(prev => prev + 1);
@@ -88,7 +97,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 delay-75"></span>
                     <Avatar className="h-10 w-10 border-2 border-primary-foreground shadow-md">
-                      <AvatarImage src={driver.avatar || ''} data-ai-hint="driver portrait" />
+                      <AvatarImage src={driver.avatar ? getAvatarUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
                       <AvatarFallback>{driver.name.substring(0,2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   </button>
