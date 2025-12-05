@@ -47,7 +47,7 @@ Agora, informe ao seu aplicativo Next.js onde o backend está.
 
     ```bash
     # .env.local
-    NEXT_PUBLIC_POCKETBASE_URL="https://www.mobmv.shop"
+    NEXT_PUBLIC_POCKETBASE_URL="https://mobmv.shop"
     ```
 
 ## 6. Configure o Banco de Dados no PocketBase
@@ -55,7 +55,7 @@ Agora, informe ao seu aplicativo Next.js onde o backend está.
 Com o backend no ar, você precisa configurar as tabelas (coleções) e as regras de segurança.
 
 1.  Acesse o painel de administrador do seu PocketBase, que fica em:
-    `https://www.mobmv.shop/_/`
+    `https://mobmv.shop/_/`
 2.  Siga as instruções detalhadas no arquivo `POCKETBASE_API.md` para:
     *   Importar o schema de coleções.
     *   Aplicar as regras da API.

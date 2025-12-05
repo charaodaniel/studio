@@ -13,7 +13,7 @@ type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 export default function DeveloperPage() {
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
-    const [pbUrl, setPbUrl] = useState(process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://www.mobmv.shop');
+    const [pbUrl, setPbUrl] = useState(process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://mobmv.shop');
 
     const handleTestConnection = async () => {
         setTestStatus('loading');
@@ -107,7 +107,7 @@ export default function DeveloperPage() {
                             <div className="flex items-center gap-4">
                                 <div>
                                     <p className="font-mono text-sm">NEXT_PUBLIC_POCKETBASE_URL</p>
-                                    <p className="text-xs text-muted-foreground">Ex: https://www.mobmv.shop</p>
+                                    <p className="text-xs text-muted-foreground">Ex: https://mobmv.shop</p>
                                 </div>
                             </div>
                         </div>
