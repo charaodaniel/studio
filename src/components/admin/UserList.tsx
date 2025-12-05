@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -67,7 +66,11 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
             setUsers(userList);
         } catch (err: any) {
             console.error("Failed to fetch users:", err);
-            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras do PocketBase.");
+            let errorMessage = "Não foi possível carregar os usuários. Verifique a conexão com o servidor.";
+            if (err.status === 404) {
+                errorMessage = "A coleção 'users' não foi encontrada no servidor. Por favor, configure o banco de dados."
+            }
+            setError(errorMessage);
             setUsers([]); 
         } finally {
             setIsLoading(false);

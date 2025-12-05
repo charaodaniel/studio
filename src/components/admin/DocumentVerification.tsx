@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -45,7 +44,11 @@ export default function DocumentVerification() {
             setDocuments(records);
         } catch (err: any) {
             console.error("Failed to fetch documents:", err);
-            setError("Não foi possível carregar os documentos pendentes. Verifique suas regras de API no PocketBase.");
+            let errorMessage = "Não foi possível carregar os documentos pendentes.";
+            if(err.status === 404){
+                errorMessage = "A coleção 'driver_documents' não foi encontrada. Configure o banco de dados."
+            }
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

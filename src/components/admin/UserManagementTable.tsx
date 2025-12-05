@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -74,7 +73,11 @@ const appData = {
             const records = await pb.collection('users').getFullList<User>({ sort: 'name' });
             setUsers(records);
         } catch (err: any) {
-            setError("Não foi possível carregar os usuários. Verifique a conexão com o servidor e as regras de API.");
+             let errorMessage = "Não foi possível carregar os usuários. Verifique a conexão com o servidor.";
+            if (err.status === 404) {
+                errorMessage = "A coleção 'users' não foi encontrada. Configure o banco de dados primeiro."
+            }
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
