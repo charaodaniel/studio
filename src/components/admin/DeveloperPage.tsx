@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Loader2, Code, MoreHorizontal, EyeOff, GitBranch } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import pb from "@/lib/pocketbase";
+import PocketBase from 'pocketbase';
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -19,10 +19,11 @@ export default function DeveloperPage() {
         setTestStatus('loading');
         setTestResult(null);
         try {
-            const health = await pb.health.check();
+            const tempPb = new PocketBase(pbUrl);
+            const health = await tempPb.health.check();
             if (health.code === 200) {
                 setTestStatus('success');
-                setTestResult(`Conexão com o PocketBase em ${pb.baseUrl} bem-sucedida!`);
+                setTestResult(`Conexão com o PocketBase em ${pbUrl} bem-sucedida!`);
             } else {
                 throw new Error(`O servidor retornou o status: ${health.code} ${health.message}`);
             }
@@ -31,7 +32,7 @@ export default function DeveloperPage() {
             let errorMessage = `Falha ao conectar ao servidor PocketBase.`;
             
             if (error.message.includes('Failed to fetch')) {
-                errorMessage += ` Causa provável: A URL do PocketBase (${pb.baseUrl}) está incorreta, offline ou bloqueada por CORS.`;
+                errorMessage += ` Causa provável: A URL (${pbUrl}) está incorreta, offline ou bloqueada por CORS.`;
             } else {
                 errorMessage += ` Detalhe: ${error.message}`;
             }
@@ -57,7 +58,11 @@ export default function DeveloperPage() {
                     </CardHeader>
                     <CardContent>
                          <div className="flex w-full max-w-md items-center space-x-2">
-                           <Input value={pbUrl} readOnly disabled/>
+                           <Input 
+                                value={pbUrl} 
+                                onChange={(e) => setPbUrl(e.target.value)}
+                                placeholder="https://seu-pocketbase.com"
+                            />
                             <Button onClick={handleTestConnection} disabled={testStatus === 'loading'}>
                                 {testStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Testar Conexão
