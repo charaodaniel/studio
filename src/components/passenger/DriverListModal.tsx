@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -86,13 +87,26 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
 
     useEffect(() => {
         fetchDrivers();
-        pb.collection('users').subscribe('*', (e) => {
-            if (e.record.role?.includes('Motorista')) {
-                fetchDrivers();
+        let unsubscribe: () => void;
+        const subscribeToUsers = async () => {
+            try {
+                unsubscribe = await pb.collection('users').subscribe('*', (e) => {
+                    if (e.record.role?.includes('Motorista')) {
+                        fetchDrivers();
+                    }
+                });
+            } catch(err) {
+                console.error("Realtime subscription failed for users:", err);
             }
-        });
+        };
 
-        return () => pb.collection('users').unsubscribe();
+        subscribeToUsers();
+
+        return () => {
+            if (unsubscribe) {
+                pb.collection('users').unsubscribe();
+            }
+        }
     }, [fetchDrivers]);
 
     const handleToggle = (driverId: string) => {

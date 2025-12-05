@@ -123,15 +123,27 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   useEffect(() => {
     if (!currentChatId) return;
 
-    const unsubscribe = pb.collection('messages').subscribe<MessageRecord>('*', (e) => {
-        if (e.action === 'create' && e.record.chat === currentChatId) {
-            playNotification();
-            fetchMessages(currentChatId); // Re-fetch all on new message
+    let unsubscribe: () => void;
+
+    const subscribeToMessages = async () => {
+        try {
+            unsubscribe = await pb.collection('messages').subscribe<MessageRecord>('*', (e) => {
+                if (e.action === 'create' && e.record.chat === currentChatId) {
+                    playNotification();
+                    fetchMessages(currentChatId); // Re-fetch all on new message
+                }
+            });
+        } catch (err) {
+            console.error("Realtime subscription failed for messages:", err);
         }
-    });
+    };
+
+    subscribeToMessages();
 
     return () => {
-        pb.collection('messages').unsubscribe();
+        if (unsubscribe) {
+            pb.collection('messages').unsubscribe();
+        }
     };
 
   }, [currentChatId, fetchMessages, playNotification]);

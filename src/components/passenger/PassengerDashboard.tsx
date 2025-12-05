@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -118,16 +119,27 @@ export default function PassengerDashboard() {
         toast({variant: 'destructive', title: 'Erro ao buscar motoristas'});
     }).finally(() => setIsLoadingDrivers(false));
     
-    pb.collection('users').subscribe('*', e => {
-        if(e.record.role?.includes('Motorista')) {
-             pb.collection('users').getFullList<Driver>({
-                filter: 'role = "Motorista" && disabled != true && driver_status = "online"'
-            }).then(records => setDrivers(records));
+    let unsubscribe: () => void;
+    const subscribeToUsers = async () => {
+        try {
+            unsubscribe = await pb.collection('users').subscribe('*', e => {
+                if(e.record.role?.includes('Motorista')) {
+                    pb.collection('users').getFullList<Driver>({
+                        filter: 'role = "Motorista" && disabled != true && driver_status = "online"'
+                    }).then(records => setDrivers(records));
+                }
+            });
+        } catch (err) {
+            console.error("Realtime subscription failed for users:", err);
         }
-    })
+    };
+    
+    subscribeToUsers();
 
     return () => {
-        pb.collection('users').unsubscribe();
+        if (unsubscribe) {
+            pb.collection('users').unsubscribe();
+        }
     }
   }, [toast]);
   
@@ -182,11 +194,25 @@ export default function PassengerDashboard() {
 
   const onRideRequest = (rideId: string) => {
     setRideStatus('searching');
-    pb.collection('rides').subscribe<RideRecord>(rideId, e => {
-      if(e.record) {
-        handleRideUpdate(e.record);
-      }
-    });
+    let unsubscribe: () => void;
+    const subscribeToRide = async () => {
+        try {
+            unsubscribe = await pb.collection('rides').subscribe<RideRecord>(rideId, e => {
+              if(e.record) {
+                handleRideUpdate(e.record);
+              }
+            });
+        } catch (err) {
+            console.error(`Realtime subscription for ride ${rideId} failed:`, err);
+        }
+    };
+    subscribeToRide();
+
+    // Store the unsubscribe function to be called on cleanup
+    if (activeRide) {
+        const oldUnsubscribe = pb.collection('rides').unsubscribe(activeRide.id);
+    }
+    // activeRide's unsubscribe will now be this new one.
   };
 
   const handleCancelRide = async (updateDb = true) => {

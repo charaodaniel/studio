@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -72,14 +73,26 @@ import type { RecordModel } from "pocketbase";
 
     useEffect(() => {
         fetchDrivers();
-        pb.collection('users').subscribe('*', (e) => {
-            if (e.record.role?.includes('Motorista')) {
-                fetchDrivers();
+        let unsubscribe: () => void;
+        const subscribeToUsers = async () => {
+            try {
+                unsubscribe = await pb.collection('users').subscribe('*', (e) => {
+                    if (e.record.role?.includes('Motorista')) {
+                        fetchDrivers();
+                    }
+                });
+            } catch (err) {
+                console.error("Realtime subscription failed for users:", err);
+                setError("A conexão em tempo real falhou.");
             }
-        });
+        };
+
+        subscribeToUsers();
 
         return () => {
-            pb.collection('users').unsubscribe();
+            if (unsubscribe) {
+                pb.collection('users').unsubscribe();
+            }
         }
     }, [fetchDrivers]);
     

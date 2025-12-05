@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -209,14 +210,27 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         
         fetchRequests();
 
-        pb.collection('rides').subscribe('*', e => {
-            if (e.record.driver === currentUser.id && (e.record.status === 'requested' || e.record.status === 'canceled')) {
-                fetchRequests();
+        let unsubscribe: () => void;
+        const subscribeToRides = async () => {
+            try {
+                unsubscribe = await pb.collection('rides').subscribe('*', e => {
+                    if (e.record.driver === currentUser.id && (e.record.status === 'requested' || e.record.status === 'canceled')) {
+                        fetchRequests();
+                    }
+                });
+            } catch (err) {
+                console.error("Realtime subscription failed for rides:", err);
+                setError("A conexão em tempo real falhou. Tentando recarregar.");
+                setTimeout(() => fetchRequests(), 5000); // Retry after 5s
             }
-        });
+        };
+
+        subscribeToRides();
 
         return () => {
-            pb.collection('rides').unsubscribe();
+            if (unsubscribe) {
+                pb.collection('rides').unsubscribe();
+            }
             stopRideRequestSound();
         };
     }, [fetchRequests, manualRideOverride, stopRideRequestSound, currentUser]);
