@@ -1,23 +1,16 @@
-import withPWA from '@ducanh2912/next-pwa';
-
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**', // Allow all hostnames for simplicity, can be restricted.
-      },
-    ],
-  },
-};
+import withPWAInit from '@ducanh2912/next-pwa';
 
-const pwaConfig = withPWA({
+const withPWA = withPWAInit({
   dest: 'public',
-  register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  // add your own strategies to the existing ones
+  // Your other PWA options goes here
 });
 
-export default pwaConfig(nextConfig);
+
+const nextConfig = {
+  // Your regular Next.js config options go here
+};
+
+export default withPWA(nextConfig);
