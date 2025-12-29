@@ -73,26 +73,26 @@ import type { RecordModel } from "pocketbase";
 
     useEffect(() => {
         fetchDrivers();
-        let unsubscribe: () => void;
+    
         const subscribeToUsers = async () => {
             try {
-                unsubscribe = await pb.collection('users').subscribe('*', (e) => {
+                const unsubscribe = await pb.collection('users').subscribe('*', (e) => {
                     if (e.record.role?.includes('Motorista')) {
                         fetchDrivers();
                     }
                 });
+                return unsubscribe;
             } catch (err) {
                 console.error("Realtime subscription failed for users:", err);
                 setError("A conexão em tempo real falhou.");
+                return () => {};
             }
         };
 
-        subscribeToUsers();
+        const promise = subscribeToUsers();
 
         return () => {
-            if (unsubscribe) {
-                pb.collection('users').unsubscribe();
-            }
+            promise.then(unsubscribe => unsubscribe());
         }
     }, [fetchDrivers]);
     
