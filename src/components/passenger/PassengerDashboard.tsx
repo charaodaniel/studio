@@ -59,6 +59,7 @@ const getStatusVariant = (status?: string) => {
         case 'rural-trip':
             return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         case 'offline':
+        default:
             return 'bg-red-100 text-red-800 border-red-200';
     }
 };
@@ -110,36 +111,36 @@ export default function PassengerDashboard() {
         )
     }
 
-    pb.collection('users').getFullList<Driver>({
-        filter: 'role = "Motorista" && disabled != true && driver_status = "online"'
-    }).then(records => {
-        setDrivers(records);
-    }).catch(err => {
-        console.error(err);
-        toast({variant: 'destructive', title: 'Erro ao buscar motoristas'});
-    }).finally(() => setIsLoadingDrivers(false));
+    const fetchDrivers = () => {
+        pb.collection('users').getFullList<Driver>({
+            filter: 'role = "Motorista" && disabled != true && driver_status = "online"'
+        }).then(records => {
+            setDrivers(records);
+        }).catch(err => {
+            console.error(err);
+            toast({variant: 'destructive', title: 'Erro ao buscar motoristas'});
+        }).finally(() => setIsLoadingDrivers(false));
+    }
     
-    let unsubscribe: () => void;
+    fetchDrivers();
+    
     const subscribeToUsers = async () => {
         try {
-            unsubscribe = await pb.collection('users').subscribe('*', e => {
+            return await pb.collection('users').subscribe('*', e => {
                 if(e.record.role?.includes('Motorista')) {
-                    pb.collection('users').getFullList<Driver>({
-                        filter: 'role = "Motorista" && disabled != true && driver_status = "online"'
-                    }).then(records => setDrivers(records));
+                    fetchDrivers();
                 }
             });
         } catch (err) {
             console.error("Realtime subscription failed for users:", err);
+            return () => {}; // Return an empty unsubscribe function
         }
     };
     
-    subscribeToUsers();
+    const promise = subscribeToUsers();
 
     return () => {
-        if (unsubscribe) {
-            pb.collection('users').unsubscribe();
-        }
+        promise.then(unsubscribe => unsubscribe());
     }
   }, [toast]);
   
