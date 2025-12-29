@@ -44,7 +44,7 @@ npm install
 
 Este aplicativo precisa de um backend PocketBase para funcionar. 
 
-#### Opção A: Usar um Servidor Próprio (Ex: `mobmv.shop`)
+#### Opção A: Usar um Servidor Próprio (Ex: `https://meu-servidor.com`)
 Se você já tem o PocketBase rodando em um servidor, você só precisa da URL dele.
 
 #### Opção B: Rodar o PocketBase Localmente (Para Desenvolvimento)
@@ -55,13 +55,13 @@ Se você já tem o PocketBase rodando em um servidor, você só precisa da URL d
 
 ### 4. Configurar as Variáveis de Ambiente
 
-Na raiz do seu projeto, crie um arquivo chamado `.env.local` e adicione a URL do seu backend PocketBase.
+**Este é o passo mais importante.** Na raiz do seu projeto, crie um arquivo chamado `.env.local` e adicione a URL do seu backend PocketBase.
 
 ```bash
 # .env.local
 
 # Para produção, use seu domínio.
-NEXT_PUBLIC_POCKETBASE_URL="https://mobmv.shop"
+NEXT_PUBLIC_POCKETBASE_URL="https://seu-servidor-pocketbase.com"
 
 # Para rodar localmente, comente a linha de cima e descomente a de baixo.
 # NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
@@ -74,7 +74,7 @@ NEXT_PUBLIC_POCKETBASE_URL="https://mobmv.shop"
 Seja no seu servidor ou localmente, você precisa configurar o banco de dados.
 
 1.  Acesse o painel de administrador do seu PocketBase.
-    *   **Produção:** `https://mobmv.shop/_/`
+    *   **Produção:** `https://seu-servidor-pocketbase.com/_/`
     *   **Local:** `http://127.0.0.1:8090/_/`
 2.  Siga as instruções detalhadas no arquivo `POCKETBASE_API.md` para importar as coleções e configurar as regras de acesso.
 
@@ -95,7 +95,7 @@ O aplicativo estará disponível em `http://localhost:3000`.
 1.  Publique seu projeto na Vercel.
 2.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
 3.  Adicione a variável de ambiente com a URL do seu servidor de produção:
-    *   `NEXT_PUBLIC_POCKETBASE_URL` = `https://mobmv.shop`
+    *   `NEXT_PUBLIC_POCKETBASE_URL` = `https://seu-servidor-pocketbase.com`
 4.  Faça um **Redeploy** para aplicar as variáveis.
 
 ---
