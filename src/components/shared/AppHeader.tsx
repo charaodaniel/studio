@@ -28,9 +28,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
     if (!record || !avatarFileName) return '';
-    // Use a function from pocketbase.ts to construct the URL
-    // For now, let's build it manually to ensure correctness
-    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${record.collectionId}/${record.id}/${avatarFileName}`;
+    return pb.getFileUrl(record, avatarFileName);
 };
 
 export function AppHeader({
@@ -86,12 +84,11 @@ export function AppHeader({
   };
 
   const getSafeAvatarUrl = (user: any) => {
-    if (!user || !user.avatar) return '';
-    if (user instanceof RecordModel) {
-      return getAvatarUrl(user, user.avatar);
+    if (user && user.collectionId && user.id && user.avatar) {
+      // It looks like a RecordModel, let's build the URL.
+      return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
     }
-    // Fallback for plain objects
-    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+    return '';
   }
 
 
