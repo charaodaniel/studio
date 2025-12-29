@@ -1,16 +1,29 @@
-
+/** @type {import('next').NextConfig} */
 import withPWAInit from "@ducanh2912/next-pwa";
-
-const isDev = process.env.NODE_ENV === "development";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: isDev,
+  disable: process.env.NODE_ENV === "development",
+  // add your own strategies here
+  // cacheOnFrontEndNav: true,
+  // aggressiveFrontEndNavCaching: true,
 });
 
-/** @type {import('next').NextConfig} */
+
 const nextConfig = {
-  // Your Next.js config options here
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
+       {
+        protocol: 'https',
+        hostname: 'mobmv.shop',
+      }
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,7 +56,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                 </div>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {isScheduled && (
+                {isScheduled && ride.scheduled_for && (
                      <div className="flex items-center gap-2 p-2 rounded-md bg-blue-50 border-blue-200">
                         <Calendar className="h-4 w-4 text-blue-600" />
                         <span className="font-semibold text-blue-800">
@@ -207,13 +206,12 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
     useEffect(() => {
         if (manualRideOverride || !currentUser) return;
-        
+    
         fetchRequests();
-
-        let unsubscribe: () => void;
+    
         const subscribeToRides = async () => {
             try {
-                unsubscribe = await pb.collection('rides').subscribe('*', e => {
+                return await pb.collection('rides').subscribe('*', e => {
                     if (e.record.driver === currentUser.id && (e.record.status === 'requested' || e.record.status === 'canceled')) {
                         fetchRequests();
                     }
@@ -222,14 +220,18 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                 console.error("Realtime subscription failed for rides:", err);
                 setError("A conexão em tempo real falhou. Tentando recarregar.");
                 setTimeout(() => fetchRequests(), 5000); // Retry after 5s
+                return () => {}; // Return an empty unsubscribe function on error
             }
         };
-
-        subscribeToRides();
-
+    
+        let unsubscribe: (() => void) | undefined;
+        subscribeToRides().then(unsub => {
+            unsubscribe = unsub;
+        });
+    
         return () => {
             if (unsubscribe) {
-                pb.collection('rides').unsubscribe();
+                unsubscribe();
             }
             stopRideRequestSound();
         };
@@ -467,3 +469,5 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         </div>
     );
 }
+
+    
