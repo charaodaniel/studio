@@ -22,13 +22,14 @@ export default function DriverAuthForm() {
   const [activeTab, setActiveTab] = useState('login');
 
   // States for login form
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginIdentity, setLoginIdentity] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // States for registration form
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
+  const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -37,7 +38,7 @@ export default function DriverAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+      const authData = await pb.collection('users').authWithPassword(loginIdentity, loginPassword);
       if (!authData.record.role.includes('Motorista')) {
         pb.authStore.clear();
         toast({
@@ -57,7 +58,7 @@ export default function DriverAuthForm() {
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'Email ou senha inválidos. Por favor, tente novamente.'
+        description: 'Email/Telefone ou senha inválidos. Por favor, tente novamente.'
       });
       console.error("Driver login failed: Invalid credentials or server error.", error);
     } finally {
@@ -76,6 +77,7 @@ export default function DriverAuthForm() {
     
     try {
         const data = {
+            "username": registerUsername,
             "name": registerName,
             "email": registerEmail,
             "emailVisibility": true,
@@ -90,6 +92,7 @@ export default function DriverAuthForm() {
         toast({ title: 'Conta de Motorista Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
         setRegisterName('');
         setRegisterEmail('');
+        setRegisterUsername('');
         setRegisterPassword('');
         setRegisterPasswordConfirm('');
         setActiveTab('login');
@@ -98,6 +101,8 @@ export default function DriverAuthForm() {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
         if (error?.data?.data?.email?.message) {
             description = 'Este endereço de e-mail já está em uso por outra conta.';
+        } else if (error?.data?.data?.username?.message) {
+            description = 'Este número de telefone já está em uso por outra conta.';
         }
         toast({
             variant: 'destructive',
@@ -129,8 +134,8 @@ export default function DriverAuthForm() {
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="space-y-4 pt-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email-login-driver">Email</Label>
-                  <Input id="email-login-driver" type="email" placeholder="seu@email.com" required disabled={isLoading} value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
+                  <Label htmlFor="identity-login-driver">Email ou Telefone</Label>
+                  <Input id="identity-login-driver" type="text" placeholder="seu@email.com ou (00) 99999-9999" required disabled={isLoading} value={loginIdentity} onChange={(e) => setLoginIdentity(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                    <div className="flex items-center">
@@ -178,9 +183,13 @@ export default function DriverAuthForm() {
                   <Label htmlFor="name-register-driver">Nome</Label>
                   <Input id="name-register-driver" placeholder="Seu nome completo" required disabled={isLoading} value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
                 </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="username-register-driver">Telefone (será seu usuário)</Label>
+                  <Input id="username-register-driver" type="tel" placeholder="(00) 99999-9999" required disabled={isLoading} value={registerUsername} onChange={(e) => setRegisterUsername(e.target.value)} />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-register-driver">Email</Label>
-                  <Input id="email-register-driver" type="email" placeholder="seu@email.com" required disabled={isLoading} value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} />
+                  <Input id="email-register-driver" type="email" placeholder="seu@email.com" disabled={isLoading} value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-register-driver">Senha</Label>

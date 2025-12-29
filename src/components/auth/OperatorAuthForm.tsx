@@ -13,7 +13,7 @@ import ForgotPasswordForm from './ForgotPasswordForm';
 import pb from '@/lib/pocketbase';
 
 export default function OperatorAuthForm() {
-  const [email, setEmail] = useState('');
+  const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -24,7 +24,7 @@ export default function OperatorAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password);
+      const authData = await pb.collection('users').authWithPassword(identity, password);
       if (!authData.record.role.includes('Atendente')) {
         pb.authStore.clear();
         toast({
@@ -44,7 +44,7 @@ export default function OperatorAuthForm() {
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'Email ou senha de atendente inválidos.',
+        description: 'Email/Telefone ou senha de atendente inválidos.',
       });
       console.error("Operator login failed:", error);
     } finally {
@@ -65,14 +65,14 @@ export default function OperatorAuthForm() {
       <div className="px-6 pb-6">
         <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-            <Label htmlFor="email-operator">Email</Label>
+            <Label htmlFor="identity-operator">Email ou Telefone</Label>
             <Input 
-                id="email-operator" 
-                type="email" 
-                placeholder="atendente@email.com" 
+                id="identity-operator" 
+                type="text" 
+                placeholder="atendente@email.com ou (00) 99999-9999" 
                 required 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={identity}
+                onChange={(e) => setIdentity(e.target.value)}
                 disabled={isLoading}
             />
             </div>

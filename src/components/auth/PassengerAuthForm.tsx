@@ -32,13 +32,14 @@ export default function PassengerAuthForm() {
   const [activeTab, setActiveTab] = useState('login');
 
   // States for login form
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginIdentity, setLoginIdentity] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // States for registration form
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
+  const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -62,7 +63,7 @@ export default function PassengerAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(loginEmail, loginPassword);
+      const authData = await pb.collection('users').authWithPassword(loginIdentity, loginPassword);
       if (!authData.record.role.includes('Passageiro')) {
           pb.authStore.clear();
           throw new Error('Acesso negado. Este formulário é apenas para passageiros.');
@@ -74,7 +75,7 @@ export default function PassengerAuthForm() {
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: error.message || 'Email ou senha inválidos. Por favor, tente novamente.'
+        description: error.message || 'Email/Telefone ou senha inválidos. Por favor, tente novamente.'
       });
     } finally {
       setIsLoading(false);
@@ -91,6 +92,7 @@ export default function PassengerAuthForm() {
     
     try {
         const data = {
+            username: registerUsername,
             name: registerName,
             email: registerEmail,
             emailVisibility: true,
@@ -103,6 +105,7 @@ export default function PassengerAuthForm() {
         toast({ title: 'Conta Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
         setRegisterName('');
         setRegisterEmail('');
+        setRegisterUsername('');
         setRegisterPassword('');
         setRegisterPasswordConfirm('');
         setActiveTab('login');
@@ -110,6 +113,8 @@ export default function PassengerAuthForm() {
         let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
         if (error?.data?.data?.email?.message) {
             description = 'Este endereço de e-mail já está em uso por outra conta.';
+        } else if (error?.data?.data?.username?.message) {
+             description = 'Este número de telefone já está em uso por outra conta.';
         }
         toast({
             variant: 'destructive',
@@ -191,8 +196,8 @@ export default function PassengerAuthForm() {
             <form onSubmit={handleLogin}>
               <CardContent className="space-y-4 pt-6 px-0">
                 <div className="space-y-2">
-                  <Label htmlFor="email-login">Email</Label>
-                  <Input id="email-login" type="email" placeholder="seu@email.com" required disabled={isLoading} value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
+                  <Label htmlFor="identity-login">Email ou Telefone</Label>
+                  <Input id="identity-login" type="text" placeholder="seu@email.com ou (00) 99999-9999" required disabled={isLoading} value={loginIdentity} onChange={(e) => setLoginIdentity(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center">
@@ -245,8 +250,12 @@ export default function PassengerAuthForm() {
                   <Input id="name-register" placeholder="Seu nome" required disabled={isLoading} value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email-register">Email</Label>
-                  <Input id="email-register" type="email" placeholder="seu@email.com" required disabled={isLoading} value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} />
+                  <Label htmlFor="username-register">Telefone (será seu usuário)</Label>
+                  <Input id="username-register" type="tel" placeholder="(00) 99999-9999" required disabled={isLoading} value={registerUsername} onChange={(e) => setRegisterUsername(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-register">Email (opcional)</Label>
+                  <Input id="email-register" type="email" placeholder="seu@email.com" disabled={isLoading} value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password-register">Senha</Label>

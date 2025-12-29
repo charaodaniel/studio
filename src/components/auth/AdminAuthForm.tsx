@@ -13,7 +13,7 @@ import ForgotPasswordForm from './ForgotPasswordForm';
 import pb from '@/lib/pocketbase';
 
 export default function AdminAuthForm() {
-  const [email, setEmail] = useState('');
+  const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -25,7 +25,7 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password);
+      const authData = await pb.collection('users').authWithPassword(identity, password);
 
       // After successful authentication, check if the user has the 'Admin' role.
       if (authData.record && authData.record.role.includes('Admin')) {
@@ -50,7 +50,7 @@ export default function AdminAuthForm() {
     } catch (error) {
       toast({
         title: "Falha no Login",
-        description: "Email ou senha de administrador inválidos. Por favor, tente novamente.",
+        description: "Email/Telefone ou senha de administrador inválidos. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -70,16 +70,16 @@ export default function AdminAuthForm() {
       <div className="px-6 pb-6">
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email-admin">Email</Label>
+            <Label htmlFor="identity-admin">Email ou Telefone</Label>
             <Input 
-              id="email-admin" 
-              type="email" 
-              placeholder="admin@email.com" 
+              id="identity-admin" 
+              type="text" 
+              placeholder="admin@email.com ou (00) 99999-9999" 
               required 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={identity}
+              onChange={(e) => setIdentity(e.target.value)}
               disabled={isLoading}
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
           <div className="space-y-2">
