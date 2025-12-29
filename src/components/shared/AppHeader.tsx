@@ -15,7 +15,7 @@ import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import LoginOptionsModal from '../auth/LoginOptionsModal';
 import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import { RecordModel } from 'pocketbase';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -28,7 +28,9 @@ interface BeforeInstallPromptEvent extends Event {
 
 const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
     if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+    // Use a function from pocketbase.ts to construct the URL
+    // For now, let's build it manually to ensure correctness
+    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${record.collectionId}/${record.id}/${avatarFileName}`;
 };
 
 export function AppHeader({
@@ -83,9 +85,19 @@ export function AppHeader({
     });
   };
 
+  const getSafeAvatarUrl = (user: any) => {
+    if (!user || !user.avatar) return '';
+    if (user instanceof RecordModel) {
+      return getAvatarUrl(user, user.avatar);
+    }
+    // Fallback for plain objects
+    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+  }
+
+
   const renderLogoLink = () => {
     if (showDriverAvatar && currentUser) {
-      const avatarUrl = currentUser.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : '';
+      const avatarUrl = getSafeAvatarUrl(currentUser);
       return (
         <Link href="/" className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -129,7 +141,7 @@ export function AppHeader({
              <Dialog>
                 <DialogTrigger asChild>
                     <Button>
-                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={currentUser.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : ''}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
+                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={getSafeAvatarUrl(currentUser)}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
                       {isLoggedIn ? "Meu Perfil" : "Login"}
                     </Button>
                 </DialogTrigger>
