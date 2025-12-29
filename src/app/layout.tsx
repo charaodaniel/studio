@@ -27,7 +27,6 @@ export const metadata: Metadata = {
   },
   description: APP_DESCRIPTION,
   manifest: "/manifest.json",
-  mobileWebAppCapable: true,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
