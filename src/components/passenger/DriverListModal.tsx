@@ -87,10 +87,10 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
 
     useEffect(() => {
         fetchDrivers();
-        let unsubscribe: () => void;
+
         const subscribeToUsers = async () => {
             try {
-                unsubscribe = await pb.collection('users').subscribe('*', (e) => {
+                await pb.collection('users').subscribe('*', (e) => {
                     if (e.record.role?.includes('Motorista')) {
                         fetchDrivers();
                     }
@@ -103,9 +103,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         subscribeToUsers();
 
         return () => {
-            if (unsubscribe) {
-                pb.collection('users').unsubscribe();
-            }
+             pb.collection('users').unsubscribe();
         }
     }, [fetchDrivers]);
 
