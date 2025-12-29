@@ -60,24 +60,15 @@ export function PassengerChatHistory() {
 
   useEffect(() => {
     fetchChats();
-    let unsubscribe: () => void;
-    const subscribeToChats = async () => {
-        try {
-            unsubscribe = await pb.collection('chats').subscribe('*', (e) => {
-                if (e.record.participants?.includes(pb.authStore.model?.id)) {
-                    fetchChats();
-                }
-            });
-        } catch (err) {
-            console.error("Realtime subscription failed for chats:", err);
+    
+    pb.collection('chats').subscribe('*', (e) => {
+        if (e.record.participants?.includes(pb.authStore.model?.id)) {
+            fetchChats();
         }
-    };
-    subscribeToChats();
+    });
 
     return () => {
-        if(unsubscribe) {
-            pb.collection('chats').unsubscribe();
-        }
+        pb.collection('chats').unsubscribe();
     }
   }, [fetchChats]);
 

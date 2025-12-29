@@ -94,24 +94,14 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         setIsClient(true);
         fetchChats();
         
-        let unsubscribe: () => void;
-        const subscribeToChats = async () => {
-            try {
-                unsubscribe = await pb.collection('chats').subscribe('*', (e) => {
-                    if (e.record.participants.includes(pb.authStore.model?.id)) {
-                        fetchChats();
-                    }
-                });
-            } catch(err) {
-                console.error("Realtime subscription failed for chats:", err);
+        pb.collection('chats').subscribe('*', (e) => {
+            if (e.record.participants.includes(pb.authStore.model?.id)) {
+                fetchChats();
             }
-        };
-        subscribeToChats();
+        });
         
         return () => {
-            if (unsubscribe) {
-                pb.collection('chats').unsubscribe('*');
-            }
+            pb.collection('chats').unsubscribe('*');
         };
     }, [fetchChats]);
 
@@ -130,24 +120,14 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
 
         fetchMessages(selectedChat.id);
 
-        let unsubscribe: () => void;
-        const subscribeToMessages = async () => {
-            try {
-                unsubscribe = await pb.collection('messages').subscribe('*', (e) => {
-                    if (e.record.chat === selectedChat.id) {
-                        fetchMessages(selectedChat.id);
-                    }
-                });
-            } catch (err) {
-                console.error("Realtime subscription failed for messages:", err);
+        pb.collection('messages').subscribe('*', (e) => {
+            if (e.record.chat === selectedChat.id) {
+                fetchMessages(selectedChat.id);
             }
-        };
-        subscribeToMessages();
+        });
 
         return () => {
-            if (unsubscribe) {
-                pb.collection('messages').unsubscribe('*');
-            }
+            pb.collection('messages').unsubscribe('*');
         }
 
     }, [selectedChat, fetchMessages]);

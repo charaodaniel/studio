@@ -57,22 +57,15 @@ export function DriverChatHistory() {
 
   useEffect(() => {
     fetchChats();
-    let unsubscribe: () => void;
-    const subscribeToChats = async () => {
-        try {
-            unsubscribe = await pb.collection('chats').subscribe('*', () => {
-                fetchChats();
-            });
-        } catch(err) {
-            console.error("Realtime subscription failed for chats:", err);
-        }
-    };
-    subscribeToChats();
+    
+    pb.collection('chats').subscribe('*', (e) => {
+      if (e.record.participants?.includes(pb.authStore.model?.id)) {
+        fetchChats();
+      }
+    });
 
     return () => {
-      if(unsubscribe) {
-        pb.collection('chats').unsubscribe();
-      }
+      pb.collection('chats').unsubscribe();
     }
   }, [fetchChats]);
 
