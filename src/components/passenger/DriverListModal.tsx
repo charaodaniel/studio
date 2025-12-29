@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -15,9 +13,9 @@ import type { User as Driver } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
-import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import RideConfirmationModal from './RideConfirmationModal';
+import { usePocketBase } from '@/hooks/usePocketBase';
 
 interface DriverListModalProps {
     origin: string;
@@ -28,8 +26,8 @@ interface DriverListModalProps {
     scheduledFor?: Date;
 }
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
+const getAvatarUrl = (pb: any, record: RecordModel, avatarFileName: string) => {
+    if (!pb || !record || !avatarFileName) return '';
     return pb.getFileUrl(record, avatarFileName);
 };
 
@@ -64,8 +62,10 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
     const [error, setError] = useState<string | null>(null);
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+    const pb = usePocketBase();
 
     const fetchDrivers = useCallback(() => {
+        if (!pb) return;
         setIsLoading(true);
         setError(null);
         let filter = 'role = "Motorista" && disabled != true';
@@ -83,10 +83,12 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                 setError("Não foi possível carregar os motoristas. Verifique a conexão.");
             })
             .finally(() => setIsLoading(false));
-    }, [scheduledFor]);
+    }, [scheduledFor, pb]);
 
     useEffect(() => {
         fetchDrivers();
+
+        if (!pb) return;
 
         const subscribeToUsers = async () => {
             try {
@@ -105,7 +107,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         return () => {
              pb.collection('users').unsubscribe();
         }
-    }, [fetchDrivers]);
+    }, [fetchDrivers, pb]);
 
     const handleToggle = (driverId: string) => {
         setOpenDriverId(prevId => prevId === driverId ? null : driverId);
@@ -151,8 +153,8 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
              <div className="space-y-2">
                 {drivers.map((driver) => {
                     const isAvailable = driver.driver_status === 'online' || scheduledFor;
-                    const avatarUrl = driver.avatar ? getAvatarUrl(driver, driver.avatar) : '';
-                    const vehiclePhotoUrl = driver.driver_vehicle_photo ? getAvatarUrl(driver, driver.driver_vehicle_photo) : '';
+                    const avatarUrl = getAvatarUrl(pb, driver, driver.avatar);
+                    const vehiclePhotoUrl = driver.driver_vehicle_photo ? getAvatarUrl(pb, driver, driver.driver_vehicle_photo) : '';
                     return (
                         <Collapsible
                             key={driver.id}
@@ -241,7 +243,6 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                     onConfirm={(rideId) => {
                         setIsConfirmationOpen(false);
                         onRideRequest(rideId);
-                        // Close the parent dialog as well
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
                     }}
                     passengerAnonymousName={passengerAnonymousName}

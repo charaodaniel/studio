@@ -1,7 +1,4 @@
-
-
 'use client';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,8 +9,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
-
+import { useAuth } from '@/hooks/useAuth';
 
 interface RideRequestFormProps {
   onRideRequest: (rideId: string) => void;
@@ -27,17 +23,8 @@ interface RideRequestFormProps {
 
 export default function RideRequestForm({ onRideRequest, isSearching, anonymousUserName, origin, setOrigin, destination, setDestination }: RideRequestFormProps) {
     const { toast } = useToast();
-    const [isClient, setIsClient] = useState(false);
+    const { isLoggedIn } = useAuth();
     const [isLocating, setIsLocating] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-        const unsubscribe = pb.authStore.onChange(token => {
-            setIsLoggedIn(!!token);
-        }, true);
-        return () => unsubscribe();
-    }, []);
 
     const canRequest = isLoggedIn || !!anonymousUserName;
 

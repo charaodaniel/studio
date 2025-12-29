@@ -1,8 +1,8 @@
-
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { Inter, Space_Grotesk } from 'next/font/google';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const APP_NAME = "CEOLIN Mobilidade Urbana";
 const APP_DEFAULT_TITLE = "CEOLIN Mobilidade Urbana";
@@ -68,8 +68,10 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} ${spaceGrotesk.variable} h-full`}>
       <head />
       <body className="font-body antialiased h-full bg-background">
-        {children}
-        <Toaster />
+        <AuthProvider>
+          {children}
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

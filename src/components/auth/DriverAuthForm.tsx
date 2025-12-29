@@ -1,6 +1,4 @@
-
 'use client';
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +11,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
+import { useAuth } from '@/hooks/useAuth';
 import pb from '@/lib/pocketbase';
 
 export default function DriverAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
 
@@ -38,29 +38,21 @@ export default function DriverAuthForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(loginIdentity, loginPassword);
-      if (!authData.record.role.includes('Motorista')) {
-        pb.authStore.clear();
-        toast({
-          variant: 'destructive',
-          title: 'Acesso Negado',
-          description: 'Este login é exclusivo para motoristas.',
-        });
-        setIsLoading(false);
-        return;
+      const user = await login(loginIdentity, loginPassword);
+      if (!user.role.includes('Motorista')) {
+        throw new Error('Este login é exclusivo para motoristas.');
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${user.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/driver');
 
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'Email/Telefone ou senha inválidos. Por favor, tente novamente.'
+        description: error.message || 'Email/Telefone ou senha inválidos. Por favor, tente novamente.'
       });
-      console.error("Driver login failed: Invalid credentials or server error.", error);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +101,6 @@ export default function DriverAuthForm() {
             title: 'Falha no Registro',
             description: description,
         });
-        console.error("Driver registration failed:", error);
     } finally {
         setIsLoading(false);
     }

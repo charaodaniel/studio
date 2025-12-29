@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import pb from '@/lib/pocketbase';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function OperatorAuthForm() {
   const [identity, setIdentity] = useState('');
@@ -18,35 +17,28 @@ export default function OperatorAuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(identity, password);
-      if (!authData.record.role.includes('Atendente')) {
-        pb.authStore.clear();
-        toast({
-          variant: 'destructive',
-          title: 'Acesso Negado',
-          description: 'Este login é exclusivo para atendentes.',
-        });
-        setIsLoading(false);
-        return;
+      const user = await login(identity, password);
+      if (!user.role.includes('Atendente')) {
+        throw new Error('Este login é exclusivo para atendentes.');
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${authData.record.name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo(a), ${user.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       router.push('/operator');
 
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'Email/Telefone ou senha de atendente inválidos.',
+        description: error.message || 'Email/Telefone ou senha de atendente inválidos.',
       });
-      console.error("Operator login failed:", error);
     } finally {
       setIsLoading(false);
     }

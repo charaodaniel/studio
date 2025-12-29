@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -8,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Car, Star, User, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
-import pb from '@/lib/pocketbase';
+import { usePocketBase } from '@/hooks/usePocketBase';
 import type { RecordModel } from 'pocketbase';
 import type { User as Driver } from '../admin/UserList';
 
@@ -22,8 +21,8 @@ interface MapPlaceholderProps {
   rideInProgress?: boolean;
 }
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
+const getAvatarUrl = (pb: any, record: RecordModel, avatarFileName: string) => {
+    if (!pb || !record || !avatarFileName) return '';
     return pb.getFileUrl(record, avatarFileName);
 };
 
@@ -31,8 +30,10 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
   const [onlineDrivers, setOnlineDrivers] = useState<FullDriver[]>([]);
   const [userPosition, setUserPosition] = useState({ top: '50%', left: '50%' });
   const [refreshKey, setMapRefreshKey] = useState(0);
+  const pb = usePocketBase();
 
   const fetchOnlineDrivers = useCallback(async () => {
+    if (!pb) return;
     try {
       const records = await pb.collection('users').getFullList<Driver>({
         filter: 'role = "Motorista" && driver_status = "online"',
@@ -48,9 +49,10 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
     } catch (error) {
       console.error("Failed to fetch online drivers:", error);
     }
-  }, []);
+  }, [pb]);
 
   useEffect(() => {
+    if (!pb) return;
     fetchOnlineDrivers();
     setUserPosition({
         top: `${Math.random() * 60 + 20}%`,
@@ -66,7 +68,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
     return () => {
       pb.collection('users').unsubscribe();
     }
-  }, [fetchOnlineDrivers, refreshKey]);
+  }, [fetchOnlineDrivers, refreshKey, pb]);
 
   const onRefreshLocation = () => {
       setMapRefreshKey(prev => prev + 1);
@@ -97,7 +99,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 delay-75"></span>
                     <Avatar className="h-10 w-10 border-2 border-primary-foreground shadow-md">
-                      <AvatarImage src={driver.avatar ? getAvatarUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                      <AvatarImage src={getAvatarUrl(pb, driver, driver.avatar)} data-ai-hint="driver portrait" />
                       <AvatarFallback>{driver.name.substring(0,2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   </button>

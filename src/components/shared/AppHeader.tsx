@@ -1,21 +1,15 @@
-
 'use client';
-
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Download, LogIn, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import LoginOptionsModal from '../auth/LoginOptionsModal';
-import pb from '@/lib/pocketbase';
-import { RecordModel } from 'pocketbase';
+import { useAuth } from '@/hooks/useAuth';
+import { type RecordModel } from 'pocketbase';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -26,10 +20,12 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
-};
+const getSafeAvatarUrl = (user: any) => {
+  if (user && user.collectionId && user.id && user.avatar) {
+    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+  }
+  return '';
+}
 
 export function AppHeader({
   title,
@@ -38,16 +34,10 @@ export function AppHeader({
   title: string;
   showDriverAvatar?: boolean;
 }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid);
+  const { isLoggedIn, user: currentUser } = useAuth();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [currentUser, setCurrentUser] = useState(pb.authStore.model);
 
   useEffect(() => {
-    const removeListener = pb.authStore.onChange(() => {
-      setIsLoggedIn(pb.authStore.isValid);
-      setCurrentUser(pb.authStore.model);
-    });
-
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);
@@ -61,7 +51,6 @@ export function AppHeader({
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      removeListener();
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -82,15 +71,6 @@ export function AppHeader({
       setInstallPrompt(null);
     });
   };
-
-  const getSafeAvatarUrl = (user: any) => {
-    if (user && user.collectionId && user.id && user.avatar) {
-      // It looks like a RecordModel, let's build the URL.
-      return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
-    }
-    return '';
-  }
-
 
   const renderLogoLink = () => {
     if (showDriverAvatar && currentUser) {

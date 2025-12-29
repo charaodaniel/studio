@@ -1,6 +1,4 @@
-
 'use client';
-
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
@@ -15,13 +13,14 @@ import { Dialog, DialogTrigger } from '../ui/dialog';
 import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
 import { Skeleton } from '../ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
+import { usePocketBase } from '@/hooks/usePocketBase';
 import { type User } from '../admin/UserList';
-import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 
 const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
     if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${record.collectionId}/${record.id}/${avatarFileName}`;
 };
 
 interface RideRecord extends RecordModel {
@@ -42,41 +41,27 @@ interface RideRecord extends RecordModel {
     }
 }
 
-
 export function DriverProfilePage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, setUser, isLoading: isAuthLoading } = useAuth();
+  const pb = usePocketBase();
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [completedRidesCount, setCompletedRidesCount] = useState<number | null>(null);
   const [activeManualRide, setActiveManualRide] = useState<RideRecord | null>(null);
   const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
-    const currentUser = pb.authStore.model as User | null;
-    if (currentUser) {
-        setUser(currentUser);
+    if (user && pb) {
         pb.collection('rides').getFullList({
-            filter: `driver = "${currentUser.id}" && status = "completed"`,
+            filter: `driver = "${user.id}" && status = "completed"`,
         })
         .then(rides => setCompletedRidesCount(rides.length))
         .catch(() => setCompletedRidesCount(0));
     }
-    setIsLoading(false);
-
-    const unsubscribe = pb.authStore.onChange(() => {
-        const updatedUser = pb.authStore.model as User | null;
-        setUser(updatedUser);
-        if (!updatedUser) {
-            setIsLoading(false);
-        }
-    }, true);
-    
-    return () => unsubscribe();
-  }, []);
+  }, [user, pb]);
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!user) return;
+    if (!user || !pb) return;
     
     try {
         const updatedUser = await pb.collection('users').update(user.id, { driver_status: newStatus });
@@ -119,10 +104,9 @@ export function DriverProfilePage() {
   }
 
   const handleAvatarSave = async (newImageAsDataUrl: string) => {
-    if (!user) return;
+    if (!user || !pb) return;
 
     try {
-        // Convert data URL to Blob
         const response = await fetch(newImageAsDataUrl);
         const blob = await response.blob();
         const file = new File([blob], "avatar.png", { type: blob.type });
@@ -139,11 +123,10 @@ export function DriverProfilePage() {
     }
   }
 
-
   const avatarUrl = user?.avatar ? getAvatarUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
 
-  if (isLoading || !user) {
+  if (isAuthLoading || !user) {
     return (
         <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
             <div className="flex flex-col items-center gap-4 py-8 bg-card">

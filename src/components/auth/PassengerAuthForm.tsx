@@ -1,6 +1,4 @@
-
 'use client';
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +11,10 @@ import { DialogHeader, DialogTitle, DialogDescription, Dialog, DialogContent, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import pb from '@/lib/pocketbase';
-import type { User as AppUser } from '../admin/UserList';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import type { RecordModel } from 'pocketbase';
+import { useAuth } from '@/hooks/useAuth';
+import pb from '@/lib/pocketbase';
 
 const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
     if (!record || !avatarFileName) return '';
@@ -26,9 +24,9 @@ const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
 export default function PassengerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const { user, login, logout, isLoading: isAuthLoading } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('login');
 
   // States for login form
@@ -43,33 +41,18 @@ export default function PassengerAuthForm() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-
-  useEffect(() => {
-    const handleAuthChange = () => {
-      const user = pb.authStore.model as AppUser | null;
-      setCurrentUser(user);
-      setIsAuthLoading(false);
-    };
-
-    handleAuthChange(); // Initial check
-    const unsubscribe = pb.authStore.onChange(handleAuthChange, true);
-    
-    return () => {
-      unsubscribe();
-    };
-  }, []);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authData = await pb.collection('users').authWithPassword(loginIdentity, loginPassword);
-      if (!authData.record.role.includes('Passageiro')) {
-          pb.authStore.clear();
+      const loggedInUser = await login(loginIdentity, loginPassword);
+      if (!loggedInUser.role.includes('Passageiro')) {
+          logout();
           throw new Error('Acesso negado. Este formulário é apenas para passageiros.');
       }
       
-      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${authData.record.name}!` });
+      toast({ title: 'Login bem-sucedido!', description: `Bem-vindo de volta, ${loggedInUser.name}!` });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     } catch (error: any) {
       toast({
@@ -126,9 +109,8 @@ export default function PassengerAuthForm() {
     }
   };
 
-
   const handleLogout = () => {
-    pb.authStore.clear();
+    logout();
     toast({ title: 'Logout Realizado', description: 'Você foi desconectado com sucesso.' });
     router.push('/');
   };
@@ -146,8 +128,8 @@ export default function PassengerAuthForm() {
     )
   }
 
-  if (currentUser) {
-    const avatarUrl = currentUser.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : '';
+  if (user) {
+    const avatarUrl = user.avatar ? getAvatarUrl(user, user.avatar) : '';
     return (
       <ScrollArea className="max-h-[80vh] h-full">
         <div className="w-full">
@@ -159,12 +141,12 @@ export default function PassengerAuthForm() {
           </DialogHeader>
           <div className="flex flex-col items-center space-y-4 p-4 border-b">
             <Avatar className="h-24 w-24 cursor-pointer">
-                <AvatarImage src={avatarUrl} data-ai-hint="user avatar" alt={currentUser.name} />
-                <AvatarFallback>{currentUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={avatarUrl} data-ai-hint="user avatar" alt={user.name} />
+                <AvatarFallback>{user.name.substring(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="text-center">
-              <h2 className="text-xl font-bold font-headline">{currentUser.name}</h2>
-              <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+              <h2 className="text-xl font-bold font-headline">{user.name}</h2>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
             <Button variant="outline" size="sm" onClick={handleRedirectToProfile}>
               <PenSquare className="mr-2 h-4 w-4" /> Ver Perfil Completo

@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import pb from '@/lib/pocketbase';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminAuthForm() {
   const [identity, setIdentity] = useState('');
@@ -18,6 +17,7 @@ export default function AdminAuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -25,21 +25,16 @@ export default function AdminAuthForm() {
     setIsLoading(true);
 
     try {
-      const authData = await pb.collection('users').authWithPassword(identity, password);
+      const user = await login(identity, password);
 
-      // After successful authentication, check if the user has the 'Admin' role.
-      if (authData.record && authData.record.role.includes('Admin')) {
+      if (user && user.role.includes('Admin')) {
         toast({
           title: "Login bem-sucedido!",
           description: "Bem-vindo ao painel de administração.",
         });
-
-        // Close dialog and redirect
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         router.push('/admin');
       } else {
-        // If no role or not an admin, sign them out.
-        pb.authStore.clear();
         toast({
             title: "Acesso Negado",
             description: "Você não tem permissão de Administrador.",
@@ -47,10 +42,10 @@ export default function AdminAuthForm() {
         });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Falha no Login",
-        description: "Email/Telefone ou senha de administrador inválidos. Por favor, tente novamente.",
+        description: error.message || "Email/Telefone ou senha de administrador inválidos. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
