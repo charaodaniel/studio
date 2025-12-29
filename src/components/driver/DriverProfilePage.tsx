@@ -32,8 +32,10 @@ interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
+    passenger_anonymous_name?: string;
     expand?: {
-        passenger: User;
+        driver?: User;
+        passenger?: User;
     }
 }
 

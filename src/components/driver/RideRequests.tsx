@@ -24,7 +24,7 @@ const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
 };
 
 interface RideRecord extends RecordModel {
-    passenger: string;
+    passenger: string | null;
     driver: string;
     origin_address: string;
     destination_address: string;
