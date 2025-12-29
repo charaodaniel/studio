@@ -1,18 +1,16 @@
-/** @type {import('next').NextConfig} */
+
 import withPWAInit from "@ducanh2912/next-pwa";
+
+const isDev = process.env.NODE_ENV === "development";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
-  // add your own strategies to the cache
-  // register: true,
-  // scope: '/app',
-  // sw: 'service-worker.js',
+  disable: isDev,
 });
 
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  // your next config here
+  // Your Next.js config options here
 };
 
 export default withPWA(nextConfig);

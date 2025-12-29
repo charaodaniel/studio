@@ -36,7 +36,7 @@ interface RideRecord extends RecordModel {
     scheduled_for?: string;
     ride_description?: string;
     expand?: {
-        passenger: User;
+        passenger?: User;
     }
 }
 
@@ -90,7 +90,7 @@ const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecor
                          <RideChat 
                             rideId={ride.id}
                             chatId={chatId}
-                            passengerName={ride.expand?.passenger.name || 'Passageiro'} 
+                            passengerName={ride.expand?.passenger?.name || 'Passageiro'} 
                             isNegotiation={true}
                             onAcceptRide={() => onAccept(ride)}
                          >
@@ -243,7 +243,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         try {
             const updatedRide = await pb.collection('rides').update<RideRecord>(ride.id, { status: 'accepted' }, { expand: 'passenger' });
 
-            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${updatedRide.expand?.passenger.name}.` });
+            toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${updatedRide.expand?.passenger?.name}.` });
             setAcceptedRide(updatedRide);
             setRequests([]); 
             setPassengerOnBoard(false);

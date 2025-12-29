@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,6 +34,8 @@ interface RideRecord extends RecordModel {
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
     passenger_anonymous_name?: string;
+    scheduled_for?: string;
+    ride_description?: string;
     expand?: {
         driver?: User;
         passenger?: User;
