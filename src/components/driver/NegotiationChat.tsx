@@ -123,11 +123,9 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
   useEffect(() => {
     if (!currentChatId) return;
 
-    let unsubscribe: () => void;
-
     const subscribeToMessages = async () => {
         try {
-            unsubscribe = await pb.collection('messages').subscribe<MessageRecord>('*', (e) => {
+            await pb.collection('messages').subscribe<MessageRecord>('*', (e) => {
                 if (e.action === 'create' && e.record.chat === currentChatId) {
                     playNotification();
                     fetchMessages(currentChatId); // Re-fetch all on new message
@@ -141,12 +139,10 @@ export function RideChat({ children, rideId, chatId, passengerName, isNegotiatio
     subscribeToMessages();
 
     return () => {
-        if (unsubscribe) {
-            pb.collection('messages').unsubscribe();
-        }
+        pb.collection('messages').unsubscribe();
     };
-
   }, [currentChatId, fetchMessages, playNotification]);
+
 
   useEffect(() => {
       if (scrollAreaRef.current) {
