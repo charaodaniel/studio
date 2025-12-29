@@ -1,0 +1,346 @@
+
+[
+  {
+    "COLECAO": "users",
+    "TIPO_DE_DADO": "Coleção de Autenticação",
+    "CAMPOS": [
+      {
+        "NOME": "name",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "avatar",
+        "TIPO": "file",
+        "OPCOES": "mimeTypes: ['image/jpeg', 'image/png', 'image/svg+xml', 'image/gif', 'image/webp'], maxSelect: 1"
+      },
+      {
+        "NOME": "phone",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "role",
+        "TIPO": "select",
+        "OPCOES": "maxSelect: 4, values: ['Passageiro', 'Motorista', 'Atendente', 'Admin']"
+      },
+      {
+        "NOME": "driver_status",
+        "TIPO": "select",
+        "OPCOES": "maxSelect: 1, values: ['online', 'offline', 'urban-trip', 'rural-trip']"
+      },
+      {
+        "NOME": "driver_vehicle_model",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "driver_vehicle_plate",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "driver_cnpj",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "driver_pix_key",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "driver_fare_type",
+        "TIPO": "select",
+        "OPCOES": "maxSelect: 1, values: ['fixed', 'km']"
+      },
+      {
+        "NOME": "driver_fixed_rate",
+        "TIPO": "number",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "driver_km_rate",
+        "TIPO": "number",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "driver_accepts_rural",
+        "TIPO": "bool",
+        "OPCOES": "Não obrigatório"
+      },
+      {
+        "NOME": "disabled",
+        "TIPO": "bool",
+        "OPCOES": "Não obrigatório"
+      }
+    ],
+    "REGRAS_API": [
+      {
+        "TIPO": "List rule",
+        "REGRA": "@request.auth.id != \"\" && role = \"Motorista\""
+      },
+      {
+        "TIPO": "View rule",
+        "REGRA": "id = @request.auth.id || role != \"\""
+      },
+      {
+        "TIPO": "Create rule",
+        "REGRA": "(Aberto para todos)"
+      },
+      {
+        "TIPO": "Update rule",
+        "REGRA": "id = @request.auth.id || @request.auth.role = \"Admin\""
+      },
+      {
+        "TIPO": "Delete rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      }
+    ]
+  },
+  {
+    "COLECAO": "rides",
+    "TIPO_DE_DADO": "Coleção Base",
+    "CAMPOS": [
+      {
+        "NOME": "passenger",
+        "TIPO": "relation",
+        "OPCOES": "collectionId: _pb_users_auth_, maxSelect: 1"
+      },
+      {
+        "NOME": "driver",
+        "TIPO": "relation",
+        "OPCOES": "collectionId: _pb_users_auth_, maxSelect: 1"
+      },
+      {
+        "NOME": "origin_address",
+        "TIPO": "text",
+        "OPCOES": "Obrigatório"
+      },
+      {
+        "NOME": "destination_address",
+        "TIPO": "text",
+        "OPCOES": "Obrigatório"
+      },
+      {
+        "NOME": "status",
+        "TIPO": "select",
+        "OPCOES": "Obrigatório, values: ['requested', 'accepted', 'in_progress', 'completed', 'canceled']"
+      },
+      {
+        "NOME": "fare",
+        "TIPO": "number",
+        "OPCOES": "Obrigatório"
+      },
+      {
+        "NOME": "is_negotiated",
+        "TIPO": "bool",
+        "OPCOES": "Obrigatório"
+      },
+      {
+        "NOME": "started_by",
+        "TIPO": "select",
+        "OPCOES": "Obrigatório, values: ['passenger', 'driver']"
+      },
+      {
+        "NOME": "passenger_anonymous_name",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      }
+    ],
+    "REGRAS_API": [
+      {
+        "TIPO": "List rule",
+        "REGRA": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")"
+      },
+      {
+        "TIPO": "View rule",
+        "REGRA": "@request.auth.id != \"\" && (passenger = @request.auth.id || driver = @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\")"
+      },
+      {
+        "TIPO": "Create rule",
+        "REGRA": "@request.auth.id != \"\" || passenger_anonymous_name != \"\""
+      },
+      {
+        "TIPO": "Update rule",
+        "REGRA": "@request.auth.id != \"\" && (driver = @request.auth.id || passenger = @request.auth.id || @request.auth.role = \"Admin\")"
+      },
+      {
+        "TIPO": "Delete rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      }
+    ]
+  },
+  {
+    "COLECAO": "chats",
+    "TIPO_DE_DADO": "Coleção Base",
+    "CAMPOS": [
+      {
+        "NOME": "participants",
+        "TIPO": "relation",
+        "OPCOES": "Obrigatório, collectionId: _pb_users_auth_, minSelect: 2, maxSelect: 2"
+      },
+      {
+        "NOME": "ride",
+        "TIPO": "relation",
+        "OPCOES": "collectionId: rides, maxSelect: 1"
+      },
+      {
+        "NOME": "last_message",
+        "TIPO": "text",
+        "OPCOES": "Não obrigatório"
+      }
+    ],
+    "REGRAS_API": [
+      {
+        "TIPO": "List rule",
+        "REGRA": "participants.id ?= @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\""
+      },
+      {
+        "TIPO": "View rule",
+        "REGRA": "participants.id ?= @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\""
+      },
+      {
+        "TIPO": "Create rule",
+        "REGRA": "participants.id ?= @request.auth.id"
+      },
+      {
+        "TIPO": "Update rule",
+        "REGRA": "participants.id ?= @request.auth.id || @request.auth.role = \"Admin\""
+      },
+      {
+        "TIPO": "Delete rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      }
+    ]
+  },
+  {
+    "COLECAO": "messages",
+    "TIPO_DE_DADO": "Coleção Base",
+    "CAMPOS": [
+      {
+        "NOME": "chat",
+        "TIPO": "relation",
+        "OPCOES": "Obrigatório, collectionId: chats, cascadeDelete: true"
+      },
+      {
+        "NOME": "sender",
+        "TIPO": "relation",
+        "OPCOES": "Obrigatório, collectionId: _pb_users_auth_"
+      },
+      {
+        "NOME": "text",
+        "TIPO": "text",
+        "OPCOES": "Obrigatório"
+      }
+    ],
+    "REGRAS_API": [
+      {
+        "TIPO": "List rule",
+        "REGRA": "chat.participants.id ?= @request.auth.id || @request.auth.role = \"Admin\" || @request.auth.role = \"Atendente\""
+      },
+      {
+        "TIPO": "View rule",
+        "REGRA": "chat.participants.id ?= @request.auth.id || @request.auth.role = \"Admin\""
+      },
+      {
+        "TIPO": "Create rule",
+        "REGRA": "chat.participants.id ?= @request.auth.id"
+      },
+      {
+        "TIPO": "Update rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      },
+      {
+        "TIPO": "Delete rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      }
+    ]
+  },
+  {
+    "COLECAO": "driver_documents",
+    "TIPO_DE_DADO": "Coleção Base",
+    "CAMPOS": [
+      {
+        "NOME": "driver",
+        "TIPO": "relation",
+        "OPCOES": "Obrigatório, collectionId: _pb_users_auth_"
+      },
+      {
+        "NOME": "document_type",
+        "TIPO": "select",
+        "OPCOES": "Obrigatório, values: ['CNH', 'CRLV', 'VEHICLE_PHOTO']"
+      },
+      {
+        "NOME": "file",
+        "TIPO": "file",
+        "OPCOES": "Obrigatório, mimeTypes: ['image/jpeg', 'image/png', 'image/webp']"
+      },
+      {
+        "NOME": "is_verified",
+        "TIPO": "bool",
+        "OPCOES": "Não obrigatório"
+      }
+    ],
+    "REGRAS_API": [
+      {
+        "TIPO": "List rule",
+        "REGRA": "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")"
+      },
+      {
+        "TIPO": "View rule",
+        "REGRA": "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")"
+      },
+      {
+        "TIPO": "Create rule",
+        "REGRA": "@request.auth.id != \"\" && driver = @request.auth.id"
+      },
+      {
+        "TIPO": "Update rule",
+        "REGRA": "@request.auth.id != \"\" && (driver = @request.auth.id || @request.auth.role = \"Admin\")"
+      },
+      {
+        "TIPO": "Delete rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      }
+    ]
+  },
+  {
+    "COLECAO": "driver_status_logs",
+    "TIPO_DE_DADO": "Coleção Base",
+    "CAMPOS": [
+      {
+        "NOME": "driver",
+        "TIPO": "relation",
+        "OPCOES": "Obrigatório, collectionId: _pb_users_auth_"
+      },
+      {
+        "NOME": "status",
+        "TIPO": "text",
+        "OPCOES": "Obrigatório"
+      }
+    ],
+    "REGRAS_API": [
+      {
+        "TIPO": "List rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      },
+      {
+        "TIPO": "View rule",
+        "REGRA": "@request.auth.role = \"Admin\""
+      },
+      {
+        "TIPO": "Create rule",
+        "REGRA": "@request.auth.id != \"\" && @request.auth.role = \"Motorista\""
+      },
+      {
+        "TIPO": "Update rule",
+        "REGRA": "(Ninguém pode atualizar)"
+      },
+      {
+        "TIPO": "Delete rule",
+        "REGRA": "(Ninguém pode deletar)"
+      }
+    ]
+  }
+]
