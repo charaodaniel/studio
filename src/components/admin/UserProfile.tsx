@@ -195,9 +195,9 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         <div className="flex-1">
         {isEditing && isEditable && fieldId ? (
             <>
-            <Label htmlFor={fieldId} className="text-xs">{primary}</Label>
+            <Label htmlFor={String(fieldId)} className="text-xs">{primary}</Label>
             <Input
-                id={fieldId}
+                id={String(fieldId)}
                 value={formData[fieldId as keyof typeof formData] as string || ''}
                 onChange={handleInputChange}
                 className="h-8"
