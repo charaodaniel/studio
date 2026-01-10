@@ -73,10 +73,10 @@ interface UserProfileProps {
   onBack: () => void;
   onContact: () => void;
   isModal?: boolean;
-  onUserUpdate?: () => void; // Callback to refresh list after update
+  onUserUpdate?: () => void;
 }
 
-export default function UserProfile({ user, onBack, onContact }: UserProfileProps) {
+export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
