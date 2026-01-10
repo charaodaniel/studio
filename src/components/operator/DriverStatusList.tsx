@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import {
@@ -19,10 +17,17 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
+import localUsers from '@/database/banco.json';
   
-  const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+  const getAvatarUrl = (user: User) => {
+    if (!user) return '';
+    if (user.avatar?.startsWith('http')) {
+        return user.avatar;
+    }
+    if (user.collectionId && user.id && user.avatar) {
+        return pb.getFileUrl(user, user.avatar);
+    }
+    return '';
   };
 
   const getStatusClass = (status: string) => {
@@ -59,13 +64,23 @@ import type { RecordModel } from "pocketbase";
         setIsLoading(true);
         setError(null);
         try {
-            const records = await pb.collection('users').getFullList<User>({
-                filter: 'role ?= "Motorista"',
-                sort: 'name',
-            });
-            setDrivers(records);
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            const driverList = localUsers.users
+                .filter(u => Array.isArray(u.role) ? u.role.includes('Motorista') : u.role === 'Motorista')
+                .map(u => ({
+                    ...u,
+                    id: u.id || `local_${Math.random()}`,
+                    role: Array.isArray(u.role) ? u.role : [u.role],
+                    collectionId: '_pb_users_auth_',
+                    collectionName: 'users',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                })) as unknown as User[];
+            
+            setDrivers(driverList);
         } catch (err: any) {
-            setError("Não foi possível carregar os motoristas.");
+            setError("Não foi possível carregar os motoristas do arquivo local.");
         } finally {
             setIsLoading(false);
         }
@@ -73,27 +88,6 @@ import type { RecordModel } from "pocketbase";
 
     useEffect(() => {
         fetchDrivers();
-    
-        const subscribeToUsers = async () => {
-            try {
-                const unsubscribe = await pb.collection('users').subscribe('*', (e) => {
-                    if (e.record.role?.includes('Motorista')) {
-                        fetchDrivers();
-                    }
-                });
-                return unsubscribe;
-            } catch (err) {
-                console.error("Realtime subscription failed for users:", err);
-                setError("A conexão em tempo real falhou.");
-                return () => {};
-            }
-        };
-
-        const promise = subscribeToUsers();
-
-        return () => {
-            promise.then(unsubscribe => unsubscribe());
-        }
     }, [fetchDrivers]);
     
     const renderContent = () => {
@@ -130,7 +124,7 @@ import type { RecordModel } from "pocketbase";
             <TableCell>
                 <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={driver.avatar ? getAvatarUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                        <AvatarImage src={getAvatarUrl(driver)} data-ai-hint="driver portrait" />
                         <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{driver.name}</span>

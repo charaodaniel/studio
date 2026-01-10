@@ -28,6 +28,7 @@ import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { format, endOfDay } from "date-fns";
 import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
+import localUsers from '@/database/banco.json';
 
 
 interface RideRecord extends RecordModel {
@@ -70,13 +71,21 @@ const appData = {
         setIsLoading(true);
         setError(null);
         try {
-            const records = await pb.collection('users').getFullList<User>({ sort: 'name' });
-            setUsers(records);
+            // Simulate async fetch from local file
+            await new Promise(resolve => setTimeout(resolve, 250));
+            const userList = localUsers.users.map(u => ({
+                ...u,
+                id: u.id || `local_${Math.random()}`,
+                role: Array.isArray(u.role) ? u.role : [u.role],
+                collectionId: '_pb_users_auth_',
+                collectionName: 'users',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+            })) as unknown as User[];
+
+            setUsers(userList);
         } catch (err: any) {
-             let errorMessage = "Não foi possível carregar os usuários. Verifique a conexão com o servidor.";
-            if (err.status === 404) {
-                errorMessage = "A coleção 'users' não foi encontrada. Configure o banco de dados primeiro."
-            }
+             let errorMessage = "Não foi possível carregar os usuários do arquivo local.";
             setError(errorMessage);
         } finally {
             setIsLoading(false);

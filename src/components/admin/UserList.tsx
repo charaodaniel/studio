@@ -16,6 +16,7 @@ import UserProfile from './UserProfile';
 import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
 import type { RecordModel } from 'pocketbase';
+import localUsers from '@/database/banco.json';
   
 export interface User extends RecordModel {
     id: string;
@@ -42,9 +43,17 @@ interface UserListProps {
     onSelectUser: (user: User) => void;
 }
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (user: User) => {
+    if (!user) return '';
+    // Check if the avatar is a full URL (from placehold.co)
+    if (user.avatar?.startsWith('http')) {
+        return user.avatar;
+    }
+    // If it's a PocketBase file, construct the URL
+    if (user.collectionId && user.id && user.avatar) {
+        return pb.getFileUrl(user, user.avatar);
+    }
+    return '';
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
@@ -58,19 +67,26 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setIsLoading(true);
         setError(null);
         try {
-            const filter = roleFilter ? `role ?= "${roleFilter}"` : '';
-            const userList = await pb.collection('users').getFullList<User>({
-                sort: 'name',
-                filter: filter
-            });
+            // Simulating an async fetch
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            let userList = localUsers.users.map(u => ({
+                ...u,
+                id: u.id || `local_${Math.random()}`,
+                role: Array.isArray(u.role) ? u.role : [u.role],
+                collectionId: '_pb_users_auth_',
+                collectionName: 'users',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+            })) as unknown as User[];
+
+            if (roleFilter) {
+                userList = userList.filter(user => user.role.includes(roleFilter));
+            }
+            
             setUsers(userList);
         } catch (err: any) {
-            console.error("Failed to fetch users:", err);
-            let errorMessage = "Não foi possível carregar os usuários. Verifique a conexão com o servidor.";
-            if (err.status === 404) {
-                errorMessage = "A coleção 'users' não foi encontrada no servidor. Por favor, configure o banco de dados."
-            }
-            setError(errorMessage);
+            setError("Não foi possível carregar os usuários do arquivo local.");
             setUsers([]); 
         } finally {
             setIsLoading(false);
@@ -84,7 +100,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
 
     const filteredUsers = users.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const handleSelectAndClose = (user: User) => {
@@ -112,7 +128,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
             return (
                 <div className="text-center p-8 text-destructive">
                     <WifiOff className="mx-auto h-10 w-10 mb-2" />
-                    <p className="font-semibold">Erro de Conexão</p>
+                    <p className="font-semibold">Erro ao Carregar</p>
                     <p className="text-sm">{error}</p>
                 </div>
             );
@@ -125,7 +141,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar>
-                    <AvatarImage src={user.avatar ? getAvatarUrl(user, user.avatar) : ''} data-ai-hint="user portrait"/>
+                    <AvatarImage src={getAvatarUrl(user)} data-ai-hint="user portrait"/>
                     <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">
