@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -100,7 +99,19 @@ export default function PassengerDashboard() {
 
     const fetchDrivers = () => {
         try {
-            const records = localData.users.filter(u => u.role.includes("Motorista") && !u.disabled && u.driver_status === 'online') as Driver[];
+            const records = localData.users
+                .filter(u => u.role.includes("Motorista") && !(u as any).disabled && u.driver_status === 'online')
+                .map(u => ({
+                    ...u,
+                    id: u.id || `local_${Math.random()}`,
+                    collectionId: '_pb_users_auth_',
+                    collectionName: 'users',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    role: Array.isArray(u.role) ? u.role : [u.role],
+                    disabled: (u as any).disabled || false,
+                })) as Driver[];
+
             setDrivers(records);
         } catch (err) {
             console.error(err);
