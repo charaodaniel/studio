@@ -1,4 +1,6 @@
 
+'use client';
+
 import { User, List } from "lucide-react";
 import UserManagementTable from "./UserManagementTable";
 import { useAuth } from "@/hooks/useAuth";
