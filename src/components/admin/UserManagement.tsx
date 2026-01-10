@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -20,6 +19,7 @@ import UserProfile from './UserProfile';
 import type { User as UserData } from './UserList';
 import localData from '@/database/banco.json';
 import { useToast } from '@/hooks/use-toast';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -53,9 +53,8 @@ interface UserManagementProps {
 }
   
 export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
+    const { database, isLoading: isDbLoading, saveDatabase, refreshDatabase } = useDatabaseManager();
     const [chats, setChats] = useState<ChatRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     const [selectedChat, setSelectedChat] = useState<ChatRecord | null>(null);
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -69,16 +68,13 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const { toast } = useToast();
     
     // Simulating a logged-in admin user
-    const currentUser = localData.users.find(u => u.role === "Admin") as UserData | undefined;
+    const currentUser = database?.users.find(u => u.role === "Admin" || (Array.isArray(u.role) && u.role.includes("Admin"))) as UserData | undefined;
 
-    const fetchChats = useCallback(async () => {
-        if (!currentUser) return;
-        setIsLoading(true);
-        setError(null);
-        try {
-            await new Promise(resolve => setTimeout(resolve, 250)); // Simulate network delay
-            const allUsers = localData.users as unknown as UserData[];
-            const populatedChats = localData.chats.map(chat => {
+    useEffect(() => {
+        setIsClient(true);
+        if (database) {
+            const allUsers = database.users as unknown as UserData[];
+            const populatedChats = database.chats.map(chat => {
                 const participants = chat.participants.map(pId => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
                 return {
                     ...chat,
@@ -88,29 +84,16 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 }
             }) as ChatRecord[];
 
-            const userChats = populatedChats.filter(chat => chat.participants.includes(currentUser.id));
+            const userChats = populatedChats.filter(chat => chat.participants.find(p => p.id === currentUser?.id));
             setChats(userChats);
-
-        } catch (err: any) {
-            console.error("Failed to fetch chats:", err);
-            setError("Não foi possível carregar as conversas do arquivo local.");
-            setChats([]);
-        } finally {
-            setIsLoading(false);
         }
-    }, [currentUser]);
-
-
-    useEffect(() => {
-        setIsClient(true);
-        fetchChats();
-    }, [fetchChats]);
+    }, [database, currentUser]);
 
     const fetchMessages = useCallback(async (chatId: string) => {
+        if (!database) return;
         setMessages([]); // Clear old messages
-        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate delay
-        const allUsers = localData.users as unknown as UserData[];
-        const chatMessages = localData.messages
+        const allUsers = database.users as unknown as UserData[];
+        const chatMessages = database.messages
             .filter(msg => msg.chat === chatId)
             .map(msg => ({
                 ...msg,
@@ -120,7 +103,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             })) as MessageRecord[];
         
         setMessages(chatMessages);
-    }, []);
+    }, [database]);
 
     useEffect(() => {
         if (!selectedChat) return;
@@ -141,36 +124,65 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     }
     
     useEffect(() => {
-        if (preselectedUser && currentUser) {
+        if (preselectedUser && currentUser && chats.length > 0) {
             const findOrCreateChat = async () => {
                 let existingChat = chats.find(chat => 
-                    chat.participants.includes(currentUser.id) && chat.participants.includes(preselectedUser.id)
+                    chat.participants.some(p => p.id === currentUser.id) && 
+                    chat.participants.some(p => p.id === preselectedUser.id)
                 );
 
                 if (existingChat) {
                     handleSelectChat(existingChat);
                 } else {
-                    toast({
-                        title: 'Modo Protótipo',
-                        description: 'A criação de novos chats está desativada. Mostrando chats existentes.',
-                    });
+                     if (!database) return;
+                     const newChat = {
+                         id: `chat_${new Date().getTime()}`,
+                         participants: [currentUser.id, preselectedUser.id],
+                         ride: null,
+                         last_message: "Nova conversa iniciada.",
+                         updated: new Date().toISOString(),
+                     };
+                     const updatedDb = { ...database, chats: [...database.chats, newChat] };
+                     const success = await saveDatabase(updatedDb);
+                     if (success) {
+                         refreshDatabase(); // This will re-trigger the main useEffect
+                         toast({ title: "Nova conversa iniciada" });
+                     }
                 }
             }
             findOrCreateChat();
             onUserSelect(null); // Reset preselection
         }
-    }, [preselectedUser, onUserSelect, chats, currentUser, toast]);
+    }, [preselectedUser, onUserSelect, chats, currentUser, toast, database, saveDatabase, refreshDatabase]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedChat || !currentUser) return;
+        if (!newMessage.trim() || !selectedChat || !currentUser || !database) return;
         
-        toast({
-            title: 'Mensagem Enviada (Simulação)',
-            description: 'Em um aplicativo real, esta mensagem seria salva no banco de dados.',
-        });
+        const textToSend = newMessage;
         setNewMessage('');
+
+        const newMsg = {
+            id: `msg_${new Date().getTime()}`,
+            chat: selectedChat.id,
+            sender: currentUser.id,
+            text: textToSend,
+            created: new Date().toISOString()
+        };
+
+        const updatedMessages = [...database.messages, newMsg];
+        const updatedChats = database.chats.map(c => 
+            c.id === selectedChat.id ? { ...c, last_message: textToSend, updated: new Date().toISOString() } : c
+        );
+
+        const updatedDb = { ...database, messages: updatedMessages, chats: updatedChats };
+        const success = await saveDatabase(updatedDb);
+        if (success) {
+            refreshDatabase();
+        } else {
+            setNewMessage(textToSend); // Restore message on failure
+        }
     };
     
     const handleGenerateReport = () => {
@@ -199,12 +211,12 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     };
 
 
-    if (!isClient) {
+    if (!isClient || isDbLoading || !currentUser) {
         return <div className="flex-1 flex items-center justify-center bg-muted/40 h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>; 
     }
 
     if (isProfileOpen && selectedUser) {
-        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} isModal={false} />;
+        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} isModal={false} onUserUpdate={() => { refreshDatabase(); setIsProfileOpen(false); }} />;
     }
     
     const filteredChats = chats.filter(chat => {
@@ -215,11 +227,8 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     });
 
     const renderUserList = () => {
-        if (isLoading) {
+        if (isDbLoading) {
             return <div className="p-4 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
-        }
-        if (error) {
-            return <div className="p-4 text-center text-destructive">{error}</div>
         }
         if (filteredChats.length === 0) {
             return <div className="p-4 text-center text-muted-foreground">Nenhuma conversa encontrada.</div>
@@ -253,20 +262,6 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
           <div className="p-4 border-b sticky top-0 bg-background z-10">
             <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold font-headline">Conversas</h2>
-                 <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="icon" variant="ghost"><UserPlus className="w-5 h-5"/></Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Adicionar Novo Usuário</DialogTitle>
-                      <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[80vh]">
-                      <AddUserForm />
-                    </ScrollArea>
-                  </DialogContent>
-                </Dialog>
             </div>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -316,7 +311,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
               <ScrollArea className="flex-1 p-4 sm:p-6" ref={scrollAreaRef}>
                 <div className="flex flex-col gap-4">
                   {messages.map((msg) => {
-                     const sender = msg.expand.sender;
+                     const sender = msg.expand?.sender;
                      const isMe = sender?.id === currentUser?.id;
                      return (
                      <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
@@ -339,9 +334,10 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                         className="pr-12" 
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
+                        disabled={isDbLoading}
                       />
-                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost" disabled={!newMessage.trim()}>
-                          <Send className="w-5 h-5 text-primary"/>
+                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost" disabled={!newMessage.trim() || isDbLoading}>
+                          {isDbLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : <Send className="w-5 h-5 text-primary"/>}
                       </Button>
                   </form>
               </div>

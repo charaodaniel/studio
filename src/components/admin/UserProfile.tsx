@@ -1,6 +1,5 @@
 
-
-import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X, Eye, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X, Eye, ChevronRight, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -12,6 +11,7 @@ import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
 import localData from '@/database/banco.json';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -78,6 +78,7 @@ interface UserProfileProps {
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
+  const { isSaving, database, saveDatabase } = useDatabaseManager();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
   
@@ -100,22 +101,26 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSave = async () => {
-    toast({
-        title: 'Modo Protótipo',
-        description: 'Em um aplicativo real, os dados do usuário seriam atualizados aqui.',
-    });
-    setIsEditing(false);
-    if (onUserUpdate) {
-        onUserUpdate();
+    if (!database) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Banco de dados local não carregado.' });
+        return;
     }
-  };
+    
+    const updatedUsers = database.users.map(u => 
+        u.id === user.id ? { ...u, ...formData } : u
+    );
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-        title: 'Modo Protótipo',
-        description: 'A alteração de senha foi simulada.',
-    });
+    const updatedDb = { ...database, users: updatedUsers };
+    
+    const success = await saveDatabase(updatedDb);
+
+    if (success) {
+        toast({ title: 'Sucesso!', description: 'Os dados do usuário foram atualizados.'});
+        setIsEditing(false);
+        if (onUserUpdate) {
+            onUserUpdate();
+        }
+    }
   };
 
   const handleCall = () => {
@@ -142,8 +147,8 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
   const renderListItem = (
     icon: React.ReactNode, 
-    primary: string, 
-    secondary: string | null | undefined, 
+    primaryText: string, 
+    secondaryText: string | null | undefined, 
     fieldId?: keyof User, 
     isEditable = true,
     onClick?: () => void
@@ -153,18 +158,19 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         <div className="flex-1">
         {isEditing && isEditable && fieldId ? (
             <>
-            <Label htmlFor={String(fieldId)} className="text-xs">{primary}</Label>
-            <Input
-                id={String(fieldId)}
-                value={String(formData[fieldId as keyof typeof formData] || '')}
-                onChange={handleInputChange}
-                className="h-8"
-            />
+                <Label htmlFor={String(fieldId)} className="text-xs text-muted-foreground">{secondaryText}</Label>
+                <Input
+                    id={String(fieldId)}
+                    value={String(formData[fieldId as keyof typeof formData] || '')}
+                    onChange={handleInputChange}
+                    className="h-8"
+                    disabled={isSaving}
+                />
             </>
         ) : (
             <>
-            <p className="text-sm">{primary || 'Não informado'}</p>
-            {secondary && <p className="text-xs text-muted-foreground">{secondary}</p>}
+                <p className="text-sm">{primaryText || 'Não informado'}</p>
+                {secondaryText && <p className="text-xs text-muted-foreground">{secondaryText}</p>}
             </>
         )}
         </div>
@@ -183,8 +189,13 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
          </div>
          {isEditing ? (
             <div className='flex gap-2'>
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}><X className="w-4 h-4 mr-2"/> Cancelar</Button>
-                <Button size="sm" onClick={handleSave}>Salvar</Button>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} disabled={isSaving}>
+                    <X className="w-4 h-4 mr-2"/> Cancelar
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Salvar
+                </Button>
             </div>
          ) : (
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
@@ -222,8 +233,8 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         <div className="p-4 space-y-4">
           <Card>
             <CardContent className="p-0 divide-y">
-               {renderListItem(<Mail className="w-5 h-5" />, user.email || 'Não informado', "Email", "email", false)}
-               {renderListItem(<Phone className="w-5 h-5" />, formData.phone || 'Não informado', "Telefone", "phone")}
+               {renderListItem(<Mail className="w-5 h-5" />, user.email || 'Não informado', "Email", "email", true)}
+               {renderListItem(<Phone className="w-5 h-5" />, isEditing ? formData.phone || '' : user.phone || 'Não informado', "Telefone", "phone")}
             </CardContent>
           </Card>
 
@@ -231,15 +242,15 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             <>
               <Card>
                 <CardContent className="p-0 divide-y">
-                  {renderListItem(<Car className="w-5 h-5" />, formData.driver_vehicle_model || 'Não informado', "Veículo", "driver_vehicle_model")}
-                  {renderListItem(<Key className="w-5 h-5" />, formData.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
+                  {renderListItem(<Car className="w-5 h-5" />, isEditing ? formData.driver_vehicle_model || '' : user.driver_vehicle_model || 'Não informado', "Veículo", "driver_vehicle_model")}
+                  {renderListItem(<Key className="w-5 h-5" />, isEditing ? formData.driver_vehicle_plate || '' : user.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardContent className="p-0 divide-y">
-                  {renderListItem(<Briefcase className="w-5 h-5" />, formData.driver_cnpj || 'Não informado', "CNPJ", "driver_cnpj")}
-                  {renderListItem(<Wallet className="w-5 h-5" />, formData.driver_pix_key || 'Não informado', "Chave PIX", "driver_pix_key")}
+                  {renderListItem(<Briefcase className="w-5 h-5" />, isEditing ? formData.driver_cnpj || '' : user.driver_cnpj || 'Não informado', "CNPJ", "driver_cnpj")}
+                  {renderListItem(<Wallet className="w-5 h-5" />, isEditing ? formData.driver_pix_key || '' : user.driver_pix_key || 'Não informado', "Chave PIX", "driver_pix_key")}
                 </CardContent>
               </Card>
               
@@ -257,25 +268,6 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
              <Card>
                  <CardContent className="p-0 divide-y">
                    {renderListItem(<FileText className="w-5 h-5" />, "Ver Histórico de Corridas", "Nenhuma corrida recente", undefined, false, handleSearch)}
-                </CardContent>
-              </Card>
-          )}
-        
-          {isEditing && (
-              <Card>
-                <CardContent className="p-4">
-                    <form onSubmit={handleChangePassword} className="space-y-4">
-                        <h3 className="font-medium text-destructive">Alterar Senha</h3>
-                        <div className="space-y-1">
-                            <Label htmlFor="new-password">Nova Senha</Label>
-                            <Input id="new-password" type="password" required />
-                        </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
-                            <Input id="confirm-new-password" type="password" required />
-                        </div>
-                        <Button type="submit" variant="secondary" className="w-full">Confirmar Nova Senha</Button>
-                    </form>
                 </CardContent>
               </Card>
           )}

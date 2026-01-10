@@ -20,7 +20,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { cn } from "@/lib/utils";
 import AddUserForm from "./AddUserForm";
-import { ScrollArea } from "../ui/scroll-area";
 import UserProfile from "./UserProfile";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -28,6 +27,7 @@ import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
 import localData from '@/database/banco.json';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { useDatabaseManager } from "@/hooks/use-database-manager";
 
 
 interface RideRecord {
@@ -56,39 +56,30 @@ const appData = {
   
 export default function UserManagementTable() {
     const { toast } = useToast();
+    const { isSaving, database, saveDatabase, refreshDatabase } = useDatabaseManager();
     const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
+    
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedUserForReport, setSelectedUserForReport] = useState<User | null>(null);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
+    const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
-
-    const fetchUsers = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            await new Promise(resolve => setTimeout(resolve, 250));
-            const userList = localData.users.map(u => ({
+    useEffect(() => {
+        if (database?.users) {
+            const userList = database.users.map(u => ({
                 ...u,
                 id: u.id || `local_${Math.random()}`,
                 role: Array.isArray(u.role) ? u.role : [u.role],
             })) as unknown as User[];
-
             setUsers(userList);
-        } catch (err: any) {
-             let errorMessage = "Não foi possível carregar os usuários do arquivo local.";
-            setError(errorMessage);
-        } finally {
-            setIsLoading(false);
         }
-    }, []);
+    }, [database]);
 
-    useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
+    const handleUserUpdate = () => {
+        refreshDatabase();
+        setSelectedUserForEdit(null);
+    };
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
@@ -297,14 +288,22 @@ export default function UserManagementTable() {
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 
-    const handleToggleUserStatus = (user: User) => {
+    const handleToggleUserStatus = async (user: User) => {
+        if (!database) return;
         const newStatus = !user.disabled;
-        toast({
-            title: `Ação em Modo Protótipo`,
-            description: `Em um aplicativo real, o usuário ${user.name} seria ${newStatus ? 'desativado' : 'ativado'}.`,
-        });
-        // Simulate change locally
-        setUsers(currentUsers => currentUsers.map(u => u.id === user.id ? {...u, disabled: newStatus} : u));
+        const updatedUsers = database.users.map(u => 
+            u.id === user.id ? { ...u, disabled: newStatus } : u
+        );
+
+        const updatedDb = { ...database, users: updatedUsers };
+        const success = await saveDatabase(updatedDb);
+        if (success) {
+            toast({
+                title: 'Status Alterado!',
+                description: `O usuário ${user.name} foi ${newStatus ? 'desativado' : 'ativado'}.`
+            });
+            refreshDatabase();
+        }
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -324,15 +323,19 @@ export default function UserManagementTable() {
     return (
         <>
              <div className="flex justify-end mb-4">
-                <Dialog>
+                <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
                     <DialogTrigger asChild>
                         <Button><UserPlus className="mr-2 h-4 w-4"/> Adicionar Usuário</Button>
                     </DialogTrigger>
                      <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Adicionar Novo Usuário</DialogTitle>
+                            <DialogDescription>Preencha os dados para criar um novo usuário no `banco.json`.</DialogDescription>
                         </DialogHeader>
-                        <AddUserForm />
+                        <AddUserForm onUserAdded={() => {
+                            refreshDatabase();
+                            setIsAddUserOpen(false);
+                        }}/>
                     </DialogContent>
                 </Dialog>
             </div>
@@ -350,22 +353,14 @@ export default function UserManagementTable() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                     {isLoading && (
+                     {!database && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center p-8">
                             <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       )}
-                      {error && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-destructive p-8">
-                             <WifiOff className="mx-auto h-8 w-8 mb-2" />
-                            {error}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    {!isLoading && !error && users.map((user) => (
+                    {database && users.map((user) => (
                         <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell className="hidden md:table-cell">{user.email}</TableCell>
@@ -381,7 +376,7 @@ export default function UserManagementTable() {
                         <TableCell>
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <Button aria-haspopup="true" size="icon" variant="ghost" disabled={isSaving}>
                                 <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">Toggle menu</span>
                                 </Button>
@@ -425,14 +420,10 @@ export default function UserManagementTable() {
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação irá alterar o status do usuário no arquivo `banco.json` e salvar a mudança no GitHub.
+                                            </AlertDialogDescription>
                                         </AlertDialogHeader>
-                                        <Alert>
-                                            <Info className="h-4 w-4" />
-                                            <AlertTitle>Modo Protótipo</AlertTitle>
-                                            <AlertDescription>
-                                                Esta ação não alterará os dados permanentemente, apenas simulará a mudança na interface.
-                                            </AlertDescription>
-                                        </Alert>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                             <AlertDialogAction onClick={() => handleToggleUserStatus(user)} className={user.disabled ? '' : 'bg-destructive hover:bg-destructive/90'}>
@@ -461,10 +452,7 @@ export default function UserManagementTable() {
                             onBack={() => setSelectedUserForEdit(null)} 
                             onContact={() => { /* Not needed here */ }} 
                             isModal={true} 
-                            onUserUpdate={() => {
-                                fetchUsers();
-                                setSelectedUserForEdit(null);
-                            }}
+                            onUserUpdate={handleUserUpdate}
                         />
                      </DialogContent>
                 )}
@@ -484,4 +472,3 @@ export default function UserManagementTable() {
       </>
     );
   }
-
