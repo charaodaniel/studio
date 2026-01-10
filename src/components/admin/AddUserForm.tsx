@@ -10,9 +10,10 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Info } from 'lucide-react';
+import type { User } from './UserList';
 
 interface AddUserFormProps {
-    onUserAdded: (newUser: any) => void;
+    onUserAdded: (newUser: User) => void;
 }
 
 export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
@@ -36,33 +37,32 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
 
         const password = Math.random().toString(36).slice(-8);
 
-        // Simula a criação de um novo usuário para a UI
-        const newUser = {
+        const newUser: User = {
             id: `usr_local_${Date.now()}`,
+            collectionId: '_pb_users_auth_',
+            collectionName: 'users',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
             name,
             email,
             phone,
             role: [role],
-            avatar: '', // ou um avatar padrão
+            avatar: '',
             password_placeholder: password,
-            ...(role === 'Motorista' && {
-                driver_status: 'offline',
-                driver_vehicle_model: "",
-                driver_vehicle_plate: "",
-                driver_cnpj: "",
-                driver_pix_key: "",
-                driver_fare_type: "km",
-                driver_km_rate: 0,
-                driver_accepts_rural: false,
-            }),
+            driver_status: 'offline',
+            driver_vehicle_model: "",
+            driver_vehicle_plate: "",
+            driver_cnpj: "",
+            driver_pix_key: "",
+            driver_fare_type: "km",
+            driver_km_rate: 0,
+            driver_accepts_rural: false,
+            disabled: false,
         };
 
-        // Simula um tempo de espera da API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
         toast({
-            title: "Usuário Adicionado (Simulação)",
-            description: `O usuário ${name} foi adicionado à lista. A senha temporária é: ${password}`,
+            title: "Usuário Sendo Adicionado",
+            description: `O usuário ${name} será salvo. A senha temporária é: ${password}`,
             duration: 9000,
         });
 
@@ -81,9 +81,9 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
              <Alert variant="default" className="bg-yellow-50 border-yellow-200">
                 <Info className="h-4 w-4 !text-yellow-700" />
-                <AlertTitle className="text-yellow-800">Modo de Protótipo</AlertTitle>
+                <AlertTitle className="text-yellow-800">Modo de Edição GitHub</AlertTitle>
                 <AlertDescription className="text-yellow-700">
-                    A adição de usuários é apenas uma simulação. Os dados não serão salvos permanentemente no arquivo `banco.json`.
+                    A adição de usuários salvará as alterações diretamente no arquivo `banco.json` do seu repositório.
                 </AlertDescription>
             </Alert>
             <div className="space-y-2">

@@ -11,12 +11,7 @@ import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import localDatabase from '@/database/banco.json';
-
-const getFileUrl = (filePath: string) => {
-    if (!filePath) return '';
-    return filePath;
-};
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 interface DocumentRecord {
     id: string;
@@ -26,15 +21,23 @@ interface DocumentRecord {
     is_verified: boolean;
 }
 
+const getFileUrl = (filePath: string) => {
+    if (!filePath) return '';
+    return filePath.startsWith('data:') ? filePath : `/${filePath.split('public/').pop()}`;
+};
+
 const ViewDocumentsModal = ({ user }: { user: User }) => {
+    const { data: db } = useDatabaseManager<{ documents: DocumentRecord[] }>();
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
     useEffect(() => {
-        const userDocs = localDatabase.documents.filter(
-            doc => doc.driver === user.id && doc.is_verified
-        ) as DocumentRecord[];
-        setDocuments(userDocs);
-    }, [user]);
+        if (db?.documents) {
+            const userDocs = db.documents.filter(
+                doc => doc.driver === user.id && doc.is_verified
+            );
+            setDocuments(userDocs);
+        }
+    }, [user, db]);
     
     return (
         <Dialog>
@@ -101,14 +104,10 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSave = async () => {
+    if (!onUserUpdate) return;
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    toast({ title: "Usuário Atualizado (Simulação)", description: "Os dados foram atualizados na interface." });
-    
-    if (onUserUpdate) {
-        onUserUpdate({ ...user, ...formData } as User);
-    }
+    onUserUpdate({ ...user, ...formData } as User);
     
     setIsEditing(false);
     setIsSaving(false);
@@ -211,9 +210,9 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             {isEditing && (
                  <Alert variant="default" className="bg-yellow-50 border-yellow-200">
                     <Info className="h-4 w-4 !text-yellow-700" />
-                    <AlertTitle className="text-yellow-800">Modo de Simulação</AlertTitle>
+                    <AlertTitle className="text-yellow-800">Modo de Edição GitHub</AlertTitle>
                     <AlertDescription className="text-yellow-700">
-                        As alterações serão refletidas na interface, mas não serão salvas permanentemente.
+                        As alterações serão salvas diretamente no arquivo `banco.json` do seu repositório.
                     </AlertDescription>
                 </Alert>
             )}

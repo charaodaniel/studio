@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2, Info } from "lucide-react";
+import { MoreHorizontal, FileDown, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2, Info, Trash2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
@@ -26,35 +26,29 @@ import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
 import DriverStatusLogModal from "./DriverStatusLogModal";
-import localDatabase from '@/database/banco.json';
+import { useDatabaseManager } from "@/hooks/use-database-manager";
 
-interface RideRecord {
-    id: string;
-    passenger: string | null;
-    driver: string;
-    origin_address: string;
-    destination_address: string;
-    status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
-    fare: number;
-    is_negotiated: boolean;
-    started_by: 'passenger' | 'driver';
-    passenger_anonymous_name?: string;
-    created: string;
-    updated: string;
-    expand?: {
-        driver?: User;
-        passenger?: User;
-    }
+interface DatabaseContent {
+  users: User[];
+  rides: any[];
+  documents: any[];
+  chats: any[];
+  messages: any[];
+  institutional_info: any;
 }
 
-const appData = localDatabase.institutional_info;
+
+const appData = {
+    company_name: "CEOLIN LTDA",
+    cnpj: "52.905.738/0001-00"
+};
   
 export default function UserManagementTable() {
     const { toast } = useToast();
+    const { data: db, isLoading, error, saveData, fetchData } = useDatabaseManager<DatabaseContent>();
     const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
     const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -62,67 +56,41 @@ export default function UserManagementTable() {
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
     
-    const fetchUsers = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const allUsers = localDatabase.users.map(u => ({
-                ...u,
-                id: u.id || `local_${Math.random()}`,
-                collectionId: '_pb_users_auth_',
-                collectionName: 'users',
-                created: new Date().toISOString(),
-                updated: new Date().toISOString(),
-                role: Array.isArray(u.role) ? u.role : [u.role],
-                disabled: (u as any).disabled || false,
-            })) as User[];
-            setUsers(allUsers.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()));
-        } catch (err) {
-            setError("Não foi possível carregar os usuários do arquivo local.");
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
-    
-    const onActionComplete = (updatedUser?: User, action: 'update' | 'add' | 'delete' = 'update') => {
-        if (action === 'add' && updatedUser) {
-            setUsers(prev => [updatedUser, ...prev]);
-        } else if (action === 'update' && updatedUser) {
-            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-        } else if (action === 'delete' && updatedUser) {
-            setUsers(prev => prev.filter(u => u.id !== updatedUser.id));
+        if (db?.users) {
+            const sortedUsers = [...db.users].sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+            setUsers(sortedUsers);
         }
-        
+    }, [db]);
+    
+    const onActionComplete = async (updatedDb: DatabaseContent | null, toastMessage?: {title: string, description: string}) => {
+        if (updatedDb) {
+            await saveData(updatedDb);
+            await fetchData();
+            if (toastMessage) {
+                 toast(toastMessage);
+            }
+        }
         setSelectedUserForEdit(null);
         setIsAddUserOpen(false);
     }
     
     const handleGenerateReport = async (driver: User, type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
         
-        let ridesToExport: RideRecord[] = [];
-        try {
-            await new Promise(resolve => setTimeout(resolve, 300));
-            let allDriverRides = localDatabase.rides.filter(r => r.driver === driver.id) as RideRecord[];
+        let ridesToExport: any[] = [];
+        if (!db) return;
 
-            if (isCompleteReport) {
-                ridesToExport = allDriverRides;
-            } else {
-                 const startDate = dateRange.from.getTime();
-                 const endDate = endOfDay(dateRange.to).getTime();
-                 ridesToExport = allDriverRides.filter(ride => {
-                     const rideDate = new Date(ride.created).getTime();
-                     return rideDate >= startDate && rideDate <= endDate;
-                 });
-            }
-        } catch (error) {
-             toast({ title: "Erro ao buscar corridas", description: "Não foi possível gerar o relatório." });
-             return;
+        let allDriverRides = db.rides.filter(r => r.driver === driver.id);
+
+        if (isCompleteReport) {
+            ridesToExport = allDriverRides;
+        } else {
+             const startDate = dateRange.from.getTime();
+             const endDate = endOfDay(dateRange.to).getTime();
+             ridesToExport = allDriverRides.filter(ride => {
+                 const rideDate = new Date(ride.created).getTime();
+                 return rideDate >= startDate && rideDate <= endDate;
+             });
         }
 
         if (ridesToExport.length === 0) {
@@ -136,16 +104,17 @@ export default function UserManagementTable() {
         }
     };
 
-    const getPassengerName = (ride: RideRecord) => {
+    const getPassengerName = (ride: any) => {
         if (ride.passenger_anonymous_name) return ride.passenger_anonymous_name;
         
-        const passenger = localDatabase.users.find(u => u.id === ride.passenger);
+        if (!db) return "N/A";
+        const passenger = db.users.find(u => u.id === ride.passenger);
         if (passenger) return passenger.name;
 
         return "N/A";
     }
 
-    const handleGenerateCSV = (driver: User, rides: RideRecord[]) => {
+    const handleGenerateCSV = (driver: User, rides: any[]) => {
         const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status"];
         const rows = rides.map(ride => 
             [
@@ -171,7 +140,7 @@ export default function UserManagementTable() {
         document.body.removeChild(link);
     };
 
-    const handleGeneratePDF = (driver: User, rides: RideRecord[], dateRange: DateRange, isCompleteReport: boolean) => {
+    const handleGeneratePDF = (driver: User, rides: any[], dateRange: DateRange, isCompleteReport: boolean) => {
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
@@ -290,14 +259,15 @@ export default function UserManagementTable() {
     };
 
     const handleToggleUserStatus = async (user: User) => {
+        if (!db) return;
         setIsSaving(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const updatedUser = { ...user, disabled: !user.disabled };
-        setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? updatedUser : u));
-
-        toast({ title: "Status Alterado (Simulação)", description: `O status de ${user.name} foi alterado.` });
-        
+        const updatedUsers = db.users.map(u => 
+            u.id === user.id ? { ...u, disabled: !user.disabled } : u
+        );
+        await onActionComplete(
+            {...db, users: updatedUsers},
+            { title: "Status Alterado", description: `O status de ${user.name} foi alterado.`}
+        );
         setIsSaving(false);
     }
     
@@ -317,17 +287,26 @@ export default function UserManagementTable() {
     
     return (
         <>
-             <div className="flex justify-end mb-4">
+             <div className="flex justify-between items-center mb-4">
+                 {error && <div className="text-destructive font-semibold">
+                    <Info className="inline mr-2" />
+                    Erro ao carregar dados. As edições estão desativadas.
+                 </div>}
+                 <div className="flex-grow"></div>
                 <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
                     <DialogTrigger asChild>
-                        <Button><UserPlus className="mr-2 h-4 w-4"/> Adicionar Usuário</Button>
+                        <Button disabled={!!error}><UserPlus className="mr-2 h-4 w-4"/> Adicionar Usuário</Button>
                     </DialogTrigger>
                      <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                             <DialogDescription>Preencha os dados para criar um novo usuário.</DialogDescription>
                         </DialogHeader>
-                        <AddUserForm onUserAdded={(newUser) => onActionComplete(newUser as User, 'add')}/>
+                        <AddUserForm onUserAdded={(newUser) => {
+                             if (!db) return;
+                             const updatedDb = { ...db, users: [...db.users, newUser] };
+                             onActionComplete(updatedDb, { title: "Usuário Adicionado", description: `O usuário ${newUser.name} foi adicionado.` });
+                        }} />
                     </DialogContent>
                 </Dialog>
             </div>
@@ -376,7 +355,7 @@ export default function UserManagementTable() {
                         <TableCell>
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <Button aria-haspopup="true" size="icon" variant="ghost" disabled={!!error}>
                                 <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">Toggle menu</span>
                                 </Button>
@@ -421,7 +400,7 @@ export default function UserManagementTable() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                               Esta ação vai {user.disabled ? 'ativar' : 'desativar'} o usuário na plataforma. (Ação simulada).
+                                               Esta ação vai {user.disabled ? 'ativar' : 'desativar'} o usuário na plataforma.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -448,9 +427,14 @@ export default function UserManagementTable() {
                             <DialogTitle>Editar Perfil do Usuário</DialogTitle>
                         </DialogHeader>
                         <UserProfile 
-                            user={selectedUserForEdit} 
+                            user={selectedUserForEdit}
                             onBack={() => setSelectedUserForEdit(null)} 
-                            onUserUpdate={(updatedUser) => onActionComplete(updatedUser, 'update')}
+                            onUserUpdate={(updatedUser) => {
+                                if (!db) return;
+                                const updatedUsers = db.users.map(u => u.id === updatedUser.id ? updatedUser : u);
+                                const updatedDb = { ...db, users: updatedUsers };
+                                onActionComplete(updatedDb, { title: "Usuário Atualizado", description: "Os dados do usuário foram salvos." });
+                            }}
                         />
                      </DialogContent>
                 )}

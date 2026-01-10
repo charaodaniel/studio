@@ -3,15 +3,16 @@ import { User, List } from "lucide-react";
 import UserManagementTable from "./UserManagementTable";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import localDatabase from '@/database/banco.json';
+import { useDatabaseManager } from "@/hooks/use-database-manager";
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
-    return avatarPath;
+    return `/${avatarPath.split('public/').pop()}`;
 };
 
 export default function AdminDashboard() {
-  const adminUser = localDatabase.users.find(u => Array.isArray(u.role) ? u.role.includes('Admin') : u.role === 'Admin');
+  const { data: db } = useDatabaseManager<{ users: any[] }>();
+  const adminUser = db?.users.find(u => Array.isArray(u.role) ? u.role.includes('Admin') : u.role === 'Admin');
   
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
