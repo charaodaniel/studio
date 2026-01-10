@@ -19,7 +19,10 @@ export default function DeveloperPage() {
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
     const [pbUrl, setPbUrl] = useState(process.env.NEXT_PUBLIC_POCKETBASE_URL || '');
-    const [githubRepo, setGithubRepo] = useState(process.env.GITHUB_REPO || '');
+    
+    // Ler as variáveis de ambiente do GitHub
+    const [githubRepoOwner, setGithubRepoOwner] = useState(process.env.GITHUB_REPO_OWNER || '');
+    const [githubRepoName, setGithubRepoName] = useState(process.env.GITHUB_REPO_NAME || '');
     const [githubToken, setGithubToken] = useState(process.env.GITHUB_TOKEN ? '********' : '');
 
 
@@ -53,6 +56,8 @@ export default function DeveloperPage() {
             setTestResult(errorMessage);
         }
     };
+    
+    const githubVarsConfigured = githubRepoOwner && githubRepoName && githubToken;
     
     return (
         <div className="bg-slate-50 min-h-screen">
@@ -121,24 +126,27 @@ export default function DeveloperPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div>
-                            <Label>Repositório (GITHUB_REPO)</Label>
-                            <Input value={githubRepo} readOnly placeholder="Ex: seu-usuario/seu-repo"/>
+                            <Label>Proprietário do Repositório (GITHUB_REPO_OWNER)</Label>
+                            <Input value={githubRepoOwner} readOnly placeholder="Ex: seu-usuario"/>
+                        </div>
+                         <div>
+                            <Label>Nome do Repositório (GITHUB_REPO_NAME)</Label>
+                            <Input value={githubRepoName} readOnly placeholder="Ex: seu-repo"/>
                         </div>
                         <div>
-                            <Label>Token (GITHUB_TOKEN)</Label>
+                            <Label>Token de Acesso (GITHUB_TOKEN)</Label>
                             <Input value={githubToken} readOnly placeholder="Token não configurado"/>
                         </div>
-                         <Alert variant={githubRepo && githubToken ? 'default' : 'destructive'}>
-                            <AlertTitle>{githubRepo && githubToken ? 'Configurado' : 'Pendente'}</AlertTitle>
+                         <Alert variant={githubVarsConfigured ? 'default' : 'destructive'}>
+                            <AlertTriangle className={`h-4 w-4 ${githubVarsConfigured ? 'hidden' : ''}`} />
+                            <CheckCircle className={`h-4 w-4 ${!githubVarsConfigured ? 'hidden' : ''} !text-green-600`} />
+                            <AlertTitle>{githubVarsConfigured ? 'Configurado' : 'Configuração Incompleta'}</AlertTitle>
                             <AlertDescription>
-                                {githubRepo && githubToken 
-                                ? 'As variáveis para o CMS via GitHub parecem estar configuradas.' 
-                                : 'Configure GITHUB_REPO e GITHUB_TOKEN nas variáveis de ambiente para usar o salvamento no GitHub.'}
+                                {githubVarsConfigured 
+                                ? 'As variáveis para o CMS via GitHub parecem estar configuradas corretamente.' 
+                                : 'Configure GITHUB_REPO_OWNER, GITHUB_REPO_NAME e GITHUB_TOKEN nas variáveis de ambiente do seu provedor de hospedagem (ex: Vercel).'}
                             </AlertDescription>
                         </Alert>
-                        <p className="text-xs text-muted-foreground pt-2">
-                           Esta funcionalidade está desativada no modo de protótipo local.
-                        </p>
                     </CardContent>
                 </Card>
             </div>
