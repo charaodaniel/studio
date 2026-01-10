@@ -14,7 +14,16 @@ interface FullDriver extends Driver {
   position: { top: string; left: string };
 }
 
-const acceptedDriverData = localData.users.find(u => u.id === 'usr_3') as Driver;
+const localAcceptedDriverData = localData.users.find(u => u.id === 'usr_3');
+const acceptedDriverData: Driver = {
+    ...localAcceptedDriverData,
+    id: localAcceptedDriverData?.id || '',
+    collectionId: '_pb_users_auth_',
+    collectionName: 'users',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    role: Array.isArray(localAcceptedDriverData?.role) ? localAcceptedDriverData!.role : [localAcceptedDriverData!.role],
+} as Driver;
 const acceptedDriver = { ...acceptedDriverData, vehicle: `${acceptedDriverData.driver_vehicle_model} - ${acceptedDriverData.driver_vehicle_plate}`, rating: 4.9, position: { top: '80%', left: '80%' } };
 
 interface MapPlaceholderProps {
@@ -33,14 +42,20 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
 
   const fetchOnlineDrivers = useCallback(() => {
     try {
-      const records = localData.users.filter(u => u.role.includes("Motorista") && u.driver_status === 'online') as Driver[];
+      const records = localData.users.filter(u => u.role.includes("Motorista") && u.driver_status === 'online');
       const driversWithPosition = records.map(driver => ({
         ...driver,
+        id: driver.id || `local_${Math.random()}`,
+        collectionId: '_pb_users_auth_',
+        collectionName: 'users',
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
+        role: Array.isArray(driver.role) ? driver.role : [driver.role],
         position: {
           top: `${Math.random() * 80 + 10}%`,
           left: `${Math.random() * 80 + 10}%`,
         }
-      }));
+      } as FullDriver));
       setOnlineDrivers(driversWithPosition);
     } catch (error) {
       console.error("Failed to fetch online drivers from local data:", error);
