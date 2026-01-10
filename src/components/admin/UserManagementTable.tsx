@@ -16,7 +16,7 @@ import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, 
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { cn } from "@/lib/utils";
 import AddUserForm from "./AddUserForm";
@@ -27,7 +27,6 @@ import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
 import localData from '@/database/banco.json';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { useDatabaseManager } from "@/hooks/use-database-manager";
 
 
 interface RideRecord {
@@ -56,8 +55,8 @@ const appData = {
   
 export default function UserManagementTable() {
     const { toast } = useToast();
-    const { isSaving, database, saveDatabase, refreshDatabase } = useDatabaseManager();
     const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -65,19 +64,31 @@ export default function UserManagementTable() {
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
-    useEffect(() => {
-        if (database?.users) {
-            const userList = database.users.map(u => ({
+    const refreshUsers = useCallback(() => {
+        setIsLoading(true);
+        // Simulate fetch delay
+        setTimeout(() => {
+            const userList = localData.users.map(u => ({
                 ...u,
                 id: u.id || `local_${Math.random()}`,
+                collectionId: '_pb_users_auth_',
+                collectionName: 'users',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
                 role: Array.isArray(u.role) ? u.role : [u.role],
             })) as unknown as User[];
             setUsers(userList);
-        }
-    }, [database]);
+            setIsLoading(false);
+        }, 250);
+    }, []);
+
+    useEffect(() => {
+        refreshUsers();
+    }, [refreshUsers]);
 
     const handleUserUpdate = () => {
-        refreshDatabase();
+        // In local mode, we can just re-filter the existing list or re-read it
+        refreshUsers();
         setSelectedUserForEdit(null);
     };
 
@@ -288,22 +299,15 @@ export default function UserManagementTable() {
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 
-    const handleToggleUserStatus = async (user: User) => {
-        if (!database) return;
+    const handleToggleUserStatus = (user: User) => {
         const newStatus = !user.disabled;
-        const updatedUsers = database.users.map(u => 
+        setUsers(prevUsers => prevUsers.map(u => 
             u.id === user.id ? { ...u, disabled: newStatus } : u
-        );
-
-        const updatedDb = { ...database, users: updatedUsers };
-        const success = await saveDatabase(updatedDb);
-        if (success) {
-            toast({
-                title: 'Status Alterado!',
-                description: `O usuário ${user.name} foi ${newStatus ? 'desativado' : 'ativado'}.`
-            });
-            refreshDatabase();
-        }
+        ));
+        toast({
+            title: 'Status Alterado! (Simulação)',
+            description: `No app real, o usuário ${user.name} seria ${newStatus ? 'desativado' : 'ativado'}.`
+        });
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -330,10 +334,10 @@ export default function UserManagementTable() {
                      <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Adicionar Novo Usuário</DialogTitle>
-                            <DialogDescription>Preencha os dados para criar um novo usuário no `banco.json`.</DialogDescription>
+                            <DialogDescription>Preencha os dados para criar um novo usuário.</DialogDescription>
                         </DialogHeader>
                         <AddUserForm onUserAdded={() => {
-                            refreshDatabase();
+                            refreshUsers();
                             setIsAddUserOpen(false);
                         }}/>
                     </DialogContent>
@@ -353,14 +357,14 @@ export default function UserManagementTable() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                     {!database && (
+                     {isLoading && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center p-8">
                             <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       )}
-                    {database && users.map((user) => (
+                    {!isLoading && users.map((user) => (
                         <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell className="hidden md:table-cell">{user.email}</TableCell>
@@ -376,7 +380,7 @@ export default function UserManagementTable() {
                         <TableCell>
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost" disabled={isSaving}>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
                                 <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">Toggle menu</span>
                                 </Button>
@@ -420,9 +424,13 @@ export default function UserManagementTable() {
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Esta ação irá alterar o status do usuário no arquivo `banco.json` e salvar a mudança no GitHub.
-                                            </AlertDialogDescription>
+                                            <Alert>
+                                                <Info className="h-4 w-4" />
+                                                <AlertTitle>Modo Protótipo</AlertTitle>
+                                                <AlertDescription>
+                                                   Esta ação irá apenas simular a mudança de status do usuário, sem salvar permanentemente.
+                                                </AlertDescription>
+                                            </Alert>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -451,7 +459,6 @@ export default function UserManagementTable() {
                             user={selectedUserForEdit} 
                             onBack={() => setSelectedUserForEdit(null)} 
                             onContact={() => { /* Not needed here */ }} 
-                            isModal={true} 
                             onUserUpdate={handleUserUpdate}
                         />
                      </DialogContent>

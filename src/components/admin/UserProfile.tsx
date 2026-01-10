@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Key, Search, Edit, X, Eye, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Search, Edit, X, Eye, ChevronRight, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -11,7 +11,6 @@ import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
 import localData from '@/database/banco.json';
-import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -72,13 +71,12 @@ interface UserProfileProps {
   user: User;
   onBack: () => void;
   onContact: () => void;
-  isModal?: boolean;
-  onUserUpdate?: () => void;
+  onUserUpdate: () => void;
 }
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
-  const { isSaving, database, saveDatabase } = useDatabaseManager();
+  const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
   
@@ -101,25 +99,15 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSave = async () => {
-    if (!database) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Banco de dados local não carregado.' });
-        return;
-    }
-    
-    const updatedUsers = database.users.map(u => 
-        u.id === user.id ? { ...u, ...formData } : u
-    );
+    setIsSaving(true);
+    // Simulate save
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsSaving(false);
 
-    const updatedDb = { ...database, users: updatedUsers };
-    
-    const success = await saveDatabase(updatedDb);
-
-    if (success) {
-        toast({ title: 'Sucesso!', description: 'Os dados do usuário foram atualizados.'});
-        setIsEditing(false);
-        if (onUserUpdate) {
-            onUserUpdate();
-        }
+    toast({ title: 'Sucesso! (Simulação)', description: 'Os dados do usuário foram atualizados.'});
+    setIsEditing(false);
+    if (onUserUpdate) {
+        onUserUpdate();
     }
   };
 
@@ -243,7 +231,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
               <Card>
                 <CardContent className="p-0 divide-y">
                   {renderListItem(<Car className="w-5 h-5" />, isEditing ? formData.driver_vehicle_model || '' : user.driver_vehicle_model || 'Não informado', "Veículo", "driver_vehicle_model")}
-                  {renderListItem(<Key className="w-5 h-5" />, isEditing ? formData.driver_vehicle_plate || '' : user.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
+                  {renderListItem(<Wallet className="w-5 h-5" />, isEditing ? formData.driver_vehicle_plate || '' : user.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
                 </CardContent>
               </Card>
 

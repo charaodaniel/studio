@@ -49,22 +49,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = useCallback(async (identity: string, password: string): Promise<User> => {
-    console.log(`Tentando login com: ${identity}`);
+    console.log(`Attempting local login with: ${identity}`);
     const foundUser = localUsersData.users.find(
       u => (u.email && u.email.toLowerCase() === identity.toLowerCase()) || u.phone === identity
     );
 
     if (foundUser) {
       // NOTE: Password check is bypassed for local development with banco.json
-      console.log("Login local bem-sucedido para:", foundUser.name);
+      console.log("Local login successful for:", foundUser.name);
       const userToLogin = convertLocalUserToUserType(foundUser);
       setUser(userToLogin);
-      // Simulate PocketBase's authStore for client-side checks
-      pb.authStore.save('local_token', userToLogin);
+      // Simulate PocketBase's authStore for any remaining client-side checks that might use it
+      pb.authStore.save('local_token_placeholder', userToLogin);
       return userToLogin;
     }
 
-    throw new Error('Credenciais inválidas. Verifique seu email/telefone.');
+    throw new Error('Credenciais inválidas. Verifique os dados em banco.json');
   }, []);
 
   const logout = useCallback(() => {

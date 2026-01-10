@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useDatabaseManager } from "@/hooks/use-database-manager";
 
 interface AddUserFormProps {
     onUserAdded: () => void;
@@ -16,7 +15,7 @@ interface AddUserFormProps {
 
 export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
     const { toast } = useToast();
-    const { isSaving, database, saveDatabase } = useDatabaseManager();
+    const [isSaving, setIsSaving] = useState(false);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -26,48 +25,27 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!database) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Banco de dados local não carregado.' });
-            return;
-        }
-
         if (!name || !email) {
             toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome e Email são obrigatórios.' });
             return;
         }
+        
+        setIsSaving(true);
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setIsSaving(false);
 
-        const newUser = {
-            id: `usr_${new Date().getTime()}`, // Simple unique ID
-            name,
-            email,
-            phone,
-            password_placeholder: "******",
-            role: [role],
-            avatar: `/database/imagens/default_avatar.png`,
-            // Add default driver fields if role is Motorista
-            ...(role === 'Motorista' && {
-                driver_status: "offline",
-                driver_vehicle_model: "",
-                driver_vehicle_plate: "",
-                driver_cnpj: "",
-                driver_pix_key: "",
-                driver_fare_type: "km",
-                driver_km_rate: 0,
-                driver_accepts_rural: false,
-            })
-        };
+        toast({
+            title: 'Sucesso! (Modo Protótipo)',
+            description: `Em um aplicativo real, o usuário "${name}" seria adicionado ao banco de dados.`,
+        });
 
-        const updatedDb = {
-            ...database,
-            users: [...database.users, newUser],
-        };
-
-        const success = await saveDatabase(updatedDb);
-        if (success) {
-            toast({ title: 'Sucesso!', description: `Usuário "${name}" adicionado.` });
-            onUserAdded(); // Trigger refresh and close modal
-        }
-        // Error toast is handled by the hook
+        // Clear form and close modal
+        setName('');
+        setEmail('');
+        setPhone('');
+        setRole('Passageiro');
+        onUserAdded();
     };
 
     return (

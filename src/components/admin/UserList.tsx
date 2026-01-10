@@ -7,15 +7,14 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, WifiOff, Loader2 } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Search, Loader2 } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import { Skeleton } from '../ui/skeleton';
 import type { RecordModel } from 'pocketbase';
-import { useDatabaseManager } from '@/hooks/use-database-manager';
+import localData from '@/database/banco.json';
   
 export interface User extends RecordModel {
     id: string;
@@ -48,26 +47,32 @@ const getAvatarUrl = (avatarPath: string) => {
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
-    const { database, isLoading, error, refreshDatabase } = useDatabaseManager();
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState<User[]>([]);
 
     useEffect(() => {
-        if (database?.users) {
-             let userList = database.users.map(u => ({
+        setIsLoading(true);
+        // Simulate network delay
+        setTimeout(() => {
+            let userList = localData.users.map(u => ({
                 ...u,
                 id: u.id || `local_${Math.random()}`,
+                collectionId: '_pb_users_auth_',
+                collectionName: 'users',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
                 role: Array.isArray(u.role) ? u.role : [u.role],
             })) as unknown as User[];
 
             if (roleFilter) {
                 userList = userList.filter(user => user.role.includes(roleFilter));
             }
-            
             setUsers(userList);
-        }
-    }, [database, roleFilter]);
+            setIsLoading(false);
+        }, 250);
+    }, [roleFilter]);
 
     const filteredUsers = users.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -80,7 +85,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     };
     
     const handleUserUpdate = () => {
-        refreshDatabase();
+        // In a real app, we'd refresh data. Here, we can just close the modal.
         setSelectedUser(null);
     };
 
@@ -99,15 +104,6 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                     ))}
                 </div>
             )
-        }
-        if (error) {
-            return (
-                <div className="text-center p-8 text-destructive">
-                    <WifiOff className="mx-auto h-10 w-10 mb-2" />
-                    <p className="font-semibold">Erro ao Carregar</p>
-                    <p className="text-sm">{error}</p>
-                </div>
-            );
         }
         if (filteredUsers.length > 0) {
             return filteredUsers.map((user) => (
