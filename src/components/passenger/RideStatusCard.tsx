@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,6 @@ import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
 
 type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
 
@@ -26,7 +26,6 @@ interface RideStatusCardProps {
 
 export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNegotiated, onCancel, onComplete }: RideStatusCardProps) {
     const [progress, setProgress] = useState(10);
-    const [chatId, setChatId] = useState<string | null>(null);
     const { playNotification } = useNotificationSound();
     const { toast } = useToast();
 
@@ -49,20 +48,6 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
         }
 
     }, [rideStatus, playNotification]);
-
-    useEffect(() => {
-      const findChat = async () => {
-        if (rideId) {
-          try {
-            const chatRecord = await pb.collection('chats').getFirstListItem(`ride="${rideId}"`);
-            setChatId(chatRecord.id);
-          } catch(e) {
-            console.warn("Could not find chat for this ride", e);
-          }
-        }
-      }
-      findChat();
-    }, [rideId]);
     
     const handleCall = () => {
         if (rideDetails.driverPhone) {
@@ -134,7 +119,7 @@ export default function RideStatusCard({ rideDetails, rideStatus, rideId, isNego
         <Button variant="outline" onClick={handleCall}><Phone className="mr-2"/> Ligar</Button>
         <RideChat 
             rideId={rideId} 
-            chatId={chatId} 
+            chatId={null} // O chat é encontrado/criado dentro do componente
             passengerName={rideDetails.driverName} 
             isNegotiation={isNegotiated} 
             isReadOnly={!isNegotiated}

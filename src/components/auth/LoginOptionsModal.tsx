@@ -8,8 +8,34 @@ import PassengerAuthForm from './PassengerAuthForm';
 import DriverAuthForm from './DriverAuthForm';
 import OperatorAuthForm from './OperatorAuthForm';
 import AdminAuthForm from './AdminAuthForm';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginOptionsModal() {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // If user is already logged in, show their profile.
+  // The logic inside PassengerAuthForm already handles this.
+  const { isLoggedIn } = useAuth();
+  if (isLoggedIn) {
+      return (
+        <DialogContent className="max-h-[90vh] flex flex-col p-0">
+          <div className="flex-1 overflow-hidden">
+            <PassengerAuthForm />
+          </div>
+        </DialogContent>
+      )
+  }
+
+  // Show login options if no user is logged in
   return (
     <>
       <DialogHeader className="p-6 text-center">

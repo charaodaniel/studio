@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -63,6 +64,7 @@ export function ImageEditorDialog({ isOpen, onImageSave, onDialogClose }: ImageE
             const reader = new FileReader();
             reader.onload = (e) => {
                 setImage(e.target?.result as string);
+                toast({ title: "Arquivo Selecionado!", description: "A imagem está pronta para ser salva." });
             };
             reader.readAsDataURL(file);
         }
@@ -84,8 +86,9 @@ export function ImageEditorDialog({ isOpen, onImageSave, onDialogClose }: ImageE
     
     const handleSave = () => {
         if (image) {
-            onImageSave(image);
+            toast({ title: 'Modo Protótipo', description: 'Em um aplicativo real, a imagem seria salva agora.' });
             onDialogClose();
+            // onImageSave(image); // This would send the data to be saved
         } else {
             toast({ variant: 'destructive', title: 'Nenhuma Imagem', description: 'Por favor, capture ou selecione uma imagem para salvar.'});
         }
@@ -134,7 +137,7 @@ export function ImageEditorDialog({ isOpen, onImageSave, onDialogClose }: ImageE
                             <Label htmlFor="file-upload" className="text-primary font-semibold cursor-pointer">
                                 Clique para escolher um arquivo
                             </Label>
-                            <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF até 10MB</p>
+                            <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF</p>
                             <Input id="file-upload" type="file" className="sr-only" onChange={handleFileSelect} accept="image/*" />
                         </div>
                     </div>

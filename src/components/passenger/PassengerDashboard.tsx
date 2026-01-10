@@ -7,8 +7,7 @@ import RideRequestForm from './RideRequestForm';
 import RideStatusCard from './RideStatusCard';
 import { useToast } from '@/hooks/use-toast';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import localData from '@/database/banco.json';
 import { Card, CardContent } from '../ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -17,13 +16,15 @@ import { Star, Car, Send } from 'lucide-react';
 import type { User as Driver } from '../admin/UserList';
 import RideConfirmationModal from './RideConfirmationModal';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     status: RideStatus;
     is_negotiated: boolean;
     passenger_anonymous_name?: string;
@@ -32,7 +33,7 @@ interface RideRecord extends RecordModel {
     }
 }
 
-interface DriverRecord extends RecordModel {
+interface DriverRecord extends Driver {
     name: string;
     avatar: string;
     phone: string;
@@ -78,6 +79,7 @@ const getStatusLabel = (status?: string) => {
 export default function PassengerDashboard() {
   const { toast } = useToast();
   const { playNotification } = useNotificationSound();
+  const { user } = useAuth();
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
@@ -90,71 +92,38 @@ export default function PassengerDashboard() {
   // State for the form
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
-  const [anonymousUserName, setAnonymousUserName] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
+  
   useEffect(() => {
-    // Ask for location permission
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            () => {}, // Success, do nothing
-            (error) => {
-                if (error.code === error.PERMISSION_DENIED) {
-                     toast({
-                        title: 'Permissão de Localização Negada',
-                        description: 'Para uma melhor experiência, considere ativar a localização.',
-                        variant: 'destructive',
-                        duration: 7000
-                    });
-                }
-            }
-        )
+        navigator.geolocation.getCurrentPosition(() => {}, () => {});
     }
 
     const fetchDrivers = () => {
-        pb.collection('users').getFullList<Driver>({
-            filter: 'role = "Motorista" && disabled != true && driver_status = "online"'
-        }).then(records => {
+        try {
+            const records = localData.users.filter(u => u.role.includes("Motorista") && !u.disabled && u.driver_status === 'online') as Driver[];
             setDrivers(records);
-        }).catch(err => {
+        } catch (err) {
             console.error(err);
             toast({variant: 'destructive', title: 'Erro ao buscar motoristas'});
-        }).finally(() => setIsLoadingDrivers(false));
-    }
-    
-    fetchDrivers();
-    
-    const subscribeToUsers = async () => {
-        try {
-            return await pb.collection('users').subscribe('*', e => {
-                if(e.record.role?.includes('Motorista')) {
-                    fetchDrivers();
-                }
-            });
-        } catch (err) {
-            console.error("Realtime subscription failed for users:", err);
-            return () => {}; // Return an empty unsubscribe function
+        } finally {
+            setIsLoadingDrivers(false);
         }
-    };
-    
-    const promise = subscribeToUsers();
-
-    return () => {
-        promise.then(unsubscribe => unsubscribe());
     }
+    fetchDrivers();
   }, [toast]);
   
 
   const handleRideUpdate = useCallback((updatedRide: RideRecord) => {
     setActiveRide(updatedRide);
     
+    const driverData = localData.users.find(u => u.id === (updatedRide as any).driver) as DriverRecord | undefined;
+
     if (updatedRide.status === 'accepted' && rideStatus !== 'accepted') {
-        const driverData = updatedRide.expand?.driver;
         if (driverData) {
             setRideStatus('accepted');
             setRideDetails({
                 driverName: driverData.name || 'Motorista',
-                driverAvatar: driverData.avatar ? getAvatarUrl(driverData, driverData.avatar) : '',
+                driverAvatar: driverData.avatar ? getAvatarUrl(driverData.avatar) : '',
                 driverPhone: driverData.phone || '',
                 vehicleModel: driverData.driver_vehicle_model || 'Não informado',
                 licensePlate: driverData.driver_vehicle_plate || 'Não informado',
@@ -174,53 +143,39 @@ export default function PassengerDashboard() {
 }, [playNotification, rideStatus, toast]);
 
   useEffect(() => {
-    const passengerId = pb.authStore.model?.id;
-    if (!passengerId) {
-      if (rideStatus !== 'idle') setRideStatus('idle'); // Reset if user logs out
-      return;
-    }
-    
-    // Check for existing active ride
-    pb.collection('rides').getFirstListItem<RideRecord>(`passenger="${passengerId}" && (status="accepted" || status="in_progress")`, { expand: 'driver' })
-      .then(ride => {
-        handleRideUpdate(ride);
-      }).catch(() => {
-        // No active ride found, which is normal.
+    // This effect simulates checking for an active ride.
+    // In a real app, this would be a check against a backend.
+    const activeRideFromLocal = localData.rides.find(r => 
+        (r.passenger === user?.id || !user) && 
+        (r.status === "accepted" || r.status === "in_progress")
+    ) as RideRecord | undefined;
+
+    if (activeRideFromLocal) {
+        handleRideUpdate(activeRideFromLocal);
+    } else {
         if (rideStatus !== 'searching' && rideStatus !== 'idle') {
             setRideStatus('idle');
         }
-      });
-  }, [rideStatus, handleRideUpdate]);
+    }
+  }, [user, rideStatus, handleRideUpdate]);
   
 
   const onRideRequest = (rideId: string) => {
     setRideStatus('searching');
-    let unsubscribe: () => void;
-    const subscribeToRide = async () => {
-        try {
-            unsubscribe = await pb.collection('rides').subscribe<RideRecord>(rideId, e => {
-              if(e.record) {
-                handleRideUpdate(e.record);
-              }
-            });
-        } catch (err) {
-            console.error(`Realtime subscription for ride ${rideId} failed:`, err);
+    toast({ title: 'Procurando Motorista...', description: 'Sua solicitação foi enviada.' });
+    // In local mode, we can't subscribe, so we'll just simulate a driver accepting.
+    setTimeout(() => {
+        const ride = localData.rides.find(r => r.id === rideId) as RideRecord;
+        if (ride) {
+            handleRideUpdate({ ...ride, status: 'accepted' });
         }
-    };
-    subscribeToRide();
-
-    // Store the unsubscribe function to be called on cleanup
-    if (activeRide) {
-        const oldUnsubscribe = pb.collection('rides').unsubscribe(activeRide.id);
-    }
-    // activeRide's unsubscribe will now be this new one.
+    }, 5000); // Simulate a 5-second search
   };
 
   const handleCancelRide = async (updateDb = true) => {
     if (updateDb && activeRide) {
-        await pb.collection('rides').update(activeRide.id, { status: 'canceled' });
         toast({
-            title: 'Corrida Cancelada',
+            title: 'Corrida Cancelada (Simulação)',
             description: 'Sua solicitação foi cancelada.',
             variant: 'destructive'
         });
@@ -228,7 +183,6 @@ export default function PassengerDashboard() {
     setRideStatus('idle');
     setRideDetails(null);
     setActiveRide(null);
-    if(activeRide) pb.collection('rides').unsubscribe(activeRide.id);
   };
   
   const handleCompleteRide = () => {
@@ -239,7 +193,6 @@ export default function PassengerDashboard() {
         setRideStatus('idle');
         setRideDetails(null);
         setActiveRide(null);
-        if(activeRide) pb.collection('rides').unsubscribe(activeRide.id);
     }, 5000);
   }
 
@@ -263,7 +216,7 @@ export default function PassengerDashboard() {
           <RideRequestForm
             onRideRequest={onRideRequest}
             isSearching={rideStatus === 'searching'}
-            anonymousUserName={pb.authStore.isValid ? null : 'Anônimo'}
+            anonymousUserName={user ? null : 'Anônimo'}
             origin={origin}
             setOrigin={setOrigin}
             destination={destination}
@@ -294,7 +247,7 @@ export default function PassengerDashboard() {
                         <CardContent className="p-4 flex-grow">
                             <div className="flex flex-col items-center text-center gap-2">
                                 <Avatar className="h-16 w-16 mb-2">
-                                    <AvatarImage src={driver.avatar ? getAvatarUrl(driver, driver.avatar) : ''} data-ai-hint="driver portrait" />
+                                    <AvatarImage src={driver.avatar ? getAvatarUrl(driver.avatar) : ''} data-ai-hint="driver portrait" />
                                     <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <p className="font-bold">{driver.name}</p>
@@ -335,7 +288,7 @@ export default function PassengerDashboard() {
                 destination={destination}
                 isNegotiated={false} // This view logic defaults to non-negotiated. The form handles negotiation.
                 onConfirm={onRideRequest}
-                passengerAnonymousName={pb.authStore.isValid ? null : "Passageiro Anônimo"}
+                passengerAnonymousName={user ? null : "Passageiro Anônimo"}
             />
         )}
     </div>

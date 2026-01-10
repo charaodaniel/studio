@@ -5,26 +5,24 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { type User } from './UserList';
-import { Separator } from '../ui/separator';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import localData from '@/database/banco.json';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
-interface DocumentRecord extends RecordModel {
+interface DocumentRecord {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    file: string; // Filename
+    file: string; 
     is_verified: boolean;
 }
 
@@ -32,23 +30,9 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
     useEffect(() => {
-        const fetchDocs = async () => {
-            if (!user) return;
-            try {
-                const docs = await pb.collection('driver_documents').getFullList<DocumentRecord>({
-                    filter: `driver = "${user.id}" && is_verified = true`,
-                });
-                setDocuments(docs);
-            } catch (error) {
-                console.error("Could not fetch verified documents", error);
-            }
-        };
-        fetchDocs();
+        const docs = localData.documents.filter(d => d.driver === user.id && d.is_verified) as DocumentRecord[];
+        setDocuments(docs);
     }, [user]);
-
-    const getFileUrl = (doc: DocumentRecord) => {
-        return pb.getFileUrl(doc, doc.file);
-    }
 
     return (
         <Dialog>
@@ -72,7 +56,7 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
                                 <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4"/>Ver Imagem</Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl">
-                                <Image src={getFileUrl(doc)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
+                                <Image src={doc.file} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
                             </DialogContent>
                            </Dialog>
                         </div>
@@ -92,11 +76,10 @@ interface UserProfileProps {
   onUserUpdate?: () => void; // Callback to refresh list after update
 }
 
-export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
+export default function UserProfile({ user, onBack, onContact }: UserProfileProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
-  const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
   
   useEffect(() => {
     setFormData({
@@ -117,47 +100,22 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSave = async () => {
-    try {
-        await pb.collection('users').update(user.id, formData);
-        toast({
-            title: 'Sucesso!',
-            description: 'Os dados do usuário foram atualizados.',
-        });
-        setIsEditing(false);
-        if (onUserUpdate) {
-            onUserUpdate();
-        }
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      toast({ variant: 'destructive', title: 'Erro ao Salvar', description: 'Não foi possível atualizar o usuário.' });
+    toast({
+        title: 'Modo Protótipo',
+        description: 'Em um aplicativo real, os dados do usuário seriam atualizados aqui.',
+    });
+    setIsEditing(false);
+    if (onUserUpdate) {
+        onUserUpdate();
     }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword.password || !newPassword.confirmPassword) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Preencha ambos os campos de senha.' });
-        return;
-    }
-    if (newPassword.password !== newPassword.confirmPassword) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
-        return;
-    }
-    
-    try {
-        await pb.collection('users').update(user.id, {
-            password: newPassword.password,
-            passwordConfirm: newPassword.confirmPassword,
-        });
-        toast({
-            title: 'Senha Alterada!',
-            description: 'A senha do usuário foi atualizada.',
-        });
-        setNewPassword({ password: '', confirmPassword: '' });
-
-    } catch(err) {
-        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar a senha.' });
-    }
+    toast({
+        title: 'Modo Protótipo',
+        description: 'A alteração de senha foi simulada.',
+    });
   };
 
   const handleCall = () => {
@@ -180,7 +138,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
       onBack(); 
   }
 
-  const avatarUrl = user.avatar ? getAvatarUrl(user, user.avatar) : '';
+  const avatarUrl = user.avatar ? getAvatarUrl(user.avatar) : '';
 
   const renderListItem = (
     icon: React.ReactNode, 
@@ -198,7 +156,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             <Label htmlFor={String(fieldId)} className="text-xs">{primary}</Label>
             <Input
                 id={String(fieldId)}
-                value={formData[fieldId as keyof typeof formData] as string || ''}
+                value={String(formData[fieldId as keyof typeof formData] || '')}
                 onChange={handleInputChange}
                 className="h-8"
             />
@@ -264,7 +222,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         <div className="p-4 space-y-4">
           <Card>
             <CardContent className="p-0 divide-y">
-               {renderListItem(<Mail className="w-5 h-5" />, user.email, "Email", "email", false)}
+               {renderListItem(<Mail className="w-5 h-5" />, user.email || 'Não informado', "Email", "email", false)}
                {renderListItem(<Phone className="w-5 h-5" />, formData.phone || 'Não informado', "Telefone", "phone")}
             </CardContent>
           </Card>
@@ -310,11 +268,11 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
                         <h3 className="font-medium text-destructive">Alterar Senha</h3>
                         <div className="space-y-1">
                             <Label htmlFor="new-password">Nova Senha</Label>
-                            <Input id="new-password" type="password" value={newPassword.password} onChange={(e) => setNewPassword(prev => ({...prev, password: e.target.value}))} required />
+                            <Input id="new-password" type="password" required />
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
-                            <Input id="confirm-new-password" type="password" value={newPassword.confirmPassword} onChange={(e) => setNewPassword(prev => ({...prev, confirmPassword: e.target.value}))} required />
+                            <Input id="confirm-new-password" type="password" required />
                         </div>
                         <Button type="submit" variant="secondary" className="w-full">Confirmar Nova Senha</Button>
                     </form>

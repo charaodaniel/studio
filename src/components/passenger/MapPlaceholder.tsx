@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -5,39 +6,34 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Car, Star, User, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
-import { usePocketBase } from '@/hooks/usePocketBase';
-import type { RecordModel } from 'pocketbase';
 import type { User as Driver } from '../admin/UserList';
+import localData from '@/database/banco.json';
 
 interface FullDriver extends Driver {
   position: { top: string; left: string };
 }
 
-const acceptedDriver = { id: 5, name: 'Roberto Andrade', vehicle: 'Chevrolet Onix - BRA2E19', rating: 4.9, position: { top: '80%', left: '80%' }, img: 'https://placehold.co/40x40/E3F2FD/2979FF.png?text=RA' }
+const acceptedDriverData = localData.users.find(u => u.id === 'usr_3') as Driver;
+const acceptedDriver = { ...acceptedDriverData, vehicle: `${acceptedDriverData.driver_vehicle_model} - ${acceptedDriverData.driver_vehicle_plate}`, rating: 4.9, position: { top: '80%', left: '80%' } };
 
 interface MapPlaceholderProps {
   rideInProgress?: boolean;
 }
 
-const getAvatarUrl = (pb: any, record: RecordModel, avatarFileName: string) => {
-    if (!pb || !record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
 export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholderProps) {
   const [onlineDrivers, setOnlineDrivers] = useState<FullDriver[]>([]);
   const [userPosition, setUserPosition] = useState({ top: '50%', left: '50%' });
   const [refreshKey, setMapRefreshKey] = useState(0);
-  const pb = usePocketBase();
 
-  const fetchOnlineDrivers = useCallback(async () => {
-    if (!pb) return;
+  const fetchOnlineDrivers = useCallback(() => {
     try {
-      const records = await pb.collection('users').getFullList<Driver>({
-        filter: 'role = "Motorista" && driver_status = "online"',
-      });
+      const records = localData.users.filter(u => u.role.includes("Motorista") && u.driver_status === 'online') as Driver[];
       const driversWithPosition = records.map(driver => ({
         ...driver,
         position: {
@@ -47,28 +43,17 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
       }));
       setOnlineDrivers(driversWithPosition);
     } catch (error) {
-      console.error("Failed to fetch online drivers:", error);
+      console.error("Failed to fetch online drivers from local data:", error);
     }
-  }, [pb]);
+  }, []);
 
   useEffect(() => {
-    if (!pb) return;
     fetchOnlineDrivers();
     setUserPosition({
         top: `${Math.random() * 60 + 20}%`,
         left: `${Math.random() * 60 + 20}%`,
     });
-
-    const unsubscribe = pb.collection('users').subscribe('*', e => {
-      if (e.record.role?.includes('Motorista')) {
-        fetchOnlineDrivers();
-      }
-    });
-
-    return () => {
-      pb.collection('users').unsubscribe();
-    }
-  }, [fetchOnlineDrivers, refreshKey, pb]);
+  }, [fetchOnlineDrivers, refreshKey]);
 
   const onRefreshLocation = () => {
       setMapRefreshKey(prev => prev + 1);
@@ -99,7 +84,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 delay-75"></span>
                     <Avatar className="h-10 w-10 border-2 border-primary-foreground shadow-md">
-                      <AvatarImage src={getAvatarUrl(pb, driver, driver.avatar)} data-ai-hint="driver portrait" />
+                      <AvatarImage src={getAvatarUrl(driver.avatar)} data-ai-hint="driver portrait" />
                       <AvatarFallback>{driver.name.substring(0,2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   </button>
@@ -126,7 +111,7 @@ export default function MapPlaceholder({ rideInProgress = false }: MapPlaceholde
                 <button className="relative flex items-center justify-center" aria-label={`Driver ${acceptedDriver.name}`}>
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <Avatar className="h-10 w-10 border-2 border-primary-foreground shadow-md">
-                      <AvatarImage src={acceptedDriver.img} data-ai-hint="driver portrait" />
+                      <AvatarImage src={getAvatarUrl(acceptedDriver.avatar)} data-ai-hint="driver portrait" />
                     <AvatarFallback>{acceptedDriver.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                 </button>

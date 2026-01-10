@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -8,44 +9,36 @@ import {
     TableHeader,
     TableRow,
   } from "@/components/ui/table";
-  import { Badge } from "@/components/ui/badge";
-  import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-  import { ScrollArea } from "../ui/scroll-area";
-  import { useState, useEffect, useCallback } from "react";
-  import { type User } from "../admin/UserList";
-  import { Loader2, WifiOff } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { ScrollArea } from "../ui/scroll-area";
+import { useState, useEffect, useCallback } from "react";
+import { type User } from "../admin/UserList";
+import { WifiOff } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import pb from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
-import localUsers from '@/database/banco.json';
-  
-  const getAvatarUrl = (user: User) => {
-    if (!user) return '';
-    if (user.avatar?.startsWith('http')) {
-        return user.avatar;
-    }
-    if (user.collectionId && user.id && user.avatar) {
-        return pb.getFileUrl(user, user.avatar);
-    }
-    return '';
-  };
+import localUsersData from '@/database/banco.json';
 
-  const getStatusClass = (status: string) => {
-     switch (status) {
-        case 'online':
-            return 'bg-green-100 text-green-800 border-green-200';
-        case 'in_progress':
-        case 'urban-trip':
-        case 'rural-trip':
-            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        case 'offline':
-            return 'bg-red-100 text-red-800 border-red-200';
-        default:
-            return '';
-    }
-  }
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
+};
 
-   const getStatusLabel = (status: string) => {
+const getStatusClass = (status: string) => {
+    switch (status) {
+    case 'online':
+        return 'bg-green-100 text-green-800 border-green-200';
+    case 'in_progress':
+    case 'urban-trip':
+    case 'rural-trip':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'offline':
+        return 'bg-red-100 text-red-800 border-red-200';
+    default:
+        return '';
+    }
+}
+
+const getStatusLabel = (status: string) => {
     const labels: { [key: string]: string } = {
         'online': 'Online',
         'offline': 'Offline',
@@ -53,9 +46,9 @@ import localUsers from '@/database/banco.json';
         'rural-trip': 'Em Viagem (Interior)',
     };
     return labels[status] || status;
-  }
-  
-  export default function DriverStatusList() {
+}
+
+export default function DriverStatusList() {
     const [drivers, setDrivers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -66,16 +59,12 @@ import localUsers from '@/database/banco.json';
         try {
             await new Promise(resolve => setTimeout(resolve, 250));
 
-            const driverList = localUsers.users
+            const driverList = localUsersData.users
                 .filter(u => Array.isArray(u.role) ? u.role.includes('Motorista') : u.role === 'Motorista')
                 .map(u => ({
                     ...u,
                     id: u.id || `local_${Math.random()}`,
                     role: Array.isArray(u.role) ? u.role : [u.role],
-                    collectionId: '_pb_users_auth_',
-                    collectionName: 'users',
-                    created: new Date().toISOString(),
-                    updated: new Date().toISOString(),
                 })) as unknown as User[];
             
             setDrivers(driverList);
@@ -124,7 +113,7 @@ import localUsers from '@/database/banco.json';
             <TableCell>
                 <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={getAvatarUrl(driver)} data-ai-hint="driver portrait" />
+                        <AvatarImage src={getAvatarUrl(driver.avatar)} data-ai-hint="driver portrait" />
                         <AvatarFallback>{driver.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{driver.name}</span>

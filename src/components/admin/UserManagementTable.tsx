@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,27 +12,25 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, WifiOff, Loader2, Info } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { cn } from "@/lib/utils";
-import DriverStatusLogModal from "./DriverStatusLogModal";
 import AddUserForm from "./AddUserForm";
 import { ScrollArea } from "../ui/scroll-area";
 import UserProfile from "./UserProfile";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
-import { format, endOfDay } from "date-fns";
-import pb from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
-import localUsers from '@/database/banco.json';
+import { endOfDay } from "date-fns";
+import localData from '@/database/banco.json';
+import { Alert } from "../ui/alert";
 
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
     id: string;
     passenger: string | null;
     driver: string;
@@ -55,7 +54,7 @@ const appData = {
     cnpj: "52.905.738/0001-00"
 }
   
-  export default function UserManagementTable() {
+export default function UserManagementTable() {
     const { toast } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -71,16 +70,11 @@ const appData = {
         setIsLoading(true);
         setError(null);
         try {
-            // Simulate async fetch from local file
             await new Promise(resolve => setTimeout(resolve, 250));
-            const userList = localUsers.users.map(u => ({
+            const userList = localData.users.map(u => ({
                 ...u,
                 id: u.id || `local_${Math.random()}`,
                 role: Array.isArray(u.role) ? u.role : [u.role],
-                collectionId: '_pb_users_auth_',
-                collectionName: 'users',
-                created: new Date().toISOString(),
-                updated: new Date().toISOString(),
             })) as unknown as User[];
 
             setUsers(userList);
@@ -98,15 +92,15 @@ const appData = {
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
         try {
-            const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
-            const endDate = endOfDay(dateRange.to).toISOString();
+            await new Promise(resolve => setTimeout(resolve, 250));
+            const startDate = dateRange.from;
+            const endDate = endOfDay(dateRange.to);
 
-            const records = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`,
-                sort: '-created',
-                expand: 'passenger',
+            const records = localData.rides.filter(ride => {
+                const rideDate = new Date(ride.created);
+                return ride.driver === driverId && rideDate >= startDate && rideDate <= endDate;
             });
-            return records;
+            return records as unknown as RideRecord[];
         } catch (err: any) {
             console.error("Failed to fetch rides for report:", err);
             toast({
@@ -120,12 +114,9 @@ const appData = {
     
     const fetchAllRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
         try {
-            const records = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}"`,
-                sort: '-created',
-                expand: 'passenger',
-            });
-            return records;
+            await new Promise(resolve => setTimeout(resolve, 250));
+            const records = localData.rides.filter(ride => ride.driver === driverId);
+            return records as unknown as RideRecord[];
         } catch (err: any) {
             console.error("Failed to fetch all rides for report:", err);
             toast({
@@ -153,13 +144,22 @@ const appData = {
         }
     };
 
+    const getPassengerName = (ride: RideRecord) => {
+        if (ride.passenger_anonymous_name) return ride.passenger_anonymous_name;
+        if (ride.passenger) {
+            const passenger = localData.users.find(u => u.id === ride.passenger);
+            return passenger?.name || "Passageiro não encontrado";
+        }
+        return "N/A";
+    }
+
     const handleGenerateCSV = (driver: User, rides: RideRecord[]) => {
         const headers = ["ID", "Data", "Passageiro", "Origem", "Destino", "Valor (R$)", "Status"];
         const rows = rides.map(ride => 
             [
                 ride.id, 
                 ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida', 
-                ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
+                getPassengerName(ride),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
                 ride.fare.toFixed(2).replace('.', ','), 
                 ride.status, 
@@ -242,7 +242,7 @@ const appData = {
             const tableColumn = ["Data", "Passageiro", "Trajeto", "Valor (R$)", "Status"];
             const tableRows = validDateRides.map(ride => [
                     new Date(ride.created).toLocaleString('pt-BR'),
-                    ride.expand?.passenger?.name || ride.passenger_anonymous_name || (ride.started_by === 'driver' ? driver.name : 'N/A'),
+                    getPassengerName(ride),
                     `${ride.origin_address} -> ${ride.destination_address}`,
                     `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
                     ride.status,
@@ -297,22 +297,14 @@ const appData = {
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 
-    const handleToggleUserStatus = async (user: User) => {
+    const handleToggleUserStatus = (user: User) => {
         const newStatus = !user.disabled;
-        try {
-            await pb.collection('users').update(user.id, { disabled: newStatus });
-            toast({
-                title: "Status Alterado!",
-                description: `O usuário ${user.name} foi ${newStatus ? 'desativado' : 'ativado'}.`
-            });
-            fetchUsers();
-        } catch (error) {
-            toast({
-                variant: "destructive",
-                title: "Erro ao atualizar status",
-                description: "Não foi possível alterar o status do usuário."
-            });
-        }
+        toast({
+            title: `Ação em Modo Protótipo`,
+            description: `Em um aplicativo real, o usuário ${user.name} seria ${newStatus ? 'desativado' : 'ativado'}.`,
+        });
+        // Simulate change locally
+        setUsers(currentUsers => currentUsers.map(u => u.id === user.id ? {...u, disabled: newStatus} : u));
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -338,12 +330,9 @@ const appData = {
                     </DialogTrigger>
                      <DialogContent>
                         <DialogHeader>
-                        <DialogTitle>Adicionar Novo Usuário</DialogTitle>
-                        <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
+                            <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                         </DialogHeader>
-                        <ScrollArea className="max-h-[80vh]">
-                        <AddUserForm onUserAdded={fetchUsers} />
-                        </ScrollArea>
+                        <AddUserForm />
                     </DialogContent>
                 </Dialog>
             </div>
@@ -404,7 +393,7 @@ const appData = {
                                 </DropdownMenuItem>
                                 {hasRole(user.role, 'Motorista') && (
                                     <>
-                                        <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
+                                        <DropdownMenuItem onSelect={() => toast({ title: 'Indisponível', description: 'Logs de status não estão disponíveis no modo de protótipo.' })}>
                                             <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
                                         </DropdownMenuItem>
                                         <DropdownMenuSub>
@@ -436,10 +425,14 @@ const appData = {
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Esta ação vai {user.disabled ? "reativar" : "desativar temporariamente"} o acesso do usuário {user.name} à plataforma.
-                                            </AlertDialogDescription>
                                         </AlertDialogHeader>
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertTitle>Modo Protótipo</AlertTitle>
+                                            <AlertDescription>
+                                                Esta ação não alterará os dados permanentemente, apenas simulará a mudança na interface.
+                                            </AlertDescription>
+                                        </Alert>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                             <AlertDialogAction onClick={() => handleToggleUserStatus(user)} className={user.disabled ? '' : 'bg-destructive hover:bg-destructive/90'}>
@@ -457,15 +450,7 @@ const appData = {
                 </Table>
             </div>
             
-            <Dialog open={!!selectedUserForLog} onOpenChange={(isOpen) => !isOpen && setSelectedUserForLog(null)}>
-                 {selectedUserForLog && (
-                    <DialogContent>
-                        <DriverStatusLogModal user={selectedUserForLog} />
-                    </DialogContent>
-                )}
-            </Dialog>
-
-            <Dialog open={!!selectedUserForEdit} onOpenChange={(isOpen) => !isOpen && setSelectedUserForEdit(null)}>
+             <Dialog open={!!selectedUserForEdit} onOpenChange={(isOpen) => !isOpen && setSelectedUserForEdit(null)}>
                 {selectedUserForEdit && (
                      <DialogContent className="p-0 sm:max-w-lg md:max-w-xl">
                         <DialogHeader className="p-4 sr-only">

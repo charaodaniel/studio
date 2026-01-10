@@ -6,10 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { MapPin, DollarSign, Loader2, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import pb from '@/lib/pocketbase';
 import { type User as Driver } from '../admin/UserList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RideConfirmationModalProps {
     isOpen: boolean;
@@ -30,6 +30,7 @@ export default function RideConfirmationModal({
     const [calculatedFare, setCalculatedFare] = useState<number>(0);
     const [distance, setDistance] = useState<number>(0);
     const { toast } = useToast();
+    const { user: passenger } = useAuth();
 
     useEffect(() => {
         if (isOpen && !isNegotiated) {
@@ -49,7 +50,6 @@ export default function RideConfirmationModal({
 
     const handleConfirmRide = async () => {
         setIsLoading(true);
-        const passenger = pb.authStore.model;
 
         if (!passenger && !passengerAnonymousName) {
             toast({
@@ -70,51 +70,17 @@ export default function RideConfirmationModal({
             setIsLoading(false);
             return;
         }
+        
+        // Simulação de criação de corrida
+        const rideId = `ride_local_${new Date().getTime()}`;
+        console.log("Simulating ride creation with ID:", rideId);
 
-        try {
-            const rideData: { [key: string]: any } = {
-                passenger: passenger?.id,
-                driver: driver.id,
-                origin_address: origin,
-                destination_address: destination,
-                status: "requested",
-                is_negotiated: isNegotiated,
-                started_by: "passenger",
-                fare: isNegotiated ? 0 : (calculatedFare || 0),
-                passenger_anonymous_name: passengerAnonymousName,
-            };
-
-            if (scheduledFor) {
-                rideData.scheduled_for = scheduledFor.toISOString();
-                rideData.ride_description = `Viagem agendada para ${format(scheduledFor, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`;
-            }
-
-            const rideRecord = await pb.collection('rides').create(rideData);
-
-            if (isNegotiated && passenger) {
-                await pb.collection('chats').create({
-                    participants: [passenger.id, driver.id],
-                    ride: rideRecord.id,
-                });
-            }
-            
-            toast({
-                title: "Corrida Solicitada!",
-                description: `Sua solicitação foi enviada para ${driver.name}.`,
-            });
-            onConfirm(rideRecord.id);
-
-        } catch (error: any) {
-            console.error('Failed to create ride:', error);
-            const errorMessage = error.data?.data?.driver?.message || 'Não foi possível criar sua solicitação. Verifique os dados e tente novamente.';
-            toast({
-                variant: "destructive",
-                title: "Erro ao Solicitar Corrida",
-                description: errorMessage,
-            });
-        } finally {
-            setIsLoading(false);
-        }
+        toast({
+            title: "Corrida Solicitada! (Simulação)",
+            description: `Sua solicitação foi enviada para ${driver.name}.`,
+        });
+        onConfirm(rideId);
+        setIsLoading(false);
     };
 
     return (

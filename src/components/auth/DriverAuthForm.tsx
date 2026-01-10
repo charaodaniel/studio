@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,11 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Logo from '../shared/Logo';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
-import pb from '@/lib/pocketbase';
+import { Alert, AlertDescription } from '../ui/alert';
 
 export default function DriverAuthForm() {
   const { toast } = useToast();
@@ -25,15 +26,7 @@ export default function DriverAuthForm() {
   const [loginIdentity, setLoginIdentity] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-
-  // States for registration form
-  const [registerName, setRegisterName] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerUsername, setRegisterUsername] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -60,50 +53,11 @@ export default function DriverAuthForm() {
   
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (registerPassword !== registerPasswordConfirm) {
-        toast({ variant: 'destructive', title: 'Senhas não coincidem' });
-        return;
-    }
-
-    setIsLoading(true);
-    
-    try {
-        const data = {
-            "username": registerUsername,
-            "name": registerName,
-            "email": registerEmail,
-            "emailVisibility": true,
-            "password": registerPassword,
-            "passwordConfirm": registerPasswordConfirm,
-            "role": ["Motorista"],
-            "driver_status": 'offline',
-        };
-
-        await pb.collection('users').create(data);
-
-        toast({ title: 'Conta de Motorista Criada!', description: 'Cadastro realizado com sucesso. Agora você pode fazer o login.' });
-        setRegisterName('');
-        setRegisterEmail('');
-        setRegisterUsername('');
-        setRegisterPassword('');
-        setRegisterPasswordConfirm('');
-        setActiveTab('login');
-        
-    } catch (error: any) {
-        let description = 'Ocorreu um erro ao criar sua conta. Tente novamente.';
-        if (error?.data?.data?.email?.message) {
-            description = 'Este endereço de e-mail já está em uso por outra conta.';
-        } else if (error?.data?.data?.username?.message) {
-            description = 'Este número de telefone já está em uso por outra conta.';
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Falha no Registro',
-            description: description,
-        });
-    } finally {
-        setIsLoading(false);
-    }
+    toast({
+        title: 'Funcionalidade Indisponível',
+        description: 'O registro de novas contas está desativado no modo de protótipo local.',
+        variant: 'destructive'
+    });
   };
 
 
@@ -170,48 +124,25 @@ export default function DriverAuthForm() {
           </TabsContent>
           <TabsContent value="register">
             <form onSubmit={handleRegister} className="space-y-4 pt-6">
+                <Alert variant="destructive">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                        O registro está desativado no modo de protótipo. Use um usuário de teste para fazer login.
+                    </AlertDescription>
+                </Alert>
                 <div className="space-y-2">
                   <Label htmlFor="name-register-driver">Nome</Label>
-                  <Input id="name-register-driver" placeholder="Seu nome completo" required disabled={isLoading} value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
+                  <Input id="name-register-driver" placeholder="Seu nome completo" required disabled={true} />
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="username-register-driver">Telefone (será seu usuário)</Label>
-                  <Input id="username-register-driver" type="tel" placeholder="(00) 99999-9999" required disabled={isLoading} value={registerUsername} onChange={(e) => setRegisterUsername(e.target.value)} />
+                  <Input id="username-register-driver" type="tel" placeholder="(00) 99999-9999" required disabled={true} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-register-driver">Email</Label>
-                  <Input id="email-register-driver" type="email" placeholder="seu@email.com" disabled={isLoading} value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} />
+                  <Input id="email-register-driver" type="email" placeholder="seu@email.com" disabled={true} />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-register-driver">Senha</Label>
-                  <div className="relative">
-                    <Input 
-                        id="password-register-driver" 
-                        type={showRegisterPassword ? 'text' : 'password'} 
-                        required 
-                        disabled={isLoading} 
-                        value={registerPassword} 
-                        onChange={(e) => setRegisterPassword(e.target.value)} 
-                        className="pr-10"
-                    />
-                    <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
-                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
-                        tabIndex={-1}
-                    >
-                        {showRegisterPassword ? <EyeOff /> : <Eye />}
-                    </Button>
-                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-confirm-driver">Confirmar Senha</Label>
-                  <Input id="password-confirm-driver" type="password" required disabled={isLoading} value={registerPasswordConfirm} onChange={(e) => setRegisterPasswordConfirm(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" className="w-full" disabled={true}>
                     Criar Conta
                 </Button>
             </form>

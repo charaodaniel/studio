@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,15 +9,14 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, WifiOff, Loader2 } from "lucide-react"
+import { Search, UserPlus, WifiOff } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
-import pb from '@/lib/pocketbase';
 import { Skeleton } from '../ui/skeleton';
 import type { RecordModel } from 'pocketbase';
-import localUsers from '@/database/banco.json';
+import localUsersData from '@/database/banco.json';
   
 export interface User extends RecordModel {
     id: string;
@@ -43,17 +43,10 @@ interface UserListProps {
     onSelectUser: (user: User) => void;
 }
 
-const getAvatarUrl = (user: User) => {
-    if (!user) return '';
-    // Check if the avatar is a full URL (from placehold.co)
-    if (user.avatar?.startsWith('http')) {
-        return user.avatar;
-    }
-    // If it's a PocketBase file, construct the URL
-    if (user.collectionId && user.id && user.avatar) {
-        return pb.getFileUrl(user, user.avatar);
-    }
-    return '';
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    // Assumes avatarPath is like "/database/imagens/usr_1.png"
+    return avatarPath;
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
@@ -67,17 +60,12 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setIsLoading(true);
         setError(null);
         try {
-            // Simulating an async fetch
             await new Promise(resolve => setTimeout(resolve, 250));
 
-            let userList = localUsers.users.map(u => ({
+            let userList = localUsersData.users.map(u => ({
                 ...u,
                 id: u.id || `local_${Math.random()}`,
                 role: Array.isArray(u.role) ? u.role : [u.role],
-                collectionId: '_pb_users_auth_',
-                collectionName: 'users',
-                created: new Date().toISOString(),
-                updated: new Date().toISOString(),
             })) as unknown as User[];
 
             if (roleFilter) {
@@ -141,7 +129,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar>
-                    <AvatarImage src={getAvatarUrl(user)} data-ai-hint="user portrait"/>
+                    <AvatarImage src={getAvatarUrl(user.avatar)} data-ai-hint="user portrait"/>
                     <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">
@@ -171,11 +159,10 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Adicionar Novo Usuário</DialogTitle>
-                      <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
+                      <DialogDescription>
+                        Esta funcionalidade está desativada no modo de protótipo local.
+                      </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="max-h-[80vh]">
-                      <AddUserForm onUserAdded={fetchUsers} />
-                    </ScrollArea>
                   </DialogContent>
                 </Dialog>
             </div>

@@ -1,9 +1,9 @@
+
 'use client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Car, MapPin, WifiOff, Loader2, Calendar as CalendarIcon, RefreshCw, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "../ui/skeleton";
 import { Button } from "../ui/button";
 import { format, startOfMonth, endOfDay } from 'date-fns';
@@ -12,18 +12,18 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import pb from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
+import localData from '@/database/banco.json';
+import { useAuth } from "@/hooks/useAuth";
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     passenger: string;
     driver: string;
     origin_address: string;
     destination_address: string;
     status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
     fare: number;
-    created: string; // Firestore Timestamp
+    created: string;
     expand?: {
         driver: {
             name: string;
@@ -39,47 +39,69 @@ export function PassengerRideHistory() {
         from: startOfMonth(new Date()),
         to: endOfDay(new Date()),
     });
+    const { user: currentUser } = useAuth();
     
     const fetchRides = useCallback(async () => {
-        const currentUser = pb.authStore.model;
-        if (!currentUser) return;
+        if (!currentUser) {
+            setRides([]);
+            setIsLoading(false);
+            return;
+        }
         
         setIsLoading(true);
         setError(null);
         
         try {
+            await new Promise(resolve => setTimeout(resolve, 250)); // Simulate delay
             const passengerId = currentUser.id;
-            let filter;
+            let filteredRides = localData.rides.filter(r => r.passenger === passengerId) as RideRecord[];
 
             if (dateRange?.from && dateRange?.to) {
-                const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
-                const endDate = endOfDay(dateRange.to).toISOString();
-                filter = `passenger = "${passengerId}" && created >= "${startDate}" && created <= "${endDate}"`;
-            } else {
-                 setIsLoading(false);
-                 return;
+                const startDate = dateRange.from.getTime();
+                const endDate = endOfDay(dateRange.to).getTime();
+                filteredRides = filteredRides.filter(ride => {
+                    const rideDate = new Date(ride.created).getTime();
+                    return rideDate >= startDate && rideDate <= endDate;
+                });
             }
 
-            const records = await pb.collection('rides').getFullList<RideRecord>({
-                filter,
-                sort: '-created',
-                expand: 'driver',
-            });
+            const populatedRides = filteredRides.map(ride => {
+                const driver = localData.users.find(u => u.id === ride.driver);
+                return {
+                    ...ride,
+                    expand: {
+                        driver: { name: driver?.name || "Motorista não encontrado" }
+                    }
+                }
+            })
             
-            setRides(records);
+            setRides(populatedRides.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()));
         } catch (err: any) {
-            console.error("Failed to fetch rides:", err);
+            console.error("Failed to fetch rides from local data:", err);
             setError("Não foi possível carregar seu histórico de corridas.");
         } finally {
             setIsLoading(false);
         }
-    }, [dateRange]);
+    }, [currentUser, dateRange]);
 
     useEffect(() => {
         fetchRides();
     }, [fetchRides]);
     
     const renderContent = () => {
+        if (!currentUser) {
+            return (
+                 <TableBody>
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center p-8 text-muted-foreground">
+                            <History className="h-10 w-10 mb-4 mx-auto" />
+                            <p className="font-semibold">Faça login para ver seu histórico</p>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            )
+        }
+
         if (isLoading) {
             return (
                 <TableBody>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,9 +14,8 @@ import type { User as Driver } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
-import type { RecordModel } from 'pocketbase';
 import RideConfirmationModal from './RideConfirmationModal';
-import { usePocketBase } from '@/hooks/usePocketBase';
+import localData from '@/database/banco.json';
 
 interface DriverListModalProps {
     origin: string;
@@ -26,9 +26,9 @@ interface DriverListModalProps {
     scheduledFor?: Date;
 }
 
-const getAvatarUrl = (pb: any, record: RecordModel, avatarFileName: string) => {
-    if (!pb || !record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
 const getStatusVariant = (status?: string) => {
@@ -62,52 +62,29 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
     const [error, setError] = useState<string | null>(null);
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
-    const pb = usePocketBase();
 
     const fetchDrivers = useCallback(() => {
-        if (!pb) return;
         setIsLoading(true);
         setError(null);
-        let filter = 'role = "Motorista" && disabled != true';
-        // For immediate rides, only show online drivers.
-        if (!scheduledFor) {
-            filter += ' && driver_status = "online"';
+        try {
+            let filteredDrivers = localData.users.filter(u => u.role.includes("Motorista") && !u.disabled) as Driver[];
+            
+            // For immediate rides, only show online drivers.
+            if (!scheduledFor) {
+                filteredDrivers = filteredDrivers.filter(d => d.driver_status === "online");
+            }
+            
+            setDrivers(filteredDrivers);
+        } catch(err) {
+            setError("Não foi possível carregar os motoristas do arquivo local.");
+        } finally {
+            setIsLoading(false);
         }
-        
-        pb.collection('users').getFullList<Driver>({ filter })
-            .then(records => {
-                setDrivers(records);
-            })
-            .catch(err => {
-                console.error("Error fetching drivers:", err);
-                setError("Não foi possível carregar os motoristas. Verifique a conexão.");
-            })
-            .finally(() => setIsLoading(false));
-    }, [scheduledFor, pb]);
+    }, [scheduledFor]);
 
     useEffect(() => {
         fetchDrivers();
-
-        if (!pb) return;
-
-        const subscribeToUsers = async () => {
-            try {
-                await pb.collection('users').subscribe('*', (e) => {
-                    if (e.record.role?.includes('Motorista')) {
-                        fetchDrivers();
-                    }
-                });
-            } catch(err) {
-                console.error("Realtime subscription failed for users:", err);
-            }
-        };
-
-        subscribeToUsers();
-
-        return () => {
-             pb.collection('users').unsubscribe();
-        }
-    }, [fetchDrivers, pb]);
+    }, [fetchDrivers]);
 
     const handleToggle = (driverId: string) => {
         setOpenDriverId(prevId => prevId === driverId ? null : driverId);
@@ -153,8 +130,11 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
              <div className="space-y-2">
                 {drivers.map((driver) => {
                     const isAvailable = driver.driver_status === 'online' || scheduledFor;
-                    const avatarUrl = getAvatarUrl(pb, driver, driver.avatar);
-                    const vehiclePhotoUrl = driver.driver_vehicle_photo ? getAvatarUrl(pb, driver, driver.driver_vehicle_photo) : '';
+                    const avatarUrl = getAvatarUrl(driver.avatar);
+                    
+                    const vehicleDoc = localData.documents.find(d => d.driver === driver.id && d.document_type === "VEHICLE_PHOTO");
+                    const vehiclePhotoUrl = vehicleDoc ? vehicleDoc.file : '';
+
                     return (
                         <Collapsible
                             key={driver.id}

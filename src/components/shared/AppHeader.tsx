@@ -1,3 +1,4 @@
+
 'use client';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
@@ -9,7 +10,6 @@ import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import LoginOptionsModal from '../auth/LoginOptionsModal';
 import { useAuth } from '@/hooks/useAuth';
-import { type RecordModel } from 'pocketbase';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -20,11 +20,9 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-const getSafeAvatarUrl = (user: any) => {
-  if (user && user.collectionId && user.id && user.avatar) {
-    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
-  }
-  return '';
+const getSafeAvatarUrl = (avatarPath: string) => {
+  if (!avatarPath) return '';
+  return avatarPath;
 }
 
 export function AppHeader({
@@ -74,7 +72,7 @@ export function AppHeader({
 
   const renderLogoLink = () => {
     if (showDriverAvatar && currentUser) {
-      const avatarUrl = getSafeAvatarUrl(currentUser);
+      const avatarUrl = getSafeAvatarUrl(currentUser.avatar);
       return (
         <Link href="/" className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -118,7 +116,7 @@ export function AppHeader({
              <Dialog>
                 <DialogTrigger asChild>
                     <Button>
-                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={getSafeAvatarUrl(currentUser)}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
+                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={getSafeAvatarUrl(currentUser.avatar)}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
                       {isLoggedIn ? "Meu Perfil" : "Login"}
                     </Button>
                 </DialogTrigger>

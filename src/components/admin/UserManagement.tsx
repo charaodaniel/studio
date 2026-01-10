@@ -10,23 +10,23 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Send, MoreVertical, ArrowLeft, FileText, User, MessageSquare, WifiOff, Loader2 } from "lucide-react"
+import { Search, UserPlus, Send, MoreVertical, ArrowLeft, FileText, User, MessageSquare, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import AddUserForm from './AddUserForm';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import type { User as UserData } from './UserList';
+import localData from '@/database/banco.json';
+import { useToast } from '@/hooks/use-toast';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
-interface ChatRecord extends RecordModel {
+interface ChatRecord {
   id: string;
   participants: string[];
   last_message: string;
@@ -36,7 +36,7 @@ interface ChatRecord extends RecordModel {
   }
 }
 
-interface MessageRecord extends RecordModel {
+interface MessageRecord {
     id: string;
     chat: string;
     sender: string;
@@ -66,70 +66,65 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isClient, setIsClient] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
-    const currentUser = pb.authStore.model;
-
+    const { toast } = useToast();
+    
+    // Simulating a logged-in admin user
+    const currentUser = localData.users.find(u => u.role === "Admin") as UserData | undefined;
 
     const fetchChats = useCallback(async () => {
-        if (!pb.authStore.model) return;
+        if (!currentUser) return;
         setIsLoading(true);
         setError(null);
         try {
-            const result = await pb.collection('chats').getFullList<ChatRecord>({
-                sort: '-updated',
-                expand: 'participants',
-                filter: `participants.id ?= "${pb.authStore.model.id}"`,
-            });
-            setChats(result);
+            await new Promise(resolve => setTimeout(resolve, 250)); // Simulate network delay
+            const allUsers = localData.users as unknown as UserData[];
+            const populatedChats = localData.chats.map(chat => {
+                const participants = chat.participants.map(pId => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
+                return {
+                    ...chat,
+                    expand: {
+                        participants,
+                    }
+                }
+            }) as ChatRecord[];
+
+            const userChats = populatedChats.filter(chat => chat.participants.includes(currentUser.id));
+            setChats(userChats);
+
         } catch (err: any) {
             console.error("Failed to fetch chats:", err);
-            setError("Não foi possível carregar as conversas. Verifique as regras de API.");
+            setError("Não foi possível carregar as conversas do arquivo local.");
             setChats([]);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [currentUser]);
 
 
     useEffect(() => {
         setIsClient(true);
         fetchChats();
-        
-        pb.collection('chats').subscribe('*', (e) => {
-            if (e.record.participants.includes(pb.authStore.model?.id)) {
-                fetchChats();
-            }
-        });
-        
-        return () => {
-            pb.collection('chats').unsubscribe('*');
-        };
     }, [fetchChats]);
 
     const fetchMessages = useCallback(async (chatId: string) => {
         setMessages([]); // Clear old messages
-        const records = await pb.collection('messages').getFullList<MessageRecord>({
-            filter: `chat = "${chatId}"`,
-            sort: 'created',
-            expand: 'sender',
-        });
-        setMessages(records);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate delay
+        const allUsers = localData.users as unknown as UserData[];
+        const chatMessages = localData.messages
+            .filter(msg => msg.chat === chatId)
+            .map(msg => ({
+                ...msg,
+                expand: {
+                    sender: allUsers.find(u => u.id === msg.sender) as UserData
+                }
+            })) as MessageRecord[];
+        
+        setMessages(chatMessages);
     }, []);
 
     useEffect(() => {
         if (!selectedChat) return;
-
         fetchMessages(selectedChat.id);
-
-        pb.collection('messages').subscribe('*', (e) => {
-            if (e.record.chat === selectedChat.id) {
-                fetchMessages(selectedChat.id);
-            }
-        });
-
-        return () => {
-            pb.collection('messages').unsubscribe('*');
-        }
-
     }, [selectedChat, fetchMessages]);
 
     useEffect(() => {
@@ -148,48 +143,34 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     useEffect(() => {
         if (preselectedUser && currentUser) {
             const findOrCreateChat = async () => {
-                try {
-                    const existingChats = await pb.collection('chats').getFullList<ChatRecord>({
-                        filter: `participants.id ?= "${currentUser.id}" && participants.id ?= "${preselectedUser.id}"`,
-                        expand: 'participants'
-                    });
+                let existingChat = chats.find(chat => 
+                    chat.participants.includes(currentUser.id) && chat.participants.includes(preselectedUser.id)
+                );
 
-                    if (existingChats.length > 0) {
-                        handleSelectChat(existingChats[0]);
-                    } else {
-                        const newChat = await pb.collection('chats').create({
-                            participants: [currentUser.id, preselectedUser.id]
-                        }, { expand: 'participants' });
-                        handleSelectChat(newChat as ChatRecord);
-                        fetchChats(); // Refresh the list
-                    }
-                } catch (error) {
-                     console.error("Error finding or creating chat:", error);
+                if (existingChat) {
+                    handleSelectChat(existingChat);
+                } else {
+                    toast({
+                        title: 'Modo Protótipo',
+                        description: 'A criação de novos chats está desativada. Mostrando chats existentes.',
+                    });
                 }
             }
             findOrCreateChat();
             onUserSelect(null); // Reset preselection
         }
-    }, [preselectedUser, onUserSelect, fetchChats, currentUser]);
+    }, [preselectedUser, onUserSelect, chats, currentUser, toast]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !selectedChat || !currentUser) return;
-
-        const text = newMessage;
-        setNewMessage(''); // Clear input immediately
-
-        try {
-            await pb.collection('messages').create({
-                chat: selectedChat.id,
-                sender: currentUser.id,
-                text: text,
-            });
-            // PocketBase will automatically update the chat's 'updated' field.
-        } catch (error) {
-            console.error("Failed to send message:", error);
-        }
+        
+        toast({
+            title: 'Mensagem Enviada (Simulação)',
+            description: 'Em um aplicativo real, esta mensagem seria salva no banco de dados.',
+        });
+        setNewMessage('');
     };
     
     const handleGenerateReport = () => {
@@ -230,7 +211,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
         if (!otherUser) return false;
         return otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               otherUser.email.toLowerCase().includes(searchTerm.toLowerCase());
+               (otherUser.email && otherUser.email.toLowerCase().includes(searchTerm.toLowerCase()));
     });
 
     const renderUserList = () => {
@@ -246,7 +227,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         return filteredChats.map((chat) => {
               const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
               if (!otherUser) return null;
-              const avatarUrl = otherUser.avatar ? getAvatarUrl(otherUser, otherUser.avatar) : '';
+              const avatarUrl = getAvatarUrl(otherUser.avatar);
               return (
                 <div 
                   key={chat.id} 
@@ -282,7 +263,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                       <DialogDescription>Preencha os campos abaixo para criar um novo usuário.</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-[80vh]">
-                      <AddUserForm onUserAdded={fetchChats} />
+                      <AddUserForm />
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>
@@ -310,7 +291,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   <ArrowLeft className="w-5 h-5"/>
                 </Button>
                 <Avatar>
-                  <AvatarImage src={selectedUser.avatar ? getAvatarUrl(selectedUser, selectedUser.avatar) : ''} data-ai-hint="user portrait"/>
+                  <AvatarImage src={getAvatarUrl(selectedUser.avatar)} data-ai-hint="user portrait"/>
                   <AvatarFallback>{selectedUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
@@ -336,14 +317,15 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 <div className="flex flex-col gap-4">
                   {messages.map((msg) => {
                      const sender = msg.expand.sender;
+                     const isMe = sender?.id === currentUser?.id;
                      return (
-                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === currentUser?.id ? 'flex-row-reverse' : ''}`}>
+                     <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                        <Avatar className="w-8 h-8 border">
-                          <AvatarImage src={sender.avatar ? getAvatarUrl(sender, sender.avatar) : ''} />
-                          <AvatarFallback>{sender.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
+                          <AvatarImage src={sender?.avatar ? getAvatarUrl(sender.avatar) : ''} />
+                          <AvatarFallback>{sender?.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
                        </Avatar>
-                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${msg.sender === currentUser?.id ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
-                           <p className="font-bold">{msg.sender === currentUser?.id ? 'Você' : sender.name}</p>
+                      <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${isMe ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
+                           <p className="font-bold">{isMe ? 'Você' : sender?.name}</p>
                           <p>{msg.text}</p>
                       </div>
                   </div>

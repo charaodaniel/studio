@@ -8,7 +8,7 @@
       "phone": "55996393353",
       "password_placeholder": "123456789",
       "role": "Admin",
-      "avatar": "https://placehold.co/128x128/E3F2FD/1E3A8A?text=D"
+      "avatar": "/database/imagens/usr_1.png"
     },
     {
       "id": "usr_2",
@@ -16,8 +16,8 @@
       "email": "ana.clara@example.com",
       "phone": "559988776655",
       "password_placeholder": "******",
-      "role": "Passageiro",
-      "avatar": "https://placehold.co/128x128/FCE7F3/831843?text=A"
+      "role": ["Passageiro"],
+      "avatar": "/database/imagens/usr_2.png"
     },
     {
       "id": "usr_3",
@@ -25,8 +25,115 @@
       "email": "carlos.eduardo@example.com",
       "phone": "559911223344",
       "password_placeholder": "******",
-      "role": "Motorista",
-      "avatar": "https://placehold.co/128x128/E0E7FF/1E3A8A?text=C"
+      "role": ["Motorista"],
+      "avatar": "/database/imagens/usr_3.png",
+      "driver_status": "online",
+      "driver_vehicle_model": "Chevrolet Onix",
+      "driver_vehicle_plate": "BRA2E19",
+      "driver_cnpj": "12.345.678/0001-99",
+      "driver_pix_key": "carlos.edu@email.com",
+      "driver_fare_type": "km",
+      "driver_km_rate": 2.75,
+      "driver_accepts_rural": true
+    },
+    {
+      "id": "usr_4",
+      "name": "Beatriz Souza",
+      "email": "beatriz.souza@example.com",
+      "phone": "559922334455",
+      "password_placeholder": "******",
+      "role": ["Motorista"],
+      "avatar": "/database/imagens/usr_4.png",
+      "driver_status": "offline",
+      "driver_vehicle_model": "Fiat Mobi",
+      "driver_vehicle_plate": "XYZ1234",
+      "driver_cnpj": "98.765.432/0001-11",
+      "driver_pix_key": "559922334455",
+      "driver_fare_type": "fixed",
+      "driver_fixed_rate": 15.00,
+      "driver_accepts_rural": false
+    },
+    {
+      "id": "usr_5",
+      "name": "Operador 01",
+      "email": "atendente@ceolin.com",
+      "phone": "559900001111",
+      "password_placeholder": "atendente123",
+      "role": ["Atendente"],
+      "avatar": "/database/imagens/usr_5.png"
+    }
+  ],
+  "rides": [
+    {
+      "id": "ride_1",
+      "passenger": "usr_2",
+      "driver": "usr_3",
+      "origin_address": "Rua das Flores, 123",
+      "destination_address": "Shopping Central",
+      "status": "completed",
+      "fare": 18.50,
+      "is_negotiated": false,
+      "started_by": "passenger",
+      "created": "2024-05-20T10:00:00Z"
+    },
+    {
+      "id": "ride_2",
+      "passenger_anonymous_name": "Cliente Anônimo",
+      "driver": "usr_3",
+      "origin_address": "Av. Principal, 500",
+      "destination_address": "Aeroporto",
+      "status": "completed",
+      "fare": 35.00,
+      "is_negotiated": false,
+      "started_by": "driver",
+      "created": "2024-05-21T14:30:00Z"
+    },
+    {
+        "id": "ride_3",
+        "passenger": "usr_2",
+        "driver": "usr_3",
+        "origin_address": "Centro",
+        "destination_address": "Fazenda Boa Vista",
+        "status": "requested",
+        "fare": 150.00,
+        "is_negotiated": true,
+        "started_by": "passenger",
+        "created": "2024-05-22T08:00:00Z",
+        "scheduled_for": "2024-05-25T09:00:00Z"
+    }
+  ],
+  "documents": [
+    {
+        "id": "doc_1",
+        "driver": "usr_3",
+        "document_type": "CNH",
+        "file": "/database/documentos/sample_doc.png",
+        "is_verified": true
+    },
+    {
+        "id": "doc_2",
+        "driver": "usr_3",
+        "document_type": "CRLV",
+        "file": "/database/documentos/sample_doc.png",
+        "is_verified": false
+    }
+  ],
+  "chats": [
+    {
+        "id": "chat_1",
+        "participants": ["usr_2", "usr_3"],
+        "ride": "ride_3",
+        "last_message": "Olá! Podemos fechar em R$140?",
+        "updated": "2024-05-22T08:05:00Z"
+    }
+  ],
+  "messages": [
+    {
+        "id": "msg_1",
+        "chat": "chat_1",
+        "sender": "usr_2",
+        "text": "Olá! Podemos fechar em R$140?",
+        "created": "2024-05-22T08:05:00Z"
     }
   ],
   "institutional_info": {
