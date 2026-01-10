@@ -16,16 +16,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import UserProfile from './UserProfile';
 import type { User as UserData } from './UserList';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useDatabaseManager, type DatabaseData } from '@/hooks/use-database-manager';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
-const getAvatarUrl = (avatarPath: string) => {
-    if (!avatarPath) return '';
-    return avatarPath;
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
 };
 
-interface ChatRecord {
-  id: string;
+interface ChatRecord extends RecordModel {
   participants: string[];
   last_message: string;
   updated: string;
@@ -35,8 +34,7 @@ interface ChatRecord {
   }
 }
 
-interface MessageRecord {
-    id: string;
+interface MessageRecord extends RecordModel {
     chat: string;
     sender: string;
     text: string;
@@ -52,22 +50,42 @@ interface UserManagementProps {
 }
   
 export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
-    const { database, isLoading: isDbLoading, isSaving, saveDatabase, refreshDatabase } = useDatabaseManager();
+    const [chats, setChats] = useState<ChatRecord[]>([]);
     const [selectedChat, setSelectedChat] = useState<ChatRecord | null>(null);
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [messages, setMessages] = useState<MessageRecord[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isDbLoading, setIsDbLoading] = useState(true);
+    const [isSending, setIsSending] = useState(false);
+    const [allUsers, setAllUsers] = useState<UserData[]>([]);
     
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     
-    const chats = database?.chats as ChatRecord[] || [];
-    const allUsers = database?.users as UserData[] || [];
-    const allMessages = database?.messages as MessageRecord[] || [];
+    const currentUser = pb.authStore.model as UserData | null;
 
-    const currentUser = allUsers.find(u => u.role?.includes("Admin"));
+    const fetchInitialData = useCallback(async () => {
+        if (!currentUser) return;
+        setIsDbLoading(true);
+        try {
+            const [chatRecords, userRecords] = await Promise.all([
+                pb.collection('chats').getFullList<ChatRecord>({ expand: 'participants', sort: '-updated' }),
+                pb.collection('users').getFullList<UserData>()
+            ]);
+            setChats(chatRecords.filter(c => c.participants.includes(currentUser.id)));
+            setAllUsers(userRecords);
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Erro ao carregar dados", description: "Não foi possível buscar as conversas e usuários." });
+        } finally {
+            setIsDbLoading(false);
+        }
+    }, [currentUser, toast]);
+    
+    useEffect(() => {
+        fetchInitialData();
+    }, [fetchInitialData]);
     
     useEffect(() => {
       if (scrollAreaRef.current) {
@@ -75,35 +93,32 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
       }
     }, [messages]);
 
-    const fetchMessages = useCallback((chatId: string) => {
-        if (!database) return;
+    const fetchMessages = useCallback(async (chatId: string) => {
         setMessages([]);
-        const chatMessages = allMessages
-            .filter(msg => msg.chat === chatId)
-            .map(msg => ({
-                ...msg,
-                expand: {
-                    sender: allUsers.find(u => u.id === msg.sender) as UserData
-                }
-            }));
-        setMessages(chatMessages.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
-    }, [database, allMessages, allUsers]);
+        try {
+            const chatMessages = await pb.collection('messages').getFullList<MessageRecord>({
+                filter: `chat = "${chatId}"`,
+                sort: 'created',
+                expand: 'sender'
+            });
+            setMessages(chatMessages);
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Erro", description: "Não foi possível carregar as mensagens." });
+        }
+    }, [toast]);
 
 
     const handleSelectChat = useCallback((chat: ChatRecord) => {
-        const participants = chat.participants.map(pId => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
-        const populatedChat = {...chat, expand: { participants }};
-
-        setSelectedChat(populatedChat);
-        const otherUser = populatedChat.expand.participants.find(p => p.id !== currentUser?.id);
+        setSelectedChat(chat);
+        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
         setSelectedUser(otherUser || null);
         fetchMessages(chat.id);
         setIsProfileOpen(false);
-    }, [allUsers, currentUser, fetchMessages]);
+    }, [currentUser, fetchMessages]);
 
     
     useEffect(() => {
-        if (preselectedUser && currentUser && chats.length > 0) {
+        if (preselectedUser && currentUser && chats) {
             const findOrCreateChat = async () => {
                 let existingChat = chats.find(chat => 
                     chat.participants.includes(currentUser.id) && 
@@ -113,66 +128,56 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 if (existingChat) {
                     handleSelectChat(existingChat);
                 } else {
-                     const newChat: Omit<ChatRecord, 'expand'> = {
-                         id: `chat_local_${new Date().getTime()}`,
+                     const newChatData = {
                          participants: [currentUser.id, preselectedUser.id],
-                         ride: "",
                          last_message: "Nova conversa iniciada.",
-                         updated: new Date().toISOString(),
                      };
                      
-                     if (database) {
-                        const updatedDb: DatabaseData = { ...database, chats: [...database.chats, newChat] };
-                        await saveDatabase(updatedDb);
-                        refreshDatabase(); // Re-fetch to get the latest state including the new chat
-                        // Find the chat again in the refreshed data
-                        const refreshedChat = updatedDb.chats.find(c => c.id === newChat.id) as ChatRecord | undefined;
-                        if(refreshedChat) handleSelectChat(refreshedChat);
+                     try {
+                        const newChat = await pb.collection('chats').create<ChatRecord>(newChatData, { expand: 'participants' });
+                        setChats(prev => [newChat, ...prev]);
+                        handleSelectChat(newChat);
                          toast({ 
                             title: "Nova conversa iniciada",
                             description: `Conversa com ${preselectedUser.name} foi criada.`,
                         });
+                     } catch (error) {
+                        toast({ variant: 'destructive', title: "Erro", description: "Não foi possível criar a conversa." });
                      }
                 }
             }
             findOrCreateChat();
             onUserSelect(null); // Reset preselection
         }
-    }, [preselectedUser, onUserSelect, chats, currentUser, toast, handleSelectChat, database, saveDatabase, refreshDatabase]);
+    }, [preselectedUser, onUserSelect, chats, currentUser, toast, handleSelectChat]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedChat || !currentUser || !database) return;
+        if (!newMessage.trim() || !selectedChat || !currentUser) return;
         
+        setIsSending(true);
         const textToSend = newMessage;
         setNewMessage('');
         
-        const newMsg: MessageRecord = {
-            id: `msg_local_${new Date().getTime()}`,
-            chat: selectedChat.id,
-            sender: currentUser.id,
-            text: textToSend,
-            created: new Date().toISOString(),
-            expand: {
-                sender: currentUser as UserData
-            }
-        };
+        try {
+            const newMsgRecord = await pb.collection('messages').create({
+                chat: selectedChat.id,
+                sender: currentUser.id,
+                text: textToSend,
+            }, { expand: 'sender' });
+            
+            // Optimistic UI update
+            setMessages(prev => [...prev, newMsgRecord as MessageRecord]);
 
-        const updatedMessages = [...allMessages, newMsg];
-        const updatedChats = chats.map(c => c.id === selectedChat.id ? {...c, last_message: textToSend, updated: new Date().toISOString()} : c);
-        
-        const updatedDatabase: DatabaseData = {
-            ...database,
-            messages: updatedMessages,
-            chats: updatedChats
-        };
+            await pb.collection('chats').update(selectedChat.id, { 'last_message+': textToSend });
 
-        // Update UI immediately for responsiveness
-        setMessages(prev => [...prev, newMsg]);
-        
-        await saveDatabase(updatedDatabase);
-        // No need to refresh, saveDatabase updates the local state
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível enviar a mensagem.' });
+            setNewMessage(textToSend); // Revert input on error
+        } finally {
+            setIsSending(false);
+        }
     };
     
     const handleGenerateReport = () => {
@@ -205,25 +210,24 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
     }
     
     if (isProfileOpen && selectedUser) {
-        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} onUserUpdate={() => { refreshDatabase(); setIsProfileOpen(false); }} />;
+        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} onUserUpdate={() => { fetchInitialData(); setIsProfileOpen(false); }} />;
     }
 
-    const filteredChats = chats.map(chat => {
-        const otherUser = allUsers.find(u => chat.participants.includes(u.id) && u.id !== currentUser?.id);
-        return { chat, otherUser };
-    }).filter(({ otherUser }) => {
+    const filteredChats = chats.filter(({ expand }) => {
+        const otherUser = expand.participants.find(p => p.id !== currentUser?.id);
         if (!otherUser) return false;
         return otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                (otherUser.email && otherUser.email.toLowerCase().includes(searchTerm.toLowerCase()));
-    }).sort((a, b) => new Date(b.chat.updated).getTime() - new Date(a.chat.updated).getTime());
+    }).sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 
     const renderUserList = () => {
         if (filteredChats.length === 0) {
             return <div className="p-4 text-center text-muted-foreground">Nenhuma conversa encontrada.</div>
         }
-        return filteredChats.map(({ chat, otherUser }) => {
+        return filteredChats.map((chat) => {
+              const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
               if (!otherUser) return null;
-              const avatarUrl = getAvatarUrl(otherUser.avatar);
+              const avatarUrl = getAvatarUrl(otherUser, otherUser.avatar);
               return (
                 <div 
                   key={chat.id} 
@@ -247,13 +251,6 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
         <div className={cn("flex flex-col border-r bg-background", selectedChat ? 'hidden md:flex' : 'flex')}>
           <div className="p-4 border-b sticky top-0 bg-background z-10">
-            <Alert variant="destructive">
-                <Info className="h-4 w-4"/>
-                <AlertTitle>Modo de Edição Ativado</AlertTitle>
-                <AlertDescription>
-                   As ações de chat são salvas permanentemente no `banco.json`.
-                </AlertDescription>
-            </Alert>
             <div className="flex justify-between items-center my-2">
                 <h2 className="text-xl font-bold font-headline">Conversas</h2>
             </div>
@@ -280,7 +277,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                   <ArrowLeft className="w-5 h-5"/>
                 </Button>
                 <Avatar>
-                  <AvatarImage src={getAvatarUrl(selectedUser.avatar)} data-ai-hint="user portrait"/>
+                  <AvatarImage src={getAvatarUrl(selectedUser, selectedUser.avatar)} data-ai-hint="user portrait"/>
                   <AvatarFallback>{selectedUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
@@ -310,7 +307,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                      return (
                      <div key={msg.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                        <Avatar className="w-8 h-8 border">
-                          <AvatarImage src={sender?.avatar ? getAvatarUrl(sender.avatar) : ''} />
+                          <AvatarImage src={sender?.avatar ? getAvatarUrl(sender, sender.avatar) : ''} />
                           <AvatarFallback>{sender?.name?.substring(0,2).toUpperCase() || '??'}</AvatarFallback>
                        </Avatar>
                       <div className={`rounded-lg p-3 text-sm shadow-sm max-w-xs ${isMe ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white rounded-tl-none'}`}>
@@ -328,10 +325,10 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                         className="pr-12" 
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        disabled={isSaving}
+                        disabled={isSending}
                       />
-                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost" disabled={!newMessage.trim() || isSaving}>
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="w-5 h-5 text-primary"/>}
+                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost" disabled={!newMessage.trim() || isSending}>
+                        {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="w-5 h-5 text-primary"/>}
                       </Button>
                   </form>
               </div>

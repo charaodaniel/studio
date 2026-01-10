@@ -3,8 +3,8 @@
 
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import pb from '@/lib/pocketbase';
 import { type User } from '@/components/admin/UserList';
-import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 export interface AuthContextType {
   user: User | null;
@@ -21,45 +21,35 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const convertLocalUserToUserType = (localUser: any): User => {
-    return {
-        ...localUser,
-        id: localUser.id || `local_${Math.random().toString(36).substr(2, 9)}`,
-        collectionId: '_pb_users_auth_',
-        collectionName: 'users',
-        created: new Date().toISOString(),
-        updated: new Date().toISOString(),
-        username: localUser.email || localUser.phone,
-        verified: true,
-        role: Array.isArray(localUser.role) ? localUser.role : [localUser.role],
-    } as User;
-};
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const { database, isLoading: isDbLoading } = useDatabaseManager();
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  useEffect(() => {
+    const currentUser = pb.authStore.model as User | null;
+    setUser(currentUser);
+    setIsLoading(false);
+
+    const removeListener = pb.authStore.onChange(() => {
+        const updatedUser = pb.authStore.model as User | null;
+        setUser(updatedUser);
+    }, true);
+
+    return () => {
+        removeListener();
+    };
+  }, []);
+
   const login = useCallback(async (identity: string, password: string): Promise<User> => {
-    if (!database) {
-        throw new Error('Banco de dados não carregado. Tente novamente em alguns instantes.');
-    }
-
-    const foundUser = database.users.find(
-      u => (u.email && u.email.toLowerCase() === identity.toLowerCase()) || u.phone === identity
-    );
-
-    if (foundUser) {
-      console.log("Local login successful for:", foundUser.name);
-      const userToLogin = convertLocalUserToUserType(foundUser);
-      setUser(userToLogin);
-      return userToLogin;
-    }
-
-    throw new Error('Credenciais inválidas. Verifique os dados em banco.json');
-  }, [database]);
+    const authData = await pb.collection('users').authWithPassword(identity, password);
+    const loggedInUser = authData.record as User;
+    setUser(loggedInUser);
+    return loggedInUser;
+  }, []);
 
   const logout = useCallback(() => {
+    pb.authStore.clear();
     setUser(null);
     router.push('/');
   }, [router]);
@@ -67,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     isLoggedIn: !!user,
-    isLoading: isDbLoading,
+    isLoading: isLoading,
     login,
     logout,
     setUser

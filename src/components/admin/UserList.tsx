@@ -13,20 +13,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import { Skeleton } from '../ui/skeleton';
-import { useDatabaseManager } from '@/hooks/use-database-manager';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
   
-export interface User {
-    id: string;
-    collectionId: string;
-    collectionName: string;
-    created: string;
-    updated: string;
+export interface User extends RecordModel {
     name: string;
     email: string;
     avatar: string;
     phone: string;
     role: string[];
-    password_placeholder?: string;
     driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
     driver_vehicle_model?: string;
     driver_vehicle_plate?: string;
@@ -45,23 +40,40 @@ interface UserListProps {
     onSelectUser: (user: User) => void;
 }
 
-const getAvatarUrl = (avatarPath: string) => {
-    if (!avatarPath) return '';
-    return avatarPath;
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+    if (!record || !avatarFileName) return '';
+    return pb.getFileUrl(record, avatarFileName);
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
-    const { database, isLoading, error, refreshDatabase } = useDatabaseManager();
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const users = database?.users || [];
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const filter = roleFilter ? `role ~ "${roleFilter}"` : '';
+            const records = await pb.collection('users').getFullList<User>({ filter, sort: 'name' });
+            setUsers(records);
+        } catch (err: any) {
+            setError('Não foi possível carregar os usuários.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [roleFilter]);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
     const filteredUsers = users.filter((user: User) => {
-        const roleMatch = roleFilter ? user.role.includes(roleFilter) : true;
         const searchMatch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()));
-        return roleMatch && searchMatch;
+        return searchMatch;
     });
 
     const handleSelectAndClose = (user: User) => {
@@ -70,7 +82,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     };
     
     const handleUserUpdate = () => {
-        refreshDatabase();
+        fetchUsers();
         setSelectedUser(null);
     };
 
@@ -106,7 +118,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar>
-                    <AvatarImage src={getAvatarUrl(user.avatar)} data-ai-hint="user portrait"/>
+                    <AvatarImage src={getAvatarUrl(user, user.avatar)} data-ai-hint="user portrait"/>
                     <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">

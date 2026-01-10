@@ -25,10 +25,11 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
-import { useDatabaseManager, type DatabaseData } from "@/hooks/use-database-manager";
+import pb from "@/lib/pocketbase";
+import type { RecordModel } from "pocketbase";
+import DriverStatusLogModal from "./DriverStatusLogModal";
 
-interface RideRecord {
-    id: string;
+interface RideRecord extends RecordModel {
     passenger: string | null;
     driver: string;
     origin_address: string;
@@ -53,33 +54,56 @@ const appData = {
   
 export default function UserManagementTable() {
     const { toast } = useToast();
-    const { database, isLoading, error, refreshDatabase, saveDatabase, isSaving } = useDatabaseManager();
-    const users = database?.users || [];
-    
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
+    const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedUserForReport, setSelectedUserForReport] = useState<User | null>(null);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
     
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const records = await pb.collection('users').getFullList<User>({ sort: '-created' });
+            setUsers(records);
+        } catch (err) {
+            setError("Não foi possível carregar os usuários.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+    
     const onActionComplete = () => {
-        refreshDatabase();
+        fetchUsers();
         setSelectedUserForEdit(null);
         setIsAddUserOpen(false);
     }
     
     const handleGenerateReport = async (driver: User, type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
-        if (!database) return;
         
         let ridesToExport: RideRecord[] = [];
-        if (isCompleteReport) {
-            ridesToExport = database.rides.filter(ride => ride.driver === driver.id) as RideRecord[];
-        } else {
-            ridesToExport = database.rides.filter(ride => {
-                const rideDate = new Date(ride.created);
-                return ride.driver === driver.id && rideDate >= dateRange.from && rideDate <= endOfDay(dateRange.to);
-            }) as RideRecord[];
+        try {
+            if (isCompleteReport) {
+                ridesToExport = await pb.collection('rides').getFullList<RideRecord>({ filter: `driver = "${driver.id}"` });
+            } else {
+                 const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
+                 const endDate = endOfDay(dateRange.to).toISOString();
+                 ridesToExport = await pb.collection('rides').getFullList<RideRecord>({ filter: `driver = "${driver.id}" && created >= "${startDate}" && created <= "${endDate}"` });
+            }
+        } catch (error) {
+             toast({ title: "Erro ao buscar corridas", description: "Não foi possível gerar o relatório." });
+             return;
         }
+
 
         if (ridesToExport.length === 0) {
             toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no período selecionado.` });
@@ -94,10 +118,7 @@ export default function UserManagementTable() {
 
     const getPassengerName = (ride: RideRecord) => {
         if (ride.passenger_anonymous_name) return ride.passenger_anonymous_name;
-        if (ride.passenger) {
-            const passenger = users.find(u => u.id === ride.passenger);
-            return passenger?.name || "Passageiro não encontrado";
-        }
+        if (ride.expand?.passenger) return ride.expand.passenger.name;
         return "N/A";
     }
 
@@ -246,15 +267,16 @@ export default function UserManagementTable() {
     };
 
     const handleToggleUserStatus = async (user: User) => {
-        if (!database) return;
-        
-        const updatedUsers = database.users.map(u => 
-            u.id === user.id ? { ...u, disabled: !u.disabled } : u
-        );
-
-        const updatedDatabase: DatabaseData = { ...database, users: updatedUsers };
-        await saveDatabase(updatedDatabase);
-        refreshDatabase();
+        setIsSaving(true);
+        try {
+            await pb.collection('users').update(user.id, { disabled: !user.disabled });
+            toast({ title: "Status do Usuário Alterado" });
+            fetchUsers();
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro ao alterar status" });
+        } finally {
+            setIsSaving(false);
+        }
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -344,7 +366,7 @@ export default function UserManagementTable() {
                                 </DropdownMenuItem>
                                 {hasRole(user.role, 'Motorista') && (
                                     <>
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem onSelect={() => setSelectedUserForLog(user)}>
                                             <ListVideo className="mr-2 h-4 w-4"/>Ver Log de Status
                                         </DropdownMenuItem>
                                         <DropdownMenuSub>
@@ -377,7 +399,7 @@ export default function UserManagementTable() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                               Esta ação alterará o status de acesso do usuário no `banco.json` do repositório.
+                                               Esta ação vai {user.disabled ? 'ativar' : 'desativar'} o usuário na plataforma.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -408,6 +430,13 @@ export default function UserManagementTable() {
                             onBack={() => setSelectedUserForEdit(null)} 
                             onUserUpdate={onActionComplete}
                         />
+                     </DialogContent>
+                )}
+            </Dialog>
+            <Dialog open={!!selectedUserForLog} onOpenChange={(isOpen) => !isOpen && setSelectedUserForLog(null)}>
+                {selectedUserForLog && (
+                     <DialogContent>
+                        <DriverStatusLogModal user={selectedUserForLog} />
                      </DialogContent>
                 )}
             </Dialog>

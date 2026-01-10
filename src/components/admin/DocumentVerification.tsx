@@ -10,64 +10,72 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
-import { useDatabaseManager, type DatabaseData } from '@/hooks/use-database-manager';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
+import { type User } from './UserList';
 
-interface DocumentRecord {
+interface DocumentRecord extends RecordModel {
     id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
     file: string;
     is_verified: boolean;
+    expand?: {
+        driver: User;
+    }
+}
+
+const getFileUrl = (record: RecordModel, filename: string) => {
+    return pb.getFileUrl(record, filename);
 }
 
 export default function DocumentVerification() {
-    const { database, isLoading: isDbLoading, isSaving, refreshDatabase, saveDatabase } = useDatabaseManager();
     const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
-    const documents = database?.documents || [];
-    const users = database?.users || [];
-    const unverifiedDocs = documents.filter(doc => !doc.is_verified) as DocumentRecord[];
+    const fetchDocuments = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const docs = await pb.collection('driver_documents').getFullList<DocumentRecord>({
+                filter: 'is_verified = false',
+                expand: 'driver',
+            });
+            setDocuments(docs);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao buscar documentos' });
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [toast]);
 
-    const getDriverName = (driverId: string) => {
-        return users.find((u: any) => u.id === driverId)?.name || 'Desconhecido';
-    }
+    useEffect(() => {
+        fetchDocuments();
+    }, [fetchDocuments]);
+
 
     const handleAction = async (docId: string, action: 'approve' | 'reject') => {
-        if (!database) return;
-        
-        setIsLoading(true);
-
-        const updatedDocuments = database.documents.map(doc => {
-            if (doc.id === docId) {
-                // For rejection, we could remove it, but for simplicity, we just mark it.
-                // In a real scenario, we might notify the user or delete the record.
-                // For this CMS, we will just approve it.
-                return { ...doc, is_verified: action === 'approve' };
+        setIsSaving(true);
+        try {
+            if (action === 'approve') {
+                await pb.collection('driver_documents').update(docId, { is_verified: true });
+                toast({ title: 'Documento Aprovado!', description: 'O documento agora está verificado.' });
+            } else {
+                await pb.collection('driver_documents').delete(docId);
+                 toast({ title: 'Documento Rejeitado!', description: 'O documento foi removido.', variant: 'destructive' });
             }
-            return doc;
-        });
-
-        // If rejecting, we filter it out from the view, but it remains in the DB (as unverified).
-        // If approving, it will be filtered out naturally after state update.
-        const finalDocuments = action === 'reject' 
-            ? database.documents.filter(doc => doc.id !== docId)
-            : updatedDocuments;
-
-        const updatedDatabase: DatabaseData = { ...database, documents: finalDocuments };
-        
-        await saveDatabase(updatedDatabase);
-        refreshDatabase();
-        setIsLoading(false);
-
-        toast({
-            title: `Ação Realizada!`,
-            description: `O documento foi ${action === 'approve' ? 'aprovado' : 'rejeitado'} e a alteração foi salva.`,
-        });
+            fetchDocuments(); // Refresh the list
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível completar a ação.' });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const renderContent = () => {
-        if (isDbLoading || isSaving) {
+        if (isLoading) {
             return (
                 <div className="text-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -76,7 +84,7 @@ export default function DocumentVerification() {
             );
         }
 
-        if (unverifiedDocs.length === 0) {
+        if (documents.length === 0) {
             return (
                 <div className="text-center p-8 text-muted-foreground bg-green-50 border border-green-200 rounded-lg">
                     <FileCheck2 className="mx-auto h-10 w-10 mb-4 text-green-600" />
@@ -88,8 +96,9 @@ export default function DocumentVerification() {
         
         return (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {unverifiedDocs.map((doc) => {
-                    const driverName = getDriverName(doc.driver);
+                {documents.map((doc) => {
+                    const driverName = doc.expand?.driver?.name || 'Desconhecido';
+                    const fileUrl = getFileUrl(doc, doc.file);
                     return (
                         <Card key={doc.id} className="flex flex-col">
                             <CardHeader>
@@ -101,7 +110,7 @@ export default function DocumentVerification() {
                                     <DialogTrigger asChild>
                                         <div className="relative aspect-[4/3] w-full bg-muted rounded-md cursor-pointer hover:opacity-80 transition-opacity">
                                             <Image
-                                                src={doc.file}
+                                                src={fileUrl}
                                                 alt={`Documento de ${driverName}`}
                                                 fill
                                                 className="object-contain rounded-md"
@@ -113,7 +122,7 @@ export default function DocumentVerification() {
                                             <DialogTitle>{doc.document_type} de {driverName}</DialogTitle>
                                         </DialogHeader>
                                         <div className="flex justify-center p-4">
-                                            <Image src={doc.file} alt="Documento em tamanho maior" width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
+                                            <Image src={fileUrl} alt="Documento em tamanho maior" width={800} height={600} className="rounded-lg object-contain max-h-[80vh]" />
                                         </div>
                                     </DialogContent>
                                 </Dialog>
@@ -150,7 +159,7 @@ export default function DocumentVerification() {
                                          <AlertDialogHeader>
                                              <AlertDialogTitle>Aprovar Documento?</AlertDialogTitle>
                                              <AlertDialogDescription>
-                                                 Esta ação marcará o documento como verificado e o salvará no repositório.
+                                                 Esta ação marcará o documento como verificado e o motorista poderá ser habilitado.
                                              </AlertDialogDescription>
                                          </AlertDialogHeader>
                                          <AlertDialogFooter>
@@ -176,17 +185,10 @@ export default function DocumentVerification() {
                     <h2 className="text-2xl font-bold font-headline">Verificação de Documentos</h2>
                     <p className="text-muted-foreground">Aprove ou rejeite os documentos enviados pelos motoristas.</p>
                 </div>
-                 <Button variant="outline" size="icon" onClick={refreshDatabase} disabled={isDbLoading || isSaving}>
-                    <RefreshCw className={`h-4 w-4 ${isDbLoading || isSaving ? 'animate-spin' : ''}`} />
+                 <Button variant="outline" size="icon" onClick={fetchDocuments} disabled={isLoading || isSaving}>
+                    <RefreshCw className={`h-4 w-4 ${isLoading || isSaving ? 'animate-spin' : ''}`} />
                 </Button>
             </div>
-             <Alert variant="destructive">
-                <Info className="h-4 w-4"/>
-                <AlertTitle>Modo de Edição Ativado</AlertTitle>
-                <AlertDescription>
-                   As alterações feitas aqui serão salvas permanentemente no arquivo `banco.json` do repositório.
-                </AlertDescription>
-            </Alert>
             {renderContent()}
         </div>
     );

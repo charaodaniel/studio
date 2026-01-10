@@ -10,9 +10,17 @@ import OperatorAuthForm from './OperatorAuthForm';
 import AdminAuthForm from './AdminAuthForm';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
+
+const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
+  if (!record || !avatarFileName) return '';
+  return pb.getFileUrl(record, avatarFileName);
+};
 
 export default function LoginOptionsModal() {
-  const { isLoading, isLoggedIn } = useAuth();
+  const { isLoading, isLoggedIn, user: currentUser } = useAuth();
 
   if (isLoading) {
     return (
@@ -23,7 +31,7 @@ export default function LoginOptionsModal() {
   }
 
   // Se o usuário estiver logado, exibe diretamente o formulário do passageiro, que por sua vez mostrará o perfil.
-  if (isLoggedIn) {
+  if (isLoggedIn && currentUser) {
       return (
         <DialogContent className="max-h-[90vh] flex flex-col p-0">
           <div className="flex-1 overflow-hidden">

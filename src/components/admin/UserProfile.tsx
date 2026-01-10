@@ -10,24 +10,39 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import { useDatabaseManager, type DatabaseData } from '@/hooks/use-database-manager';
+import pb from '@/lib/pocketbase';
+import type { RecordModel } from 'pocketbase';
 
-const getAvatarUrl = (avatarPath: string) => {
-    if (!avatarPath) return '';
-    return avatarPath;
+const getFileUrl = (record: RecordModel, filename: string) => {
+    if (!record || !filename) return '';
+    return pb.getFileUrl(record, filename);
 };
 
-interface DocumentRecord {
-    id: string;
+interface DocumentRecord extends RecordModel {
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
     file: string; 
     is_verified: boolean;
 }
 
-const ViewDocumentsModal = ({ user, documents }: { user: User, documents: DocumentRecord[] }) => {
-    const verifiedDocs = documents.filter(d => d.driver === user.id && d.is_verified);
+const ViewDocumentsModal = ({ user }: { user: User }) => {
+    const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
+    useEffect(() => {
+        const fetchDocs = async () => {
+            if (!user) return;
+            try {
+                const docs = await pb.collection('driver_documents').getFullList<DocumentRecord>({
+                    filter: `driver = "${user.id}" && is_verified = true`
+                });
+                setDocuments(docs);
+            } catch (error) {
+                console.error("Failed to fetch verified documents:", error);
+            }
+        };
+        fetchDocs();
+    }, [user]);
+    
     return (
         <Dialog>
             <DialogTrigger asChild>{<div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 w-full text-left">
@@ -48,7 +63,7 @@ const ViewDocumentsModal = ({ user, documents }: { user: User, documents: Docume
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    {verifiedDocs.length > 0 ? verifiedDocs.map(doc => (
+                    {documents.length > 0 ? documents.map(doc => (
                         <div key={doc.id} className="flex items-center justify-between p-2 border rounded-lg">
                            <div>
                              <p className="font-semibold">{doc.document_type}</p>
@@ -59,7 +74,7 @@ const ViewDocumentsModal = ({ user, documents }: { user: User, documents: Docume
                                 <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4"/>Ver Imagem</Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl">
-                                <Image src={doc.file} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
+                                <Image src={getFileUrl(doc, doc.file)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
                             </DialogContent>
                            </Dialog>
                         </div>
@@ -74,27 +89,17 @@ interface UserProfileProps {
   user: User;
   onBack: () => void;
   onContact?: () => void;
-  onUserUpdate: () => void;
+  onUserUpdate?: () => void;
 }
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
-  const { database, saveDatabase, isSaving } = useDatabaseManager();
-  
+  const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<Partial<User>>({});
+  const [formData, setFormData] = useState<Partial<User>>(user);
   
   useEffect(() => {
-    setFormData({
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        driver_vehicle_model: user.driver_vehicle_model,
-        driver_vehicle_plate: user.driver_vehicle_plate,
-        driver_cnpj: user.driver_cnpj,
-        driver_pix_key: user.driver_pix_key,
-    });
+    setFormData(user);
   }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,22 +108,17 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSave = async () => {
-    if (!database) {
-        toast({ variant: 'destructive', title: 'Erro de Dados', description: 'Banco de dados não carregado.' });
-        return;
+    setIsSaving(true);
+    try {
+        await pb.collection('users').update(user.id, formData);
+        toast({ title: "Usuário Atualizado!", description: "Os dados do usuário foram salvos." });
+        if (onUserUpdate) onUserUpdate();
+        setIsEditing(false);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Erro ao Salvar', description: error.message });
+    } finally {
+        setIsSaving(false);
     }
-
-    const updatedUsers = database.users.map(u => 
-        u.id === user.id ? { ...u, ...formData } : u
-    );
-
-    const updatedDatabase: DatabaseData = { ...database, users: updatedUsers };
-    await saveDatabase(updatedDatabase);
-    
-    if (onUserUpdate) {
-        onUserUpdate();
-    }
-    setIsEditing(false);
   };
 
   const handleCall = () => {
@@ -133,11 +133,11 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     }
   };
   
-  const avatarUrl = user.avatar ? getAvatarUrl(user.avatar) : '';
+  const avatarUrl = user.avatar ? getFileUrl(user, user.avatar) : '';
 
   const renderListItem = (
     icon: React.ReactNode, 
-    primaryText: string, 
+    primaryText: string | number | readonly string[] | undefined, 
     secondaryText: string | null | undefined, 
     fieldId?: keyof User, 
     isEditable = true
@@ -240,7 +240,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
               
               <Card>
                  <CardContent className="p-0">
-                    <ViewDocumentsModal user={user} documents={database?.documents || []} />
+                    <ViewDocumentsModal user={user} />
                 </CardContent>
               </Card>
             </>
