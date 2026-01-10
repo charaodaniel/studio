@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ export default function AdminAuthForm() {
     try {
       const user = await login(identity, password);
 
-      if (user && user.role.includes('Admin')) {
+      if (user && (Array.isArray(user.role) ? user.role.includes('Admin') : user.role === 'Admin')) {
         toast({
           title: "Login bem-sucedido!",
           description: "Bem-vindo ao painel de administração.",

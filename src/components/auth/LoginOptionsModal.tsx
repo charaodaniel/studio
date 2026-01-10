@@ -11,12 +11,10 @@ import AdminAuthForm from './AdminAuthForm';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-  if (!record || !avatarFileName) return '';
-  return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+  if (!avatarPath) return '';
+  return avatarPath;
 };
 
 export default function LoginOptionsModal() {

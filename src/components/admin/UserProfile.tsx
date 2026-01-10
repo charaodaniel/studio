@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Edit, X, Eye, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Edit, X, Eye, ChevronRight, Loader2, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -10,15 +10,16 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import localDatabase from '@/database/banco.json';
 
-const getFileUrl = (record: RecordModel, filename: string) => {
-    if (!record || !filename) return '';
-    return pb.getFileUrl(record, filename);
+const getFileUrl = (filePath: string) => {
+    if (!filePath) return '';
+    return filePath;
 };
 
-interface DocumentRecord extends RecordModel {
+interface DocumentRecord {
+    id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
     file: string; 
@@ -29,18 +30,10 @@ const ViewDocumentsModal = ({ user }: { user: User }) => {
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
     useEffect(() => {
-        const fetchDocs = async () => {
-            if (!user) return;
-            try {
-                const docs = await pb.collection('driver_documents').getFullList<DocumentRecord>({
-                    filter: `driver = "${user.id}" && is_verified = true`
-                });
-                setDocuments(docs);
-            } catch (error) {
-                console.error("Failed to fetch verified documents:", error);
-            }
-        };
-        fetchDocs();
+        const userDocs = localDatabase.documents.filter(
+            doc => doc.driver === user.id && doc.is_verified
+        ) as DocumentRecord[];
+        setDocuments(userDocs);
     }, [user]);
     
     return (
@@ -74,7 +67,7 @@ const ViewDocumentsModal = ({ user }: { user: User }) => {
                                 <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4"/>Ver Imagem</Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl">
-                                <Image src={getFileUrl(doc, doc.file)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
+                                <Image src={getFileUrl(doc.file)} alt={`Documento de ${user.name}`} width={800} height={600} className="rounded-lg object-contain max-h-[80vh]"/>
                             </DialogContent>
                            </Dialog>
                         </div>
@@ -89,7 +82,7 @@ interface UserProfileProps {
   user: User;
   onBack: () => void;
   onContact?: () => void;
-  onUserUpdate?: () => void;
+  onUserUpdate?: (updatedUser: User) => void;
 }
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
@@ -109,16 +102,16 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
 
   const handleSave = async () => {
     setIsSaving(true);
-    try {
-        await pb.collection('users').update(user.id, formData);
-        toast({ title: "Usuário Atualizado!", description: "Os dados do usuário foram salvos." });
-        if (onUserUpdate) onUserUpdate();
-        setIsEditing(false);
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Erro ao Salvar', description: error.message });
-    } finally {
-        setIsSaving(false);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast({ title: "Usuário Atualizado (Simulação)", description: "Os dados foram atualizados na interface." });
+    
+    if (onUserUpdate) {
+        onUserUpdate({ ...user, ...formData } as User);
     }
+    
+    setIsEditing(false);
+    setIsSaving(false);
   };
 
   const handleCall = () => {
@@ -133,7 +126,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     }
   };
   
-  const avatarUrl = user.avatar ? getFileUrl(user, user.avatar) : '';
+  const avatarUrl = user.avatar ? getFileUrl(user.avatar) : '';
 
   const renderListItem = (
     icon: React.ReactNode, 
@@ -215,6 +208,15 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
         </div>
 
         <div className="p-4 space-y-4">
+            {isEditing && (
+                 <Alert variant="default" className="bg-yellow-50 border-yellow-200">
+                    <Info className="h-4 w-4 !text-yellow-700" />
+                    <AlertTitle className="text-yellow-800">Modo de Simulação</AlertTitle>
+                    <AlertDescription className="text-yellow-700">
+                        As alterações serão refletidas na interface, mas não serão salvas permanentemente.
+                    </AlertDescription>
+                </Alert>
+            )}
           <Card>
             <CardContent className="p-0 divide-y">
                {renderListItem(<Mail className="w-5 h-5" />, formData.email || 'Não informado', "Email", "email", true)}

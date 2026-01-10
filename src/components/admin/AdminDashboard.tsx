@@ -1,25 +1,29 @@
 
-
 import { User, List } from "lucide-react";
 import UserManagementTable from "./UserManagementTable";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import localDatabase from '@/database/banco.json';
 
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
+};
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const adminUser = localDatabase.users.find(u => Array.isArray(u.role) ? u.role.includes('Admin') : u.role === 'Admin');
   
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
        <div className="flex flex-col items-center gap-4 py-8 bg-card">
          <Avatar className="h-24 w-24 cursor-pointer ring-4 ring-background">
-            <AvatarImage src={user?.avatar || ''} />
+            <AvatarImage src={adminUser ? getAvatarUrl(adminUser.avatar) : ''} />
             <AvatarFallback>
                 <User className="h-10 w-10"/>
             </AvatarFallback>
         </Avatar>
         <div className="text-center">
-          <h2 className="font-headline text-2xl font-semibold">{user?.name || 'Painel do Administrador'}</h2>
+          <h2 className="font-headline text-2xl font-semibold">{adminUser?.name || 'Painel do Administrador'}</h2>
           <p className="text-muted-foreground">Visão geral e gerenciamento da plataforma.</p>
         </div>
       </div>

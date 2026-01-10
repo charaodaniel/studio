@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import pb from "@/lib/pocketbase";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Info } from 'lucide-react';
 
 interface AddUserFormProps {
-    onUserAdded: () => void;
+    onUserAdded: (newUser: any) => void;
 }
 
 export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
@@ -35,14 +36,16 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
 
         const password = Math.random().toString(36).slice(-8);
 
-        const data = {
-            "email": email,
-            "password": password,
-            "passwordConfirm": password,
-            "name": name,
-            "phone": phone,
-            "role": [role],
-             ...(role === 'Motorista' && {
+        // Simula a criação de um novo usuário para a UI
+        const newUser = {
+            id: `usr_local_${Date.now()}`,
+            name,
+            email,
+            phone,
+            role: [role],
+            avatar: '', // ou um avatar padrão
+            password_placeholder: password,
+            ...(role === 'Motorista' && {
                 driver_status: 'offline',
                 driver_vehicle_model: "",
                 driver_vehicle_plate: "",
@@ -54,27 +57,35 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             }),
         };
 
-        try {
-            await pb.collection('users').create(data);
-            toast({
-                title: "Usuário Adicionado!",
-                description: `O usuário ${name} foi criado com a senha temporária: ${password}`,
-                duration: 9000,
-            });
-            onUserAdded();
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Erro ao Adicionar Usuário',
-                description: error.message || "Não foi possível criar o usuário. Verifique se o email já existe.",
-            });
-        } finally {
-            setIsLoading(false);
-        }
+        // Simula um tempo de espera da API
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        toast({
+            title: "Usuário Adicionado (Simulação)",
+            description: `O usuário ${name} foi adicionado à lista. A senha temporária é: ${password}`,
+            duration: 9000,
+        });
+
+        onUserAdded(newUser);
+        
+        // Limpa o formulário
+        setName('');
+        setEmail('');
+        setPhone('');
+        setRole('Passageiro');
+        
+        setIsLoading(false);
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+             <Alert variant="default" className="bg-yellow-50 border-yellow-200">
+                <Info className="h-4 w-4 !text-yellow-700" />
+                <AlertTitle className="text-yellow-800">Modo de Protótipo</AlertTitle>
+                <AlertDescription className="text-yellow-700">
+                    A adição de usuários é apenas uma simulação. Os dados não serão salvos permanentemente no arquivo `banco.json`.
+                </AlertDescription>
+            </Alert>
             <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo</Label>
                 <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="João da Silva" required disabled={isLoading} />

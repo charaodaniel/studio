@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ export default function OperatorAuthForm() {
     setIsLoading(true);
     try {
       const user = await login(identity, password);
-      if (!user.role.includes('Atendente')) {
+      if (!(Array.isArray(user.role) ? user.role.includes('Atendente') : user.role === 'Atendente')) {
         throw new Error('Este login é exclusivo para atendentes.');
       }
       

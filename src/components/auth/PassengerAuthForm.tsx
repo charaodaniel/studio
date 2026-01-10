@@ -15,13 +15,11 @@ import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
 import { type User } from '../admin/UserList';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
 export default function PassengerAuthForm() {
@@ -36,12 +34,6 @@ export default function PassengerAuthForm() {
   const [loginIdentity, setLoginIdentity] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  
-  // States for register form
-  const [registerName, setRegisterName] = useState('');
-  const [registerPhone, setRegisterPhone] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,36 +60,11 @@ export default function PassengerAuthForm() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    if (registerPassword.length < 8) {
-        toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 8 caracteres.' });
-        setIsLoading(false);
-        return;
-    }
-    
-    const data = {
-        "email": registerEmail,
-        "password": registerPassword,
-        "passwordConfirm": registerPassword,
-        "name": registerName,
-        "phone": registerPhone,
-        "role": ["Passageiro"],
-    };
-
-    try {
-        await pb.collection('users').create(data);
-        toast({ title: 'Registro bem-sucedido!', description: 'Sua conta foi criada. Agora você pode fazer login.' });
-        setActiveTab('login');
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Falha no Registro',
-            description: error.message || 'Não foi possível criar a conta. Verifique seus dados.'
-        });
-    } finally {
-        setIsLoading(false);
-    }
+    toast({
+        title: 'Funcionalidade Indisponível',
+        description: 'O registro de novas contas está desativado no modo de protótipo local.',
+        variant: 'destructive'
+    });
   };
 
   const handleLogout = () => {
@@ -120,7 +87,7 @@ export default function PassengerAuthForm() {
   }
 
   if (user) {
-    const avatarUrl = user.avatar ? getAvatarUrl(user, user.avatar) : '';
+    const avatarUrl = user.avatar ? getAvatarUrl(user.avatar) : '';
     return (
       <ScrollArea className="max-h-[80vh] h-full">
         <div className="w-full">
@@ -216,31 +183,28 @@ export default function PassengerAuthForm() {
             </form>
           </TabsContent>
           <TabsContent value="register">
-            <form onSubmit={handleRegister}>
-              <CardContent className="space-y-4 pt-6 px-0">
+             <form onSubmit={handleRegister} className="space-y-4 pt-6">
+                <Alert variant="destructive">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                        O registro está desativado no modo de protótipo. Use um usuário de teste para fazer login.
+                    </AlertDescription>
+                </Alert>
                 <div className="space-y-2">
-                  <Label htmlFor="name-register">Nome</Label>
-                  <Input id="name-register" placeholder="Seu nome completo" required disabled={isLoading} value={registerName} onChange={(e) => setRegisterName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone-register">Telefone</Label>
-                  <Input id="phone-register" type="tel" placeholder="(00) 99999-9999" required disabled={isLoading} value={registerPhone} onChange={(e) => setRegisterPhone(e.target.value)}/>
+                  <Label htmlFor="name-register-pass">Nome</Label>
+                  <Input id="name-register-pass" placeholder="Seu nome completo" required disabled={true} />
                 </div>
                  <div className="space-y-2">
-                  <Label htmlFor="email-register">Email</Label>
-                  <Input id="email-register" type="email" placeholder="seu@email.com" required disabled={isLoading} value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} />
+                  <Label htmlFor="phone-register-pass">Telefone</Label>
+                  <Input id="phone-register-pass" type="tel" placeholder="(00) 99999-9999" required disabled={true} />
                 </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="password-register">Senha (mínimo 8 caracteres)</Label>
-                  <Input id="password-register" type="password" required disabled={isLoading} value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)} />
+                <div className="space-y-2">
+                  <Label htmlFor="email-register-pass">Email</Label>
+                  <Input id="email-register-pass" type="email" placeholder="seu@email.com" disabled={true} />
                 </div>
-              </CardContent>
-              <CardFooter className="px-0 pb-0">
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" className="w-full" disabled={true}>
                     Criar Conta
                 </Button>
-              </CardFooter>
             </form>
           </TabsContent>
         </Tabs>

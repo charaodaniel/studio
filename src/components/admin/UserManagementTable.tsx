@@ -25,11 +25,11 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
-import pb from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
 import DriverStatusLogModal from "./DriverStatusLogModal";
+import localDatabase from '@/database/banco.json';
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     passenger: string | null;
     driver: string;
     origin_address: string;
@@ -47,10 +47,7 @@ interface RideRecord extends RecordModel {
     }
 }
 
-const appData = {
-    name: "CEOLIN Mobilidade Urbana",
-    cnpj: "52.905.738/0001-00"
-}
+const appData = localDatabase.institutional_info;
   
 export default function UserManagementTable() {
     const { toast } = useToast();
@@ -69,10 +66,21 @@ export default function UserManagementTable() {
         setIsLoading(true);
         setError(null);
         try {
-            const records = await pb.collection('users').getFullList<User>({ sort: '-created' });
-            setUsers(records);
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const allUsers = localDatabase.users.map(u => ({
+                ...u,
+                id: u.id || `local_${Math.random()}`,
+                collectionId: '_pb_users_auth_',
+                collectionName: 'users',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                role: Array.isArray(u.role) ? u.role : [u.role],
+                disabled: (u as any).disabled || false,
+            })) as User[];
+            setUsers(allUsers.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()));
         } catch (err) {
-            setError("Não foi possível carregar os usuários.");
+            setError("Não foi possível carregar os usuários do arquivo local.");
         } finally {
             setIsLoading(false);
         }
@@ -82,8 +90,15 @@ export default function UserManagementTable() {
         fetchUsers();
     }, [fetchUsers]);
     
-    const onActionComplete = () => {
-        fetchUsers();
+    const onActionComplete = (updatedUser?: User, action: 'update' | 'add' | 'delete' = 'update') => {
+        if (action === 'add' && updatedUser) {
+            setUsers(prev => [updatedUser, ...prev]);
+        } else if (action === 'update' && updatedUser) {
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+        } else if (action === 'delete' && updatedUser) {
+            setUsers(prev => prev.filter(u => u.id !== updatedUser.id));
+        }
+        
         setSelectedUserForEdit(null);
         setIsAddUserOpen(false);
     }
@@ -92,18 +107,23 @@ export default function UserManagementTable() {
         
         let ridesToExport: RideRecord[] = [];
         try {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            let allDriverRides = localDatabase.rides.filter(r => r.driver === driver.id) as RideRecord[];
+
             if (isCompleteReport) {
-                ridesToExport = await pb.collection('rides').getFullList<RideRecord>({ filter: `driver = "${driver.id}"` });
+                ridesToExport = allDriverRides;
             } else {
-                 const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
-                 const endDate = endOfDay(dateRange.to).toISOString();
-                 ridesToExport = await pb.collection('rides').getFullList<RideRecord>({ filter: `driver = "${driver.id}" && created >= "${startDate}" && created <= "${endDate}"` });
+                 const startDate = dateRange.from.getTime();
+                 const endDate = endOfDay(dateRange.to).getTime();
+                 ridesToExport = allDriverRides.filter(ride => {
+                     const rideDate = new Date(ride.created).getTime();
+                     return rideDate >= startDate && rideDate <= endDate;
+                 });
             }
         } catch (error) {
              toast({ title: "Erro ao buscar corridas", description: "Não foi possível gerar o relatório." });
              return;
         }
-
 
         if (ridesToExport.length === 0) {
             toast({ title: "Nenhuma corrida encontrada", description: `O motorista ${driver.name} não possui corridas no período selecionado.` });
@@ -118,7 +138,10 @@ export default function UserManagementTable() {
 
     const getPassengerName = (ride: RideRecord) => {
         if (ride.passenger_anonymous_name) return ride.passenger_anonymous_name;
-        if (ride.expand?.passenger) return ride.expand.passenger.name;
+        
+        const passenger = localDatabase.users.find(u => u.id === ride.passenger);
+        if (passenger) return passenger.name;
+
         return "N/A";
     }
 
@@ -202,7 +225,7 @@ export default function UserManagementTable() {
         doc.setTextColor(100);
         doc.text("INFORMAÇÕES DA PLATAFORMA", pageWidth - 14, 40, { align: 'right' });
         doc.setFontSize(9);
-        doc.text(`Nome: ${appData.name}`, pageWidth - 14, 45, { align: 'right' });
+        doc.text(`Nome: ${appData.company_name}`, pageWidth - 14, 45, { align: 'right' });
         doc.text(`CNPJ: ${appData.cnpj}`, pageWidth - 14, 50, { align: 'right' });
         
         let startY = 62;
@@ -268,15 +291,14 @@ export default function UserManagementTable() {
 
     const handleToggleUserStatus = async (user: User) => {
         setIsSaving(true);
-        try {
-            await pb.collection('users').update(user.id, { disabled: !user.disabled });
-            toast({ title: "Status do Usuário Alterado" });
-            fetchUsers();
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao alterar status" });
-        } finally {
-            setIsSaving(false);
-        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const updatedUser = { ...user, disabled: !user.disabled };
+        setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? updatedUser : u));
+
+        toast({ title: "Status Alterado (Simulação)", description: `O status de ${user.name} foi alterado.` });
+        
+        setIsSaving(false);
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -305,7 +327,7 @@ export default function UserManagementTable() {
                             <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                             <DialogDescription>Preencha os dados para criar um novo usuário.</DialogDescription>
                         </DialogHeader>
-                        <AddUserForm onUserAdded={onActionComplete}/>
+                        <AddUserForm onUserAdded={(newUser) => onActionComplete(newUser as User, 'add')}/>
                     </DialogContent>
                 </Dialog>
             </div>
@@ -399,7 +421,7 @@ export default function UserManagementTable() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                               Esta ação vai {user.disabled ? 'ativar' : 'desativar'} o usuário na plataforma.
+                                               Esta ação vai {user.disabled ? 'ativar' : 'desativar'} o usuário na plataforma. (Ação simulada).
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -428,7 +450,7 @@ export default function UserManagementTable() {
                         <UserProfile 
                             user={selectedUserForEdit} 
                             onBack={() => setSelectedUserForEdit(null)} 
-                            onUserUpdate={onActionComplete}
+                            onUserUpdate={(updatedUser) => onActionComplete(updatedUser, 'update')}
                         />
                      </DialogContent>
                 )}

@@ -10,8 +10,7 @@ import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import LoginOptionsModal from '../auth/LoginOptionsModal';
 import { useAuth } from '@/hooks/useAuth';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import localDatabase from '@/database/banco.json';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -22,9 +21,9 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-  if (!record || !avatarFileName) return '';
-  return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+  if (!avatarPath) return '';
+  return avatarPath;
 };
 
 export function AppHeader({
@@ -74,7 +73,7 @@ export function AppHeader({
 
   const renderLogoLink = () => {
     if (showDriverAvatar && currentUser) {
-      const avatarUrl = getAvatarUrl(currentUser, currentUser.avatar);
+      const avatarUrl = getAvatarUrl(currentUser.avatar);
       return (
         <Link href="/" className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -118,7 +117,7 @@ export function AppHeader({
              <Dialog>
                 <DialogTrigger asChild>
                     <Button>
-                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={getAvatarUrl(currentUser, currentUser.avatar)}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
+                      {isLoggedIn && currentUser ? <Avatar className="h-6 w-6 mr-2"><AvatarImage src={getAvatarUrl(currentUser.avatar)}/><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar> : <LogIn className="mr-2 h-4 w-4" />}
                       {isLoggedIn ? "Meu Perfil" : "Login"}
                     </Button>
                 </DialogTrigger>

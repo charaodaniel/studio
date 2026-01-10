@@ -3,14 +3,14 @@
 
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import pb from '@/lib/pocketbase';
 import { type User } from '@/components/admin/UserList';
+import localDatabase from '@/database/banco.json';
 
 export interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
   isLoading: boolean;
-  login: (identity: string, password: string) => Promise<User>;
+  login: (identity: string, password?: string) => Promise<User>;
   logout: () => void;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
@@ -27,29 +27,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const currentUser = pb.authStore.model as User | null;
-    setUser(currentUser);
+    // No modo de protótipo, não há sessão persistente. Apenas paramos o loading.
     setIsLoading(false);
-
-    const removeListener = pb.authStore.onChange(() => {
-        const updatedUser = pb.authStore.model as User | null;
-        setUser(updatedUser);
-    }, true);
-
-    return () => {
-        removeListener();
-    };
   }, []);
 
-  const login = useCallback(async (identity: string, password: string): Promise<User> => {
-    const authData = await pb.collection('users').authWithPassword(identity, password);
-    const loggedInUser = authData.record as User;
-    setUser(loggedInUser);
-    return loggedInUser;
+  const login = useCallback(async (identity: string, password?: string): Promise<User> => {
+    // Simula a autenticação com o banco.json
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simula delay da rede
+
+    const foundUser = localDatabase.users.find(u => 
+      u.email.toLowerCase() === identity.toLowerCase() || u.phone === identity
+    );
+
+    if (foundUser) {
+        // No modo protótipo, não verificamos a senha, basta o usuário existir.
+        const fullUser = {
+            ...foundUser,
+            id: foundUser.id,
+            collectionId: '_pb_users_auth_',
+            collectionName: 'users',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+            role: Array.isArray(foundUser.role) ? foundUser.role : [foundUser.role]
+        } as User;
+
+        setUser(fullUser);
+        return fullUser;
+    } else {
+        throw new Error("Usuário não encontrado.");
+    }
   }, []);
 
   const logout = useCallback(() => {
-    pb.authStore.clear();
     setUser(null);
     router.push('/');
   }, [router]);

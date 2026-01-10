@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon, EyeOff } from 'lucide-react';
@@ -13,18 +14,20 @@ import { Switch } from '../ui/switch';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
-import type { RecordModel } from 'pocketbase';
+import { useAuth } from '@/hooks/useAuth';
+import localDatabase from '@/database/banco.json';
 
-const getFileUrl = (collectionId: string, recordId: string, filename: string) => {
-    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${collectionId}/${recordId}/${filename}`;
+const getFileUrl = (filePath: string) => {
+    if (!filePath) return '';
+    return filePath;
 }
 
-interface DocumentRecord extends RecordModel {
+interface DocumentRecord {
+    id: string;
     driver: string;
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
-    file: string; // filename
+    file: string; 
     is_verified: boolean;
 }
 
@@ -34,43 +37,26 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
     const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
 
     useEffect(() => {
-        const fetchDocument = async () => {
-            try {
-                const doc = await pb.collection('driver_documents').getFirstListItem<DocumentRecord>(`driver="${driverId}" && document_type="${docType}"`);
-                setDocument(doc);
-            } catch (error) {
-                setDocument(null);
-            }
-        };
-        fetchDocument();
+        const userDoc = localDatabase.documents.find(
+            d => d.driver === driverId && d.document_type === docType
+        ) as DocumentRecord | undefined;
+        setDocument(userDoc || null);
     }, [driverId, docType, onUpdate]);
 
     const handleFileSave = async (newImageAsDataUrl: string) => {
-        try {
-            const response = await fetch(newImageAsDataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `${docType}.png`, { type: blob.type });
-
-            const formData = new FormData();
-            formData.append('driver', driverId);
-            formData.append('document_type', docType);
-            formData.append('file', file);
-            formData.append('is_verified', 'false'); // Always requires re-verification
-
-            if (document) {
-                await pb.collection('driver_documents').update(document.id, formData);
-            } else {
-                await pb.collection('driver_documents').create(formData);
-            }
-            toast({ title: `${label} atualizado com sucesso!`});
-            onUpdate(); // Trigger parent re-fetch
-        } catch(error) {
-            console.error("Error saving document: ", error);
-            toast({ variant: 'destructive', title: `Erro ao salvar ${label}`, description: "Tente novamente." });
-        }
+        toast({ title: "Documento Salvo (Simulação)", description: "Seu documento foi salvo na interface." });
+        setDocument(prev => ({
+            ...prev,
+            id: prev?.id || `doc_${Date.now()}`,
+            driver: driverId,
+            document_type: docType,
+            file: newImageAsDataUrl,
+            is_verified: false
+        } as DocumentRecord));
+        onUpdate();
     }
     
-    const docUrl = document ? getFileUrl(document.collectionId, document.id, document.file) : null;
+    const docUrl = document ? getFileUrl(document.file) : null;
 
     return (
         <div className="space-y-2">
@@ -122,6 +108,7 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
 export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: User) => void }) {
   const { toast } = useToast();
   const router = useRouter();
+  const { logout } = useAuth();
   const [isPersonalInfoOpen, setIsPersonalInfoOpen] = useState(false);
   const [isVehicleOpen, setIsVehicleOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -131,9 +118,10 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   
   const [formData, setFormData] = useState<Partial<User>>(user);
-  const [newPassword, setNewPassword] = useState({ password: '', confirmPassword: '' });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  
+  useEffect(() => {
+    setFormData(user);
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { id, value } = e.target;
@@ -149,25 +137,19 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   }
 
   const handleSave = async (section: string) => {
-    if (!pb.authStore.model) return;
-    try {
-        const updatedRecord = await pb.collection('users').update(pb.authStore.model.id, formData);
-        onUpdate(updatedRecord as User);
-        toast({
-          title: 'Sucesso!',
-          description: `Suas alterações na seção de ${section} foram salvas.`,
-        });
-        setIsEditingPersonalInfo(false);
-        setIsEditingVehicleInfo(false);
-        setIsEditingSettings(false);
-    } catch (error) {
-        console.error("Failed to save:", error);
-        toast({ variant: 'destructive', title: 'Erro ao salvar', description: "Não foi possível salvar suas alterações."});
-    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+    onUpdate({ ...user, ...formData } as User);
+    toast({
+      title: 'Salvo com Sucesso (Simulação)',
+      description: `Suas alterações na seção de ${section} foram salvas na interface.`,
+    });
+    setIsEditingPersonalInfo(false);
+    setIsEditingVehicleInfo(false);
+    setIsEditingSettings(false);
   };
   
   const handleLogout = () => {
-    pb.authStore.clear();
+    logout();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -177,26 +159,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-    if (!newPassword.password || !newPassword.confirmPassword) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Preencha ambos os campos de senha.' });
-        return;
-    }
-    if (newPassword.password !== newPassword.confirmPassword) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'As senhas não coincidem.' });
-        return;
-    }
-    
-    try {
-        await pb.collection('users').update(user.id, {
-            password: newPassword.password,
-            passwordConfirm: newPassword.confirmPassword
-        });
-        toast({ title: 'Senha Alterada!', description: 'Sua senha foi atualizada com sucesso.' });
-        setNewPassword({password: '', confirmPassword: ''});
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar a senha. Verifique os requisitos.' });
-    }
+    toast({ title: 'Simulação', description: 'Em um app real, sua senha seria alterada agora.' });
   };
   
   const handleCancelEdit = (section: string) => {
@@ -256,30 +219,6 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                             <p className="text-sm font-medium p-2">{formData.driver_pix_key || 'Não informada'}</p>
                         )}
                     </div>
-
-                    {isEditingPersonalInfo && (
-                        <>
-                            <Separator />
-                            <form onSubmit={handleChangePassword} className="space-y-4">
-                                <h3 className="font-medium">Alterar Senha</h3>
-                                <div className="space-y-1">
-                                    <Label htmlFor="new-password">Nova Senha</Label>
-                                    <div className="relative">
-                                        <Input id="new-password" type={showPassword ? "text" : "password"} value={newPassword.password} onChange={(e) => setNewPassword(prev => ({...prev, password: e.target.value}))} required />
-                                        <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}><Eye className="h-4 w-4" /></Button>
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
-                                    <div className="relative">
-                                        <Input id="confirm-new-password" type={showPasswordConfirm ? "text" : "password"} value={newPassword.confirmPassword} onChange={(e) => setNewPassword(prev => ({...prev, confirmPassword: e.target.value}))} required />
-                                        <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground" onClick={() => setShowPasswordConfirm(!showPasswordConfirm)} tabIndex={-1}><Eye className="h-4 w-4" /></Button>
-                                    </div>
-                                </div>
-                                <Button type="submit" variant="secondary" className="w-full">Confirmar Nova Senha</Button>
-                            </form>
-                        </>
-                    )}
                 </div>
                 <DialogFooter>
                     {isEditingPersonalInfo ? (

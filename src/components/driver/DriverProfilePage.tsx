@@ -1,9 +1,10 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, Star, Loader2 } from 'lucide-react';
+import { Camera, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RideRequests } from './RideRequests';
@@ -14,16 +15,16 @@ import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
 import { Skeleton } from '../ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import { usePocketBase } from '@/hooks/usePocketBase';
+import localDatabase from '@/database/banco.json';
 import { type User } from '../admin/UserList';
-import type { RecordModel } from 'pocketbase';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return `${process.env.NEXT_PUBLIC_POCKETBASE_URL}/api/files/${record.collectionId}/${record.id}/${avatarFileName}`;
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
-interface RideRecord extends RecordModel {
+interface RideRecord {
+    id: string;
     passenger: string | null;
     driver: string;
     origin_address: string;
@@ -44,52 +45,35 @@ interface RideRecord extends RecordModel {
 export function DriverProfilePage() {
   const { toast } = useToast();
   const { user, setUser, isLoading: isAuthLoading } = useAuth();
-  const pb = usePocketBase();
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [completedRidesCount, setCompletedRidesCount] = useState<number | null>(null);
   const [activeManualRide, setActiveManualRide] = useState<RideRecord | null>(null);
   const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
-    if (user && pb) {
-        pb.collection('rides').getFullList({
-            filter: `driver = "${user.id}" && status = "completed"`,
-        })
-        .then(rides => setCompletedRidesCount(rides.length))
-        .catch(() => setCompletedRidesCount(0));
+    if (user) {
+        const userRides = localDatabase.rides.filter(
+            ride => ride.driver === user.id && ride.status === "completed"
+        );
+        setCompletedRidesCount(userRides.length);
     }
-  }, [user, pb]);
+  }, [user]);
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!user || !pb) return;
+    if (!user) return;
     
-    try {
-        const updatedUser = await pb.collection('users').update(user.id, { driver_status: newStatus });
-        setUser(updatedUser as User);
+    const updatedUser = { ...user, driver_status: newStatus };
+    setUser(updatedUser as User);
 
-        toast({
-          title: 'Status Atualizado',
-          description: `Seu status foi alterado para ${
-            newStatus === 'online' ? 'Online' 
-            : newStatus === 'offline' ? 'Offline' 
-            : newStatus === 'urban-trip' ? 'Em Viagem (Urbano)' 
-            : 'Em Viagem (Interior/Intermunicipal)'
-          }.`,
-        });
-
-        try {
-            await pb.collection('driver_status_logs').create({
-                driver: user.id,
-                status: newStatus,
-            });
-        } catch (logError) {
-             console.error("Failed to create status log (non-critical):", logError);
-        }
-
-    } catch (error) {
-        console.error("Failed to update status:", error);
-        toast({ variant: "destructive", title: "Erro ao atualizar status", description: "Não foi possível alterar seu status. Tente novamente." });
-    }
+    toast({
+      title: 'Status Atualizado (Simulação)',
+      description: `Seu status foi alterado para ${
+        newStatus === 'online' ? 'Online' 
+        : newStatus === 'offline' ? 'Offline' 
+        : newStatus === 'urban-trip' ? 'Em Viagem (Urbano)' 
+        : 'Em Viagem (Interior/Intermunicipal)'
+      }.`,
+    });
   };
 
   const handleManualRideStarted = (ride: RideRecord) => {
@@ -103,27 +87,14 @@ export function DriverProfilePage() {
     handleStatusChange('online');
   }
 
-  const handleAvatarSave = async (newImageAsDataUrl: string) => {
-    if (!user || !pb) return;
-
-    try {
-        const response = await fetch(newImageAsDataUrl);
-        const blob = await response.blob();
-        const file = new File([blob], "avatar.png", { type: blob.type });
-
-        const formData = new FormData();
-        formData.append('avatar', file);
-
-        const updatedRecord = await pb.collection('users').update(user.id, formData);
-        setUser(updatedRecord as User);
-        toast({ title: 'Avatar atualizado com sucesso!' });
-    } catch (error) {
-        console.error("Failed to update avatar:", error);
-        toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
-    }
+  const handleAvatarSave = (newImageAsDataUrl: string) => {
+    if (!user) return;
+    const updatedUser = { ...user, avatar: newImageAsDataUrl };
+    setUser(updatedUser as User);
+    toast({ title: 'Avatar atualizado (Simulação)', description: 'Sua foto de perfil foi atualizada na interface.' });
   }
 
-  const avatarUrl = user?.avatar ? getAvatarUrl(user, user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
+  const avatarUrl = user?.avatar ? getAvatarUrl(user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
 
   if (isAuthLoading || !user) {

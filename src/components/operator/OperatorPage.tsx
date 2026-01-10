@@ -10,39 +10,24 @@ import UserManagement from '../admin/UserManagement';
 import type { User as UserData } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import OperatorLists from './OperatorLists';
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
+import { useAuth } from '@/hooks/useAuth';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-  if (!record || !avatarFileName) return '';
-  return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+  if (!avatarPath) return '';
+  return avatarPath;
 };
 
 export function OperatorPage() {
   const [activeTab, setActiveTab] = useState("status");
   const [selectedUserForChat, setSelectedUserForChat] = useState<UserData | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const user = pb.authStore.model as UserData | null;
-    setCurrentUser(user);
-    setIsLoading(false);
-
-    const removeListener = pb.authStore.onChange(() => {
-        const updatedUser = pb.authStore.model as UserData | null;
-        setCurrentUser(updatedUser);
-    });
-
-    return () => removeListener();
-  }, []);
-
+  const { user: currentUser, isLoading } = useAuth();
+  
   const handleSelectUser = (user: UserData) => {
     setSelectedUserForChat(user);
     setActiveTab("conversations");
   };
 
-  const avatarUrl = currentUser?.avatar ? getAvatarUrl(currentUser, currentUser.avatar) : '';
+  const avatarUrl = currentUser?.avatar ? getAvatarUrl(currentUser.avatar) : '';
   const avatarFallback = currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : <Headset className="h-10 w-10"/>;
 
   return (

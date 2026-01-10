@@ -1,5 +1,4 @@
 
-
 'use client';
 import { ScrollArea } from "../ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -7,45 +6,38 @@ import { Separator } from "../ui/separator";
 import { MessageSquare, WifiOff, Loader2 } from "lucide-react";
 import { RideChat } from "./NegotiationChat";
 import { useState, useEffect, useCallback } from "react";
-import pb from '@/lib/pocketbase';
-import type { RecordModel } from 'pocketbase';
-import { User } from "../admin/UserList";
+import localDatabase from '@/database/banco.json';
+import type { User } from "../admin/UserList";
+import { useAuth } from "@/hooks/useAuth";
 
-
-interface ChatRecord extends RecordModel {
+interface ChatRecord {
   id: string;
   participants: string[];
   last_message: string;
   ride: string;
   updated: string;
-  expand: {
-    participants: User[];
-  }
 }
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
 export function DriverChatHistory() {
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
 
   const fetchChats = useCallback(async () => {
-    const currentUser = pb.authStore.model;
     if (!currentUser) return;
     setIsLoading(true);
     setError(null);
 
     try {
-        const records = await pb.collection('chats').getFullList<ChatRecord>({
-            filter: `participants.id ?~ "${currentUser.id}" && role = "Motorista"`,
-            expand: 'participants',
-            sort: '-updated'
-        });
-        setChats(records);
+        await new Promise(resolve => setTimeout(resolve, 250)); // Simulate delay
+        const driverChats = localDatabase.chats.filter(chat => chat.participants.includes(currentUser.id));
+        setChats(driverChats.sort((a,b) => new Date(b.updated).getTime() - new Date(a.updated).getTime()));
     } catch (err: any) {
         console.error("Failed to fetch chats:", err);
         setError("Não foi possível carregar as conversas.");
@@ -53,20 +45,10 @@ export function DriverChatHistory() {
     } finally {
         setIsLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     fetchChats();
-    
-    pb.collection('chats').subscribe('*', (e) => {
-      if (e.record.participants?.includes(pb.authStore.model?.id)) {
-        fetchChats();
-      }
-    });
-
-    return () => {
-      pb.collection('chats').unsubscribe();
-    }
   }, [fetchChats]);
 
   const renderContent = () => {
@@ -94,10 +76,11 @@ export function DriverChatHistory() {
     return (
         <ul className="px-4">
             {chats.map((chat, index) => {
-                const otherUser = chat.expand.participants.find(p => p.id !== pb.authStore.model?.id);
+                const otherUserId = chat.participants.find(p => p !== currentUser?.id);
+                const otherUser = localDatabase.users.find(u => u.id === otherUserId);
                 if (!otherUser) return null;
 
-                const avatarUrl = otherUser.avatar ? getAvatarUrl(otherUser, otherUser.avatar) : '';
+                const avatarUrl = otherUser.avatar ? getAvatarUrl(otherUser.avatar) : '';
 
                 return (
                     <li key={chat.id}>
