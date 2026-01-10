@@ -78,6 +78,7 @@
       "name": "juliano",
       "email": "juliano@gmail.com",
       "phone": "55996393353",
+      "password_placeholder": "123456789",
       "role": [
         "Motorista"
       ],
