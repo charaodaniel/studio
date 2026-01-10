@@ -16,8 +16,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import UserProfile from './UserProfile';
 import type { User as UserData } from './UserList';
 import { useToast } from '@/hooks/use-toast';
-import localData from '@/database/banco.json';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useDatabaseManager, type DatabaseData } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -29,6 +29,7 @@ interface ChatRecord {
   participants: string[];
   last_message: string;
   updated: string;
+  ride: string;
   expand: {
     participants: UserData[];
   }
@@ -51,78 +52,59 @@ interface UserManagementProps {
 }
   
 export default function UserManagement({ preselectedUser, onUserSelect }: UserManagementProps) {
-    const [database, setDatabase] = useState(localData);
-    const [chats, setChats] = useState<ChatRecord[]>([]);
-
+    const { database, isLoading: isDbLoading, isSaving, saveDatabase, refreshDatabase } = useDatabaseManager();
     const [selectedChat, setSelectedChat] = useState<ChatRecord | null>(null);
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [messages, setMessages] = useState<MessageRecord[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    
     const [searchTerm, setSearchTerm] = useState('');
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isClient, setIsClient] = useState(false);
+    
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     
-    const currentUser = database.users.find(u => u.role === "Admin" || (Array.isArray(u.role) && u.role.includes("Admin"))) as UserData | undefined;
+    const chats = database?.chats as ChatRecord[] || [];
+    const allUsers = database?.users as UserData[] || [];
+    const allMessages = database?.messages as MessageRecord[] || [];
 
-    useEffect(() => {
-        setIsClient(true);
-        if (currentUser) {
-            const allUsers = database.users as unknown as UserData[];
-            const userChats = database.chats
-                .filter(chat => chat.participants.includes(currentUser.id))
-                .map(chat => {
-                    const participants = chat.participants.map((pId: string) => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
-                    return {
-                        ...chat,
-                        expand: {
-                            participants,
-                        }
-                    }
-                }) as ChatRecord[];
-            
-            setChats(userChats);
-        }
-    }, [database, currentUser]);
-
-    const fetchMessages = useCallback(async (chatId: string) => {
-        setMessages([]); // Clear old messages
-        const allUsers = database.users as unknown as UserData[];
-        const chatMessages = database.messages
-            .filter(msg => msg.chat === chatId)
-            .map(msg => ({
-                ...msg,
-                expand: {
-                    sender: allUsers.find(u => u.id === msg.sender) as UserData
-                }
-            })) as MessageRecord[];
-        
-        setMessages(chatMessages.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
-    }, [database]);
-
-    useEffect(() => {
-        if (!selectedChat) return;
-        fetchMessages(selectedChat.id);
-    }, [selectedChat, fetchMessages]);
-
+    const currentUser = allUsers.find(u => u.role?.includes("Admin"));
+    
     useEffect(() => {
       if (scrollAreaRef.current) {
         scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
       }
     }, [messages]);
 
-    const handleSelectChat = (chat: ChatRecord) => {
-        setSelectedChat(chat);
-        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
+    const fetchMessages = useCallback((chatId: string) => {
+        if (!database) return;
+        setMessages([]);
+        const chatMessages = allMessages
+            .filter(msg => msg.chat === chatId)
+            .map(msg => ({
+                ...msg,
+                expand: {
+                    sender: allUsers.find(u => u.id === msg.sender) as UserData
+                }
+            }));
+        setMessages(chatMessages.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
+    }, [database, allMessages, allUsers]);
+
+
+    const handleSelectChat = useCallback((chat: ChatRecord) => {
+        const participants = chat.participants.map(pId => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
+        const populatedChat = {...chat, expand: { participants }};
+
+        setSelectedChat(populatedChat);
+        const otherUser = populatedChat.expand.participants.find(p => p.id !== currentUser?.id);
         setSelectedUser(otherUser || null);
+        fetchMessages(chat.id);
         setIsProfileOpen(false);
-    }
+    }, [allUsers, currentUser, fetchMessages]);
+
     
     useEffect(() => {
         if (preselectedUser && currentUser && chats.length > 0) {
-            const findOrCreateChat = () => {
+            const findOrCreateChat = async () => {
                 let existingChat = chats.find(chat => 
                     chat.participants.includes(currentUser.id) && 
                     chat.participants.includes(preselectedUser.id)
@@ -131,39 +113,42 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 if (existingChat) {
                     handleSelectChat(existingChat);
                 } else {
-                     toast({ 
-                        title: "Nova conversa iniciada (Simulação)",
-                        description: "No app real, uma nova conversa seria criada.",
-                    });
-                     // Simulate creating a new chat locally for display
-                     const newChat = {
+                     const newChat: Omit<ChatRecord, 'expand'> = {
                          id: `chat_local_${new Date().getTime()}`,
                          participants: [currentUser.id, preselectedUser.id],
                          ride: "",
                          last_message: "Nova conversa iniciada.",
                          updated: new Date().toISOString(),
-                         expand: {
-                             participants: [currentUser, preselectedUser]
-                         }
-                     } as ChatRecord;
-                     setChats(prev => [newChat, ...prev]);
-                     handleSelectChat(newChat);
+                     };
+                     
+                     if (database) {
+                        const updatedDb: DatabaseData = { ...database, chats: [...database.chats, newChat] };
+                        await saveDatabase(updatedDb);
+                        refreshDatabase(); // Re-fetch to get the latest state including the new chat
+                        // Find the chat again in the refreshed data
+                        const refreshedChat = updatedDb.chats.find(c => c.id === newChat.id) as ChatRecord | undefined;
+                        if(refreshedChat) handleSelectChat(refreshedChat);
+                         toast({ 
+                            title: "Nova conversa iniciada",
+                            description: `Conversa com ${preselectedUser.name} foi criada.`,
+                        });
+                     }
                 }
             }
             findOrCreateChat();
             onUserSelect(null); // Reset preselection
         }
-    }, [preselectedUser, onUserSelect, chats, currentUser, toast]);
+    }, [preselectedUser, onUserSelect, chats, currentUser, toast, handleSelectChat, database, saveDatabase, refreshDatabase]);
 
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedChat || !currentUser) return;
+        if (!newMessage.trim() || !selectedChat || !currentUser || !database) return;
         
         const textToSend = newMessage;
         setNewMessage('');
         
-        const newMsg = {
+        const newMsg: MessageRecord = {
             id: `msg_local_${new Date().getTime()}`,
             chat: selectedChat.id,
             sender: currentUser.id,
@@ -174,14 +159,20 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
             }
         };
 
-        // Update UI immediately
-        setMessages(prev => [...prev, newMsg]);
-        setChats(prev => prev.map(c => c.id === selectedChat.id ? {...c, last_message: textToSend} : c));
+        const updatedMessages = [...allMessages, newMsg];
+        const updatedChats = chats.map(c => c.id === selectedChat.id ? {...c, last_message: textToSend, updated: new Date().toISOString()} : c);
+        
+        const updatedDatabase: DatabaseData = {
+            ...database,
+            messages: updatedMessages,
+            chats: updatedChats
+        };
 
-        toast({
-            title: "Mensagem Enviada (Simulação)",
-            description: "No modo de protótipo, a mensagem não é salva permanentemente."
-        });
+        // Update UI immediately for responsiveness
+        setMessages(prev => [...prev, newMsg]);
+        
+        await saveDatabase(updatedDatabase);
+        // No need to refresh, saveDatabase updates the local state
     };
     
     const handleGenerateReport = () => {
@@ -209,27 +200,28 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         URL.revokeObjectURL(url);
     };
 
-    if (!isClient || !currentUser) {
+    if (isDbLoading) {
         return <div className="flex-1 flex items-center justify-center bg-muted/40 h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>; 
     }
-
-    if (isProfileOpen && selectedUser) {
-        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} onUserUpdate={() => setIsProfileOpen(false)} />;
-    }
     
-    const filteredChats = chats.filter(chat => {
-        const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
+    if (isProfileOpen && selectedUser) {
+        return <UserProfile user={selectedUser} onBack={() => setIsProfileOpen(false)} onContact={() => setIsProfileOpen(false)} onUserUpdate={() => { refreshDatabase(); setIsProfileOpen(false); }} />;
+    }
+
+    const filteredChats = chats.map(chat => {
+        const otherUser = allUsers.find(u => chat.participants.includes(u.id) && u.id !== currentUser?.id);
+        return { chat, otherUser };
+    }).filter(({ otherUser }) => {
         if (!otherUser) return false;
         return otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                (otherUser.email && otherUser.email.toLowerCase().includes(searchTerm.toLowerCase()));
-    }).sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    }).sort((a, b) => new Date(b.chat.updated).getTime() - new Date(a.chat.updated).getTime());
 
     const renderUserList = () => {
         if (filteredChats.length === 0) {
             return <div className="p-4 text-center text-muted-foreground">Nenhuma conversa encontrada.</div>
         }
-        return filteredChats.map((chat) => {
-              const otherUser = chat.expand.participants.find(p => p.id !== currentUser?.id);
+        return filteredChats.map(({ chat, otherUser }) => {
               if (!otherUser) return null;
               const avatarUrl = getAvatarUrl(otherUser.avatar);
               return (
@@ -255,11 +247,11 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
       <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full overflow-hidden">
         <div className={cn("flex flex-col border-r bg-background", selectedChat ? 'hidden md:flex' : 'flex')}>
           <div className="p-4 border-b sticky top-0 bg-background z-10">
-            <Alert>
+            <Alert variant="destructive">
                 <Info className="h-4 w-4"/>
-                <AlertTitle>Modo Protótipo</AlertTitle>
+                <AlertTitle>Modo de Edição Ativado</AlertTitle>
                 <AlertDescription>
-                   As ações de chat são apenas simulações e não são salvas.
+                   As ações de chat são salvas permanentemente no `banco.json`.
                 </AlertDescription>
             </Alert>
             <div className="flex justify-between items-center my-2">
@@ -336,9 +328,10 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                         className="pr-12" 
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
+                        disabled={isSaving}
                       />
-                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost" disabled={!newMessage.trim()}>
-                        <Send className="w-5 h-5 text-primary"/>
+                      <Button type="submit" size="icon" className="absolute top-1/2 -translate-y-1/2 right-2" variant="ghost" disabled={!newMessage.trim() || isSaving}>
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="w-5 h-5 text-primary"/>}
                       </Button>
                   </form>
               </div>

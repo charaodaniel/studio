@@ -8,16 +8,19 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
-import { Search, Loader2 } from "lucide-react"
+import { Search, Loader2, WifiOff } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import { Skeleton } from '../ui/skeleton';
-import type { RecordModel } from 'pocketbase';
-import localData from '@/database/banco.json';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
   
-export interface User extends RecordModel {
+export interface User {
     id: string;
+    collectionId: string;
+    collectionName: string;
+    created: string;
+    updated: string;
     name: string;
     email: string;
     avatar: string;
@@ -48,31 +51,11 @@ const getAvatarUrl = (avatarPath: string) => {
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
-    const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { database, isLoading, error, refreshDatabase } = useDatabaseManager();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const refreshUsers = useCallback(() => {
-        setIsLoading(true);
-        const userList = localData.users.map(u => ({
-            ...u,
-            id: u.id || `local_${Math.random()}`,
-            collectionId: '_pb_users_auth_',
-            collectionName: 'users',
-            created: new Date().toISOString(),
-            updated: new Date().toISOString(),
-            role: Array.isArray(u.role) ? u.role : [u.role],
-            disabled: (u as any).disabled || false,
-        })) as unknown as User[];
-        setUsers(userList);
-        setIsLoading(false);
-    }, []);
-
-    useEffect(() => {
-        refreshUsers();
-    }, [refreshUsers]);
-
+    const users = database?.users || [];
 
     const filteredUsers = users.filter((user: User) => {
         const roleMatch = roleFilter ? user.role.includes(roleFilter) : true;
@@ -86,8 +69,8 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setSelectedUser(null);
     };
     
-    const handleUserUpdate = (updatedUser: User) => {
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    const handleUserUpdate = () => {
+        refreshDatabase();
         setSelectedUser(null);
     };
 
@@ -106,6 +89,14 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                     ))}
                 </div>
             )
+        }
+        if (error) {
+            return (
+                <div className="flex flex-col items-center justify-center p-8 text-destructive">
+                   <WifiOff className="h-8 w-8 mb-2" />
+                   <p>{error}</p>
+                </div>
+            );
         }
         if (filteredUsers.length > 0) {
             return filteredUsers.map((user) => (

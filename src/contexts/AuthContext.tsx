@@ -3,9 +3,8 @@
 
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import pb from '@/lib/pocketbase';
 import { type User } from '@/components/admin/UserList';
-import localUsersData from '@/database/banco.json';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 export interface AuthContextType {
   user: User | null;
@@ -38,37 +37,29 @@ const convertLocalUserToUserType = (localUser: any): User => {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { database, isLoading: isDbLoading } = useDatabaseManager();
   const router = useRouter();
 
-  useEffect(() => {
-    // In this local-first mode, we ignore PocketBase's authStore on load.
-    // The login function will handle setting the user from banco.json.
-    pb.authStore.clear();
-    setIsLoading(false);
-  }, []);
-
   const login = useCallback(async (identity: string, password: string): Promise<User> => {
-    console.log(`Attempting local login with: ${identity}`);
-    const foundUser = localUsersData.users.find(
+    if (!database) {
+        throw new Error('Banco de dados não carregado. Tente novamente em alguns instantes.');
+    }
+
+    const foundUser = database.users.find(
       u => (u.email && u.email.toLowerCase() === identity.toLowerCase()) || u.phone === identity
     );
 
     if (foundUser) {
-      // NOTE: Password check is bypassed for local development with banco.json
       console.log("Local login successful for:", foundUser.name);
       const userToLogin = convertLocalUserToUserType(foundUser);
       setUser(userToLogin);
-      // Simulate PocketBase's authStore for any remaining client-side checks that might use it
-      pb.authStore.save('local_token_placeholder', userToLogin);
       return userToLogin;
     }
 
     throw new Error('Credenciais inválidas. Verifique os dados em banco.json');
-  }, []);
+  }, [database]);
 
   const logout = useCallback(() => {
-    pb.authStore.clear();
     setUser(null);
     router.push('/');
   }, [router]);
@@ -76,7 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     isLoggedIn: !!user,
-    isLoading,
+    isLoading: isDbLoading,
     login,
     logout,
     setUser

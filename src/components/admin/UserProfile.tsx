@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Search, Edit, X, Eye, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Car, Mail, Phone, Wallet, FileText, MessageSquare, Briefcase, Edit, X, Eye, ChevronRight, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -10,7 +10,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import localData from '@/database/banco.json';
+import { useDatabaseManager, type DatabaseData } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -25,17 +25,21 @@ interface DocumentRecord {
     is_verified: boolean;
 }
 
-const ViewDocumentsModal = ({ user, children }: { user: User, children: React.ReactNode }) => {
-    const [documents, setDocuments] = useState<DocumentRecord[]>([]);
-
-    useEffect(() => {
-        const docs = localData.documents.filter(d => d.driver === user.id && d.is_verified) as DocumentRecord[];
-        setDocuments(docs);
-    }, [user]);
+const ViewDocumentsModal = ({ user, documents }: { user: User, documents: DocumentRecord[] }) => {
+    const verifiedDocs = documents.filter(d => d.driver === user.id && d.is_verified);
 
     return (
         <Dialog>
-            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogTrigger asChild>{<div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 w-full text-left">
+                <div className="flex items-center gap-4">
+                     <FileText className="w-5 h-5 text-muted-foreground" />
+                    <div>
+                        <p className="text-sm">Ver Documentos</p>
+                        <p className="text-xs text-muted-foreground">Visualizar documentos aprovados</p>
+                    </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </div>}</DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Documentos Verificados de {user.name}</DialogTitle>
@@ -44,7 +48,7 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    {documents.length > 0 ? documents.map(doc => (
+                    {verifiedDocs.length > 0 ? verifiedDocs.map(doc => (
                         <div key={doc.id} className="flex items-center justify-between p-2 border rounded-lg">
                            <div>
                              <p className="font-semibold">{doc.document_type}</p>
@@ -69,13 +73,13 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
 interface UserProfileProps {
   user: User;
   onBack: () => void;
-  onContact: () => void;
-  onUserUpdate: (updatedUser: User) => void;
+  onContact?: () => void;
+  onUserUpdate: () => void;
 }
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const { database, saveDatabase, isSaving } = useDatabaseManager();
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
@@ -98,16 +102,23 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSave = () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-        const updatedUser = { ...user, ...formData };
-        onUserUpdate(updatedUser);
-        toast({ title: 'Sucesso! (Simulação)', description: 'Os dados do usuário foram atualizados.'});
-        setIsEditing(false);
-        setIsLoading(false);
-    }, 500);
+  const handleSave = async () => {
+    if (!database) {
+        toast({ variant: 'destructive', title: 'Erro de Dados', description: 'Banco de dados não carregado.' });
+        return;
+    }
+
+    const updatedUsers = database.users.map(u => 
+        u.id === user.id ? { ...u, ...formData } : u
+    );
+
+    const updatedDatabase: DatabaseData = { ...database, users: updatedUsers };
+    await saveDatabase(updatedDatabase);
+    
+    if (onUserUpdate) {
+        onUserUpdate();
+    }
+    setIsEditing(false);
   };
 
   const handleCall = () => {
@@ -121,15 +132,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
       });
     }
   };
-
-  const handleSearch = () => {
-     toast({
-        title: 'Busca de Histórico',
-        description: `Para ver o histórico de ${user.name}, vá para a aba "Gerenciar" e use a busca.`,
-      });
-      onBack(); 
-  }
-
+  
   const avatarUrl = user.avatar ? getAvatarUrl(user.avatar) : '';
 
   const renderListItem = (
@@ -137,10 +140,9 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     primaryText: string, 
     secondaryText: string | null | undefined, 
     fieldId?: keyof User, 
-    isEditable = true,
-    onClick?: () => void
+    isEditable = true
   ) => (
-    <div className={`flex items-center gap-4 p-4 ${onClick ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={onClick}>
+    <div className="flex items-center gap-4 p-4">
         <div className="text-muted-foreground">{icon}</div>
         <div className="flex-1">
         {isEditing && isEditable && fieldId ? (
@@ -151,7 +153,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
                     value={String(formData[fieldId as keyof typeof formData] || '')}
                     onChange={handleInputChange}
                     className="h-8"
-                    disabled={isLoading}
+                    disabled={isSaving}
                 />
             </>
         ) : (
@@ -161,7 +163,6 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             </>
         )}
         </div>
-        {onClick && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
     </div>
   );
 
@@ -176,12 +177,12 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
          </div>
          {isEditing ? (
             <div className='flex gap-2'>
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} disabled={isLoading}>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} disabled={isSaving}>
                     <X className="w-4 h-4 mr-2"/> Cancelar
                 </Button>
-                <Button size="sm" onClick={handleSave} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Salvar
+                <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {isSaving ? 'Salvando...' : 'Salvar'}
                 </Button>
             </div>
          ) : (
@@ -210,18 +211,14 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
                   <MessageSquare />
                   <span className="text-xs mt-1">Conversar</span>
               </Button>
-              <Button variant="ghost" className="flex-col h-auto p-3" onClick={handleSearch}>
-                  <Search />
-                  <span className="text-xs mt-1">Buscar</span>
-              </Button>
           </div>
         </div>
 
         <div className="p-4 space-y-4">
           <Card>
             <CardContent className="p-0 divide-y">
-               {renderListItem(<Mail className="w-5 h-5" />, user.email || 'Não informado', "Email", "email", true)}
-               {renderListItem(<Phone className="w-5 h-5" />, isEditing ? formData.phone || '' : user.phone || 'Não informado', "Telefone", "phone")}
+               {renderListItem(<Mail className="w-5 h-5" />, formData.email || 'Não informado', "Email", "email", true)}
+               {renderListItem(<Phone className="w-5 h-5" />, formData.phone || 'Não informado', "Telefone", "phone")}
             </CardContent>
           </Card>
 
@@ -229,36 +226,25 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
             <>
               <Card>
                 <CardContent className="p-0 divide-y">
-                  {renderListItem(<Car className="w-5 h-5" />, isEditing ? formData.driver_vehicle_model || '' : user.driver_vehicle_model || 'Não informado', "Veículo", "driver_vehicle_model")}
-                  {renderListItem(<Wallet className="w-5 h-5" />, isEditing ? formData.driver_vehicle_plate || '' : user.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
+                  {renderListItem(<Car className="w-5 h-5" />, formData.driver_vehicle_model || 'Não informado', "Veículo", "driver_vehicle_model")}
+                  {renderListItem(<Wallet className="w-5 h-5" />, formData.driver_vehicle_plate || 'Não informado', "Placa", "driver_vehicle_plate")}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardContent className="p-0 divide-y">
-                  {renderListItem(<Briefcase className="w-5 h-5" />, isEditing ? formData.driver_cnpj || '' : user.driver_cnpj || 'Não informado', "CNPJ", "driver_cnpj")}
-                  {renderListItem(<Wallet className="w-5 h-5" />, isEditing ? formData.driver_pix_key || '' : user.driver_pix_key || 'Não informado', "Chave PIX", "driver_pix_key")}
+                  {renderListItem(<Briefcase className="w-5 h-5" />, formData.driver_cnpj || 'Não informado', "CNPJ", "driver_cnpj")}
+                  {renderListItem(<Wallet className="w-5 h-5" />, formData.driver_pix_key || 'Não informado', "Chave PIX", "driver_pix_key")}
                 </CardContent>
               </Card>
               
               <Card>
                  <CardContent className="p-0">
-                    <ViewDocumentsModal user={user}>
-                        {renderListItem(<FileText className="w-5 h-5" />, "Ver Documentos", "Visualizar documentos aprovados", undefined, false, () => {})}
-                    </ViewDocumentsModal>
+                    <ViewDocumentsModal user={user} documents={database?.documents || []} />
                 </CardContent>
               </Card>
             </>
           )}
-
-          {user.role.includes('Passageiro') && (
-             <Card>
-                 <CardContent className="p-0 divide-y">
-                   {renderListItem(<FileText className="w-5 h-5" />, "Ver Histórico de Corridas", "Nenhuma corrida recente", undefined, false, handleSearch)}
-                </CardContent>
-              </Card>
-          )}
-
         </div>
       </div>
     </div>

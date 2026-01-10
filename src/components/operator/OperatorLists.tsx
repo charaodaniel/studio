@@ -22,7 +22,7 @@ export default function OperatorLists({ onSelectUser }: OperatorListsProps) {
                 <TabsTrigger value="passengers"><User className="mr-2 h-4 w-4"/> Passageiros</TabsTrigger>
                 <TabsTrigger value="drivers"><Car className="mr-2 h-4 w-4"/> Motoristas</TabsTrigger>
             </TabsList>
-            <div className="mt-4 flex-grow h-0">
+            <div className="mt-4 flex-grow h-0 border rounded-lg bg-background">
                 <TabsContent value="passengers" className="m-0 h-full">
                     <UserList roleFilter="Passageiro" onSelectUser={onSelectUser} />
                 </TabsContent>

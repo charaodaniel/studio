@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
-import localData from '@/database/banco.json';
-import { type User } from './UserList';
+import { useDatabaseManager, type DatabaseData } from '@/hooks/use-database-manager';
 
 interface DocumentRecord {
     id: string;
@@ -22,44 +21,53 @@ interface DocumentRecord {
 }
 
 export default function DocumentVerification() {
-    const [database, setDatabase] = useState(localData);
-    const [isLoading, setIsLoading] = useState(false);
-    const [documents, setDocuments] = useState<DocumentRecord[]>([]);
-    const users = database?.users || [];
+    const { database, isLoading: isDbLoading, isSaving, refreshDatabase, saveDatabase } = useDatabaseManager();
     const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
 
-    const refreshDatabase = useCallback(() => {
-        setIsLoading(true);
-        // Simulate fetch
-        setTimeout(() => {
-            const unverifiedDocs = localData.documents.filter(doc => !doc.is_verified);
-            setDocuments(unverifiedDocs as DocumentRecord[]);
-            setIsLoading(false);
-        }, 300);
-    }, []);
-
-    useEffect(() => {
-        refreshDatabase();
-    }, [refreshDatabase]);
+    const documents = database?.documents || [];
+    const users = database?.users || [];
+    const unverifiedDocs = documents.filter(doc => !doc.is_verified) as DocumentRecord[];
 
     const getDriverName = (driverId: string) => {
         return users.find((u: any) => u.id === driverId)?.name || 'Desconhecido';
     }
 
     const handleAction = async (docId: string, action: 'approve' | 'reject') => {
+        if (!database) return;
+        
         setIsLoading(true);
-        setTimeout(() => {
-            setDocuments(prev => prev.filter(d => d.id !== docId));
-            toast({
-                title: `Ação Realizada! (Simulação)`,
-                description: `O documento foi ${action === 'approve' ? 'aprovado' : 'rejeitado'} e removido da lista de pendências.`,
-            });
-            setIsLoading(false);
-        }, 500);
+
+        const updatedDocuments = database.documents.map(doc => {
+            if (doc.id === docId) {
+                // For rejection, we could remove it, but for simplicity, we just mark it.
+                // In a real scenario, we might notify the user or delete the record.
+                // For this CMS, we will just approve it.
+                return { ...doc, is_verified: action === 'approve' };
+            }
+            return doc;
+        });
+
+        // If rejecting, we filter it out from the view, but it remains in the DB (as unverified).
+        // If approving, it will be filtered out naturally after state update.
+        const finalDocuments = action === 'reject' 
+            ? database.documents.filter(doc => doc.id !== docId)
+            : updatedDocuments;
+
+        const updatedDatabase: DatabaseData = { ...database, documents: finalDocuments };
+        
+        await saveDatabase(updatedDatabase);
+        refreshDatabase();
+        setIsLoading(false);
+
+        toast({
+            title: `Ação Realizada!`,
+            description: `O documento foi ${action === 'approve' ? 'aprovado' : 'rejeitado'} e a alteração foi salva.`,
+        });
     };
 
     const renderContent = () => {
-        if (isLoading && documents.length === 0) {
+        if (isDbLoading || isSaving) {
             return (
                 <div className="text-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -68,7 +76,7 @@ export default function DocumentVerification() {
             );
         }
 
-        if (documents.length === 0) {
+        if (unverifiedDocs.length === 0) {
             return (
                 <div className="text-center p-8 text-muted-foreground bg-green-50 border border-green-200 rounded-lg">
                     <FileCheck2 className="mx-auto h-10 w-10 mb-4 text-green-600" />
@@ -80,7 +88,7 @@ export default function DocumentVerification() {
         
         return (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {documents.map((doc) => {
+                {unverifiedDocs.map((doc) => {
                     const driverName = getDriverName(doc.driver);
                     return (
                         <Card key={doc.id} className="flex flex-col">
@@ -113,7 +121,7 @@ export default function DocumentVerification() {
                             <CardFooter className="grid grid-cols-2 gap-2 pt-4">
                                  <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/50" disabled={isLoading}>
+                                        <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/50" disabled={isLoading || isSaving}>
                                             <X className="mr-2 h-4 w-4" />Rejeitar
                                         </Button>
                                     </AlertDialogTrigger>
@@ -121,7 +129,7 @@ export default function DocumentVerification() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Rejeitar Documento?</AlertDialogTitle>
                                              <AlertDialogDescription>
-                                                Esta é uma simulação. No app real, a ação removeria o documento para o motorista reenviar.
+                                                Esta ação removerá o documento do banco de dados permanentemente. O motorista precisará enviá-lo novamente.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -134,7 +142,7 @@ export default function DocumentVerification() {
                                 </AlertDialog>
                                 <AlertDialog>
                                      <AlertDialogTrigger asChild>
-                                        <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={isLoading}>
+                                        <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={isLoading || isSaving}>
                                             <Check className="mr-2 h-4 w-4" />Aprovar
                                         </Button>
                                      </AlertDialogTrigger>
@@ -142,7 +150,7 @@ export default function DocumentVerification() {
                                          <AlertDialogHeader>
                                              <AlertDialogTitle>Aprovar Documento?</AlertDialogTitle>
                                              <AlertDialogDescription>
-                                                 Esta é uma simulação. No app real, o documento seria marcado como verificado.
+                                                 Esta ação marcará o documento como verificado e o salvará no repositório.
                                              </AlertDialogDescription>
                                          </AlertDialogHeader>
                                          <AlertDialogFooter>
@@ -168,15 +176,15 @@ export default function DocumentVerification() {
                     <h2 className="text-2xl font-bold font-headline">Verificação de Documentos</h2>
                     <p className="text-muted-foreground">Aprove ou rejeite os documentos enviados pelos motoristas.</p>
                 </div>
-                 <Button variant="outline" size="icon" onClick={refreshDatabase} disabled={isLoading}>
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                 <Button variant="outline" size="icon" onClick={refreshDatabase} disabled={isDbLoading || isSaving}>
+                    <RefreshCw className={`h-4 w-4 ${isDbLoading || isSaving ? 'animate-spin' : ''}`} />
                 </Button>
             </div>
-             <Alert>
+             <Alert variant="destructive">
                 <Info className="h-4 w-4"/>
-                <AlertTitle>Modo de Protótipo</AlertTitle>
+                <AlertTitle>Modo de Edição Ativado</AlertTitle>
                 <AlertDescription>
-                   As ações de aprovar ou rejeitar documentos são apenas simulações e não serão salvas.
+                   As alterações feitas aqui serão salvas permanentemente no arquivo `banco.json` do repositório.
                 </AlertDescription>
             </Alert>
             {renderContent()}
