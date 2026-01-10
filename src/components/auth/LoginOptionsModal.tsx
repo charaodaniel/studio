@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginOptionsModal() {
-  const { isLoading } = useAuth();
+  const { isLoading, isLoggedIn } = useAuth();
 
   if (isLoading) {
     return (
@@ -22,9 +22,7 @@ export default function LoginOptionsModal() {
     );
   }
 
-  // If user is already logged in, show their profile.
-  // The logic inside PassengerAuthForm already handles this.
-  const { isLoggedIn } = useAuth();
+  // Se o usuário estiver logado, exibe diretamente o formulário do passageiro, que por sua vez mostrará o perfil.
   if (isLoggedIn) {
       return (
         <DialogContent className="max-h-[90vh] flex flex-col p-0">
@@ -35,7 +33,7 @@ export default function LoginOptionsModal() {
       )
   }
 
-  // Show login options if no user is logged in
+  // Mostra as opções de login se ninguém estiver logado.
   return (
     <>
       <DialogHeader className="p-6 text-center">

@@ -10,7 +10,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import localData from '@/database/banco.json';
+import { useDatabaseManager } from '@/hooks/useDatabaseManager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -26,12 +26,15 @@ interface DocumentRecord {
 }
 
 const ViewDocumentsModal = ({ user, children }: { user: User, children: React.ReactNode }) => {
+    const { database } = useDatabaseManager();
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
     useEffect(() => {
-        const docs = localData.documents.filter(d => d.driver === user.id && d.is_verified) as DocumentRecord[];
-        setDocuments(docs);
-    }, [user]);
+        if (database) {
+            const docs = database.documents.filter(d => d.driver === user.id && d.is_verified) as DocumentRecord[];
+            setDocuments(docs);
+        }
+    }, [user, database]);
 
     return (
         <Dialog>
@@ -66,17 +69,17 @@ const ViewDocumentsModal = ({ user, children }: { user: User, children: React.Re
     )
 };
 
-
 interface UserProfileProps {
   user: User;
   onBack: () => void;
   onContact: () => void;
-  onUserUpdate: () => void;
+  onUserUpdate?: () => void;
 }
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
+  const { database, saveDatabase, isLoading } = useDatabaseManager();
+  
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
   
@@ -99,15 +102,21 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    if (!database) return;
 
-    toast({ title: 'Sucesso! (Simulação)', description: 'Os dados do usuário foram atualizados.'});
-    setIsEditing(false);
-    if (onUserUpdate) {
-        onUserUpdate();
+    const updatedUsers = database.users.map(u => 
+        u.id === user.id ? { ...u, ...formData } : u
+    );
+
+    const updatedDb = { ...database, users: updatedUsers };
+    const success = await saveDatabase(updatedDb);
+    
+    if (success) {
+        toast({ title: 'Sucesso!', description: 'Os dados do usuário foram atualizados.'});
+        setIsEditing(false);
+        if (onUserUpdate) {
+            onUserUpdate();
+        }
     }
   };
 
@@ -152,7 +161,7 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
                     value={String(formData[fieldId as keyof typeof formData] || '')}
                     onChange={handleInputChange}
                     className="h-8"
-                    disabled={isSaving}
+                    disabled={isLoading}
                 />
             </>
         ) : (
@@ -177,11 +186,11 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
          </div>
          {isEditing ? (
             <div className='flex gap-2'>
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} disabled={isSaving}>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} disabled={isLoading}>
                     <X className="w-4 h-4 mr-2"/> Cancelar
                 </Button>
-                <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                <Button size="sm" onClick={handleSave} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Salvar
                 </Button>
             </div>

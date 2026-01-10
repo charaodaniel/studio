@@ -25,8 +25,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
-import localData from '@/database/banco.json';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { useDatabaseManager } from "@/hooks/useDatabaseManager";
 
 
 interface RideRecord {
@@ -55,8 +55,8 @@ const appData = {
   
 export default function UserManagementTable() {
     const { toast } = useToast();
-    const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { database, isLoading, saveDatabase, refreshDatabase } = useDatabaseManager();
+    const users = database?.users || [];
     
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -64,70 +64,27 @@ export default function UserManagementTable() {
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
-    const refreshUsers = useCallback(() => {
-        setIsLoading(true);
-        // Simulate fetch delay
-        setTimeout(() => {
-            const userList = localData.users.map(u => ({
-                ...u,
-                id: u.id || `local_${Math.random()}`,
-                collectionId: '_pb_users_auth_',
-                collectionName: 'users',
-                created: new Date().toISOString(),
-                updated: new Date().toISOString(),
-                role: Array.isArray(u.role) ? u.role : [u.role],
-            })) as unknown as User[];
-            setUsers(userList);
-            setIsLoading(false);
-        }, 250);
-    }, []);
-
-    useEffect(() => {
-        refreshUsers();
-    }, [refreshUsers]);
-
     const handleUserUpdate = () => {
-        // In local mode, we can just re-filter the existing list or re-read it
-        refreshUsers();
+        refreshDatabase();
         setSelectedUserForEdit(null);
     };
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
-        try {
-            await new Promise(resolve => setTimeout(resolve, 250));
-            const startDate = dateRange.from;
-            const endDate = endOfDay(dateRange.to);
+        if (!database) return [];
+        const startDate = dateRange.from;
+        const endDate = endOfDay(dateRange.to);
 
-            const records = localData.rides.filter(ride => {
-                const rideDate = new Date(ride.created);
-                return ride.driver === driverId && rideDate >= startDate && rideDate <= endDate;
-            });
-            return records as unknown as RideRecord[];
-        } catch (err: any) {
-            console.error("Failed to fetch rides for report:", err);
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao buscar corridas',
-                description: 'Não foi possível gerar o relatório.'
-            });
-            return [];
-        }
+        const records = database.rides.filter(ride => {
+            const rideDate = new Date(ride.created);
+            return ride.driver === driverId && rideDate >= startDate && rideDate <= endDate;
+        });
+        return records as unknown as RideRecord[];
     }
     
     const fetchAllRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
-        try {
-            await new Promise(resolve => setTimeout(resolve, 250));
-            const records = localData.rides.filter(ride => ride.driver === driverId);
-            return records as unknown as RideRecord[];
-        } catch (err: any) {
-            console.error("Failed to fetch all rides for report:", err);
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao buscar corridas',
-                description: 'Não foi possível gerar o relatório completo.'
-            });
-            return [];
-        }
+        if (!database) return [];
+        const records = database.rides.filter(ride => ride.driver === driverId);
+        return records as unknown as RideRecord[];
     };
 
     const handleGenerateReport = async (driver: User, type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
@@ -147,9 +104,10 @@ export default function UserManagementTable() {
     };
 
     const getPassengerName = (ride: RideRecord) => {
+        if (!database) return "N/A";
         if (ride.passenger_anonymous_name) return ride.passenger_anonymous_name;
         if (ride.passenger) {
-            const passenger = localData.users.find(u => u.id === ride.passenger);
+            const passenger = database.users.find(u => u.id === ride.passenger);
             return passenger?.name || "Passageiro não encontrado";
         }
         return "N/A";
@@ -299,15 +257,22 @@ export default function UserManagementTable() {
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 
-    const handleToggleUserStatus = (user: User) => {
-        const newStatus = !user.disabled;
-        setUsers(prevUsers => prevUsers.map(u => 
-            u.id === user.id ? { ...u, disabled: newStatus } : u
-        ));
-        toast({
-            title: 'Status Alterado! (Simulação)',
-            description: `No app real, o usuário ${user.name} seria ${newStatus ? 'desativado' : 'ativado'}.`
-        });
+    const handleToggleUserStatus = async (user: User) => {
+        if (!database) return;
+        
+        const updatedUsers = database.users.map(u => 
+            u.id === user.id ? { ...u, disabled: !u.disabled } : u
+        );
+        
+        const updatedDb = { ...database, users: updatedUsers };
+        const success = await saveDatabase(updatedDb);
+
+        if (success) {
+            toast({
+                title: 'Status Alterado!',
+                description: `O usuário ${user.name} foi ${!user.disabled ? 'desativado' : 'ativado'}.`
+            });
+        }
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -337,7 +302,7 @@ export default function UserManagementTable() {
                             <DialogDescription>Preencha os dados para criar um novo usuário.</DialogDescription>
                         </DialogHeader>
                         <AddUserForm onUserAdded={() => {
-                            refreshUsers();
+                            refreshDatabase();
                             setIsAddUserOpen(false);
                         }}/>
                     </DialogContent>
@@ -424,13 +389,9 @@ export default function UserManagementTable() {
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                            <Alert>
-                                                <Info className="h-4 w-4" />
-                                                <AlertTitle>Modo Protótipo</AlertTitle>
-                                                <AlertDescription>
-                                                   Esta ação irá apenas simular a mudança de status do usuário, sem salvar permanentemente.
-                                                </AlertDescription>
-                                            </Alert>
+                                            <AlertDialogDescription>
+                                                Esta ação irá alterar o status de acesso do usuário e salvar a mudança no repositório.
+                                            </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>

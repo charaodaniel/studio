@@ -14,7 +14,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import { Skeleton } from '../ui/skeleton';
 import type { RecordModel } from 'pocketbase';
-import localData from '@/database/banco.json';
+import { useDatabaseManager } from '@/hooks/useDatabaseManager';
   
 export interface User extends RecordModel {
     id: string;
@@ -23,6 +23,7 @@ export interface User extends RecordModel {
     avatar: string;
     phone: string;
     role: string[];
+    password_placeholder?: string;
     driver_status?: 'online' | 'offline' | 'urban-trip' | 'rural-trip';
     driver_vehicle_model?: string;
     driver_vehicle_plate?: string;
@@ -47,37 +48,17 @@ const getAvatarUrl = (avatarPath: string) => {
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
-    const [isLoading, setIsLoading] = useState(true);
+    const { database, isLoading, refreshDatabase } = useDatabaseManager();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [users, setUsers] = useState<User[]>([]);
+    const users = database?.users || [];
 
-    useEffect(() => {
-        setIsLoading(true);
-        // Simulate network delay
-        setTimeout(() => {
-            let userList = localData.users.map(u => ({
-                ...u,
-                id: u.id || `local_${Math.random()}`,
-                collectionId: '_pb_users_auth_',
-                collectionName: 'users',
-                created: new Date().toISOString(),
-                updated: new Date().toISOString(),
-                role: Array.isArray(u.role) ? u.role : [u.role],
-            })) as unknown as User[];
-
-            if (roleFilter) {
-                userList = userList.filter(user => user.role.includes(roleFilter));
-            }
-            setUsers(userList);
-            setIsLoading(false);
-        }, 250);
-    }, [roleFilter]);
-
-    const filteredUsers = users.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredUsers = users.filter((user: User) => {
+        const roleMatch = roleFilter ? user.role.includes(roleFilter) : true;
+        const searchMatch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()));
+        return roleMatch && searchMatch;
+    });
 
     const handleSelectAndClose = (user: User) => {
         onSelectUser(user);
@@ -85,7 +66,7 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
     };
     
     const handleUserUpdate = () => {
-        // In a real app, we'd refresh data. Here, we can just close the modal.
+        refreshDatabase();
         setSelectedUser(null);
     };
 
@@ -162,7 +143,6 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
                         user={selectedUser} 
                         onContact={() => handleSelectAndClose(selectedUser)} 
                         onBack={() => setSelectedUser(null)} 
-                        isModal={true}
                         onUserUpdate={handleUserUpdate}
                     />
                 )}

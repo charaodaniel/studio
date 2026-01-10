@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPO = process.env.GITHUB_REPO; // Ex: 'seu-usuario/seu-repositorio'
-const FILE_PATH = 'src/database/banco.json'; // Hardcoded file path
+const FILE_PATH = 'src/database/banco.json';
 
 // Cache para o SHA do arquivo
 let fileShaCache: string | undefined = undefined;
@@ -14,7 +14,7 @@ async function getFileSha(): Promise<string | undefined> {
     }
 
     if (!GITHUB_TOKEN || !GITHUB_REPO) {
-        throw new Error('Variáveis de ambiente do GitHub não configuradas.');
+        throw new Error('As variáveis de ambiente GITHUB_TOKEN e GITHUB_REPO não foram configuradas no servidor.');
     }
 
     const githubApiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${FILE_PATH}`;
@@ -25,8 +25,7 @@ async function getFileSha(): Promise<string | undefined> {
                 Authorization: `token ${GITHUB_TOKEN}`,
                 Accept: 'application/vnd.github.v3+json',
             },
-            // Revalidate cache every 5 seconds
-            next: { revalidate: 5 }
+            next: { revalidate: 5 } // Revalida o cache a cada 5 segundos
         });
 
         if (fileResponse.ok) {
@@ -47,7 +46,6 @@ async function getFileSha(): Promise<string | undefined> {
     }
 }
 
-
 export async function GET(request: Request) {
     if (!GITHUB_TOKEN || !GITHUB_REPO) {
         return NextResponse.json(
@@ -62,10 +60,9 @@ export async function GET(request: Request) {
          const fileResponse = await fetch(githubApiUrl, {
             headers: {
                 Authorization: `token ${GITHUB_TOKEN}`,
-                Accept: 'application/vnd.github.v3.raw', // Obter o conteúdo bruto
+                Accept: 'application/vnd.github.v3+json', // CORRIGIDO: Usar JSON para obter metadados e conteúdo
             },
-            // Revalidate cache to get the latest content
-            cache: 'no-store'
+            cache: 'no-store' // Sempre buscar o mais recente
         });
 
         if (!fileResponse.ok) {
@@ -74,15 +71,25 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'Falha ao buscar o arquivo do GitHub.', details: errorText }, { status: fileResponse.status });
         }
 
-        const content = await fileResponse.text();
+        const fileData = await fileResponse.json();
+        
+        if (fileData.encoding !== 'base64') {
+             throw new Error('Codificação de arquivo inesperada recebida do GitHub.');
+        }
+
+        // Decodificar o conteúdo de base64 para texto
+        const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        
+        // Atualizar o cache do SHA
+        fileShaCache = fileData.sha;
+
         return NextResponse.json({ content });
 
     } catch (error: any) {
         console.error('Erro na API GET /api/save-content:', error);
-        return NextResponse.json({ message: error.message || 'Ocorreu um erro no servidor.' }, { status: 500 });
+        return NextResponse.json({ message: error.message || 'Ocorreu um erro no servidor ao buscar dados.' }, { status: 500 });
     }
 }
-
 
 export async function POST(request: Request) {
   if (!GITHUB_TOKEN || !GITHUB_REPO) {
@@ -142,6 +149,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('Erro na API POST /api/save-content:', error);
-    return NextResponse.json({ message: error.message || 'Ocorreu um erro no servidor.' }, { status: 500 });
+    return NextResponse.json({ message: error.message || 'Ocorreu um erro no servidor ao salvar.' }, { status: 500 });
   }
 }
