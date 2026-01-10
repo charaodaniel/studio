@@ -10,7 +10,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import Image from 'next/image';
-import { useDatabaseManager } from '@/hooks/useDatabaseManager';
+import localData from '@/database/banco.json';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -26,15 +26,12 @@ interface DocumentRecord {
 }
 
 const ViewDocumentsModal = ({ user, children }: { user: User, children: React.ReactNode }) => {
-    const { database } = useDatabaseManager();
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
     useEffect(() => {
-        if (database) {
-            const docs = database.documents.filter(d => d.driver === user.id && d.is_verified) as DocumentRecord[];
-            setDocuments(docs);
-        }
-    }, [user, database]);
+        const docs = localData.documents.filter(d => d.driver === user.id && d.is_verified) as DocumentRecord[];
+        setDocuments(docs);
+    }, [user]);
 
     return (
         <Dialog>
@@ -73,12 +70,12 @@ interface UserProfileProps {
   user: User;
   onBack: () => void;
   onContact: () => void;
-  onUserUpdate?: () => void;
+  onUserUpdate: (updatedUser: User) => void;
 }
 
 export default function UserProfile({ user, onBack, onContact, onUserUpdate }: UserProfileProps) {
   const { toast } = useToast();
-  const { database, saveDatabase, isLoading } = useDatabaseManager();
+  const [isLoading, setIsLoading] = useState(false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
@@ -101,23 +98,16 @@ export default function UserProfile({ user, onBack, onContact, onUserUpdate }: U
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSave = async () => {
-    if (!database) return;
-
-    const updatedUsers = database.users.map(u => 
-        u.id === user.id ? { ...u, ...formData } : u
-    );
-
-    const updatedDb = { ...database, users: updatedUsers };
-    const success = await saveDatabase(updatedDb);
-    
-    if (success) {
-        toast({ title: 'Sucesso!', description: 'Os dados do usuário foram atualizados.'});
+  const handleSave = () => {
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+        const updatedUser = { ...user, ...formData };
+        onUserUpdate(updatedUser);
+        toast({ title: 'Sucesso! (Simulação)', description: 'Os dados do usuário foram atualizados.'});
         setIsEditing(false);
-        if (onUserUpdate) {
-            onUserUpdate();
-        }
-    }
+        setIsLoading(false);
+    }, 500);
   };
 
   const handleCall = () => {

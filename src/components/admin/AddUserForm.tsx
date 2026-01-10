@@ -8,16 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useDatabaseManager } from "@/hooks/useDatabaseManager";
 import { type User } from "./UserList";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Info } from "lucide-react";
+
 
 interface AddUserFormProps {
-    onUserAdded: () => void;
+    onUserAdded: (newUser: User) => void;
 }
 
 export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
     const { toast } = useToast();
-    const { database, saveDatabase, isLoading } = useDatabaseManager();
+    const [isLoading, setIsLoading] = useState(false);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -32,47 +34,43 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             return;
         }
 
-        if (!database) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Banco de dados não carregado.' });
-            return;
-        }
+        setIsLoading(true);
+        // Simulate API call
+        setTimeout(() => {
+            const newUser: User = {
+                id: `usr_local_${new Date().getTime()}`,
+                name,
+                email,
+                phone,
+                role: [role],
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                password_placeholder: "12345678",
+                driver_status: role === 'Motorista' ? 'offline' : undefined,
+                collectionId: '_pb_users_auth_',
+                collectionName: 'users',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+            };
 
-        // Criar um novo usuário
-        const newUser: Partial<User> = {
-            id: `usr_${new Date().getTime()}`,
-            name,
-            email,
-            phone,
-            role: [role],
-            avatar: `https://i.pravatar.cc/150?u=${email}`, // Avatar de placeholder
-            password_placeholder: "12345678", // Senha de placeholder
-            driver_status: role === 'Motorista' ? 'offline' : undefined,
-        };
-
-        // Criar uma cópia atualizada do banco de dados
-        const updatedDb = {
-            ...database,
-            users: [...database.users, newUser],
-        };
-
-        const success = await saveDatabase(updatedDb);
-
-        if (success) {
             toast({
-                title: 'Sucesso!',
-                description: `Usuário "${name}" adicionado ao banco de dados.`,
+                title: 'Sucesso! (Simulação)',
+                description: `O usuário "${name}" foi adicionado à lista localmente.`,
             });
-            setName('');
-            setEmail('');
-            setPhone('');
-            setRole('Passageiro');
-            onUserAdded();
-        }
-        // A mensagem de erro já é tratada pelo hook
+            onUserAdded(newUser);
+            setIsLoading(false);
+        }, 500);
+
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+             <Alert>
+                <Info className="h-4 w-4"/>
+                <AlertTitle>Modo de Protótipo</AlertTitle>
+                <AlertDescription>
+                   A adição de usuários é apenas uma simulação local e não será salva permanentemente.
+                </AlertDescription>
+            </Alert>
             <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo</Label>
                 <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="João da Silva" required disabled={isLoading} />
@@ -103,8 +101,9 @@ export default function AddUserForm({ onUserAdded }: AddUserFormProps) {
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {isLoading ? 'Salvando...' : 'Adicionar Usuário'}
+                {isLoading ? 'Adicionando...' : 'Adicionar Usuário'}
             </Button>
         </form>
     );
 }
+

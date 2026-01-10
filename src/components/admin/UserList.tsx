@@ -14,7 +14,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import UserProfile from './UserProfile';
 import { Skeleton } from '../ui/skeleton';
 import type { RecordModel } from 'pocketbase';
-import { useDatabaseManager } from '@/hooks/useDatabaseManager';
+import localData from '@/database/banco.json';
   
 export interface User extends RecordModel {
     id: string;
@@ -48,10 +48,31 @@ const getAvatarUrl = (avatarPath: string) => {
 };
   
 export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
-    const { database, isLoading, refreshDatabase } = useDatabaseManager();
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const users = database?.users || [];
+
+    const refreshUsers = useCallback(() => {
+        setIsLoading(true);
+        const userList = localData.users.map(u => ({
+            ...u,
+            id: u.id || `local_${Math.random()}`,
+            collectionId: '_pb_users_auth_',
+            collectionName: 'users',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+            role: Array.isArray(u.role) ? u.role : [u.role],
+            disabled: (u as any).disabled || false,
+        })) as unknown as User[];
+        setUsers(userList);
+        setIsLoading(false);
+    }, []);
+
+    useEffect(() => {
+        refreshUsers();
+    }, [refreshUsers]);
+
 
     const filteredUsers = users.filter((user: User) => {
         const roleMatch = roleFilter ? user.role.includes(roleFilter) : true;
@@ -65,8 +86,8 @@ export default function UserList({ roleFilter, onSelectUser }: UserListProps) {
         setSelectedUser(null);
     };
     
-    const handleUserUpdate = () => {
-        refreshDatabase();
+    const handleUserUpdate = (updatedUser: User) => {
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
         setSelectedUser(null);
     };
 

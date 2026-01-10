@@ -28,12 +28,6 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground mb-6">Visualize, edite e gerencie todos os usuários da plataforma.</p>
         <UserManagementTable />
        </div>
-       <div className="text-center p-4 mt-auto">
-        <Link href="/admin/developer" className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-2">
-            <Code className="h-4 w-4" />
-            Ferramentas do Desenvolvedor
-        </Link>
-       </div>
     </div>
   );
 }

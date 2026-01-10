@@ -16,7 +16,7 @@ import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, 
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { cn } from "@/lib/utils";
 import AddUserForm from "./AddUserForm";
@@ -25,9 +25,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { useDatabaseManager } from "@/hooks/useDatabaseManager";
-
+import localData from '@/database/banco.json';
 
 interface RideRecord {
     id: string;
@@ -55,26 +53,44 @@ const appData = {
   
 export default function UserManagementTable() {
     const { toast } = useToast();
-    const { database, isLoading, saveDatabase, refreshDatabase } = useDatabaseManager();
-    const users = database?.users || [];
+    const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedUserForReport, setSelectedUserForReport] = useState<User | null>(null);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    
+    const refreshUsers = useCallback(() => {
+        const userList = localData.users.map(u => ({
+            ...u,
+            id: u.id || `local_${Math.random()}`,
+            collectionId: '_pb_users_auth_',
+            collectionName: 'users',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+            role: Array.isArray(u.role) ? u.role : [u.role],
+            disabled: (u as any).disabled || false,
+        })) as unknown as User[];
+        setUsers(userList);
+        setIsLoading(false);
+    }, []);
 
-    const handleUserUpdate = () => {
-        refreshDatabase();
+    useEffect(() => {
+        refreshUsers();
+    }, [refreshUsers]);
+
+    const handleUserUpdate = (updatedUser: User) => {
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
         setSelectedUserForEdit(null);
     };
 
     const fetchRidesForDriver = async (driverId: string, dateRange: DateRange): Promise<RideRecord[]> => {
-        if (!database) return [];
         const startDate = dateRange.from;
         const endDate = endOfDay(dateRange.to);
 
-        const records = database.rides.filter(ride => {
+        const records = localData.rides.filter(ride => {
             const rideDate = new Date(ride.created);
             return ride.driver === driverId && rideDate >= startDate && rideDate <= endDate;
         });
@@ -82,8 +98,7 @@ export default function UserManagementTable() {
     }
     
     const fetchAllRidesForDriver = async (driverId: string): Promise<RideRecord[]> => {
-        if (!database) return [];
-        const records = database.rides.filter(ride => ride.driver === driverId);
+        const records = localData.rides.filter(ride => ride.driver === driverId);
         return records as unknown as RideRecord[];
     };
 
@@ -104,10 +119,9 @@ export default function UserManagementTable() {
     };
 
     const getPassengerName = (ride: RideRecord) => {
-        if (!database) return "N/A";
         if (ride.passenger_anonymous_name) return ride.passenger_anonymous_name;
         if (ride.passenger) {
-            const passenger = database.users.find(u => u.id === ride.passenger);
+            const passenger = users.find(u => u.id === ride.passenger);
             return passenger?.name || "Passageiro não encontrado";
         }
         return "N/A";
@@ -257,22 +271,14 @@ export default function UserManagementTable() {
         doc.save(`relatorio_${driver.name.replace(/\s+/g, '_')}.pdf`);
     };
 
-    const handleToggleUserStatus = async (user: User) => {
-        if (!database) return;
-        
-        const updatedUsers = database.users.map(u => 
+    const handleToggleUserStatus = (user: User) => {
+        setUsers(prevUsers => prevUsers.map(u => 
             u.id === user.id ? { ...u, disabled: !u.disabled } : u
-        );
-        
-        const updatedDb = { ...database, users: updatedUsers };
-        const success = await saveDatabase(updatedDb);
-
-        if (success) {
-            toast({
-                title: 'Status Alterado!',
-                description: `O usuário ${user.name} foi ${!user.disabled ? 'desativado' : 'ativado'}.`
-            });
-        }
+        ));
+        toast({
+            title: 'Status Alterado! (Simulação)',
+            description: `No app real, o status de ${user.name} seria alterado no banco de dados.`
+        });
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -301,8 +307,8 @@ export default function UserManagementTable() {
                             <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                             <DialogDescription>Preencha os dados para criar um novo usuário.</DialogDescription>
                         </DialogHeader>
-                        <AddUserForm onUserAdded={() => {
-                            refreshDatabase();
+                        <AddUserForm onUserAdded={(newUser) => {
+                            setUsers(prev => [...prev, newUser]);
                             setIsAddUserOpen(false);
                         }}/>
                     </DialogContent>
@@ -390,7 +396,7 @@ export default function UserManagementTable() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta ação irá alterar o status de acesso do usuário e salvar a mudança no repositório.
+                                               Esta é uma simulação. No app real, esta ação alteraria o status de acesso do usuário.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -440,4 +446,3 @@ export default function UserManagementTable() {
       </>
     );
   }
-
