@@ -22,7 +22,7 @@ const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
     return pb.getFileUrl(record, avatarFileName);
 };
 
-interface RideRecord extends RecordModel {
+export interface RideRecord extends RecordModel {
     passenger: string | null;
     driver: string;
     origin_address: string;

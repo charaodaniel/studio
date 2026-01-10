@@ -8,6 +8,7 @@ import { Camera, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RideRequests } from './RideRequests';
+import type { RideRecord } from './RideRequests';
 import { DriverRideHistory } from './DriverRideHistory';
 import { ProfileForm } from './ProfileForm';
 import { Dialog, DialogTrigger } from '../ui/dialog';
@@ -22,25 +23,6 @@ const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
     return avatarPath;
 };
-
-interface RideRecord {
-    id: string;
-    passenger: string | null;
-    driver: string;
-    origin_address: string;
-    destination_address: string;
-    status: 'requested' | 'accepted' | 'in_progress' | 'completed' | 'canceled';
-    fare: number;
-    is_negotiated: boolean;
-    started_by: 'passenger' | 'driver';
-    passenger_anonymous_name?: string;
-    scheduled_for?: string;
-    ride_description?: string;
-    expand?: {
-        driver?: User;
-        passenger?: User;
-    }
-}
 
 export function DriverProfilePage() {
   const { toast } = useToast();
