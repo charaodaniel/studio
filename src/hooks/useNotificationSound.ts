@@ -2,7 +2,7 @@
 'use client';
 
 import { Howl } from 'howler';
-import { useCallback, useMemo, useEffect, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 
 export const useNotificationSound = () => {
   const [sound, setSound] = useState<Howl | null>(null);
@@ -10,10 +10,11 @@ export const useNotificationSound = () => {
   useEffect(() => {
     // This effect runs only on the client, after the component has mounted.
     // This prevents the "window is not defined" error during server-side rendering.
+    // O link antigo (freesound) estava quebrado (404), substituído por um link funcional.
     const soundInstance = new Howl({
-      src: ['https://cdn.freesound.org/previews/253/253886_3234390-lq.mp3'],
-      html5: true, // Recommended for cross-origin audio
-      volume: 0.5, // Adjust volume as needed
+      src: ['https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'],
+      html5: true, 
+      volume: 0.5,
     });
     
     setSound(soundInstance);
