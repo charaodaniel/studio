@@ -7,15 +7,21 @@ import { Activity, AlertTriangle, CheckCircle, Cpu, Link as LinkIcon, Server, Lo
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import PocketBase from 'pocketbase';
+import Link from "next/link";
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export default function DeveloperPage() {
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testResult, setTestResult] = useState<string | null>(null);
-    const [pbUrl, setPbUrl] = useState(process.env.NEXT_PUBLIC_POCKETBASE_URL || 'https://mobmv.shop');
+    const [pbUrl, setPbUrl] = useState(process.env.NEXT_PUBLIC_POCKETBASE_URL || '');
 
     const handleTestConnection = async () => {
+        if (!pbUrl) {
+             setTestStatus('error');
+             setTestResult('A URL do PocketBase não pode estar vazia.');
+             return;
+        }
         setTestStatus('loading');
         setTestResult(null);
         try {
@@ -46,14 +52,14 @@ export default function DeveloperPage() {
             <div className="container mx-auto p-4 sm:p-8">
                 <header className="mb-8">
                     <h1 className="text-4xl font-bold font-headline text-slate-800">Painel do Desenvolvedor</h1>
-                    <p className="text-muted-foreground">Ferramentas de diagnóstico para o backend PocketBase.</p>
+                    <p className="text-muted-foreground">Ferramentas de diagnóstico e configuração do backend.</p>
                 </header>
 
                 <Card className="mb-6">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Server /> Teste de Conexão com Backend</CardTitle>
                         <CardDescription>
-                            Verifica se o aplicativo consegue se comunicar com o servidor PocketBase configurado.
+                            Verifica se o aplicativo consegue se comunicar com o servidor PocketBase configurado na variável de ambiente.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -101,7 +107,7 @@ export default function DeveloperPage() {
 
                  <Card className="mb-6">
                     <CardHeader>
-                        <CardTitle>Variáveis de Ambiente</CardTitle>
+                        <CardTitle>Configuração do Ambiente</CardTitle>
                         <CardDescription>
                             A variável abaixo precisa estar configurada no arquivo `.env.local` (para desenvolvimento)
                              e nas "Environment Variables" da Vercel (para produção).
@@ -112,10 +118,13 @@ export default function DeveloperPage() {
                             <div className="flex items-center gap-4">
                                 <div>
                                     <p className="font-mono text-sm">NEXT_PUBLIC_POCKETBASE_URL</p>
-                                    <p className="text-xs text-muted-foreground">Ex: https://mobmv.shop</p>
+                                    <p className="text-xs text-muted-foreground">Ex: http://127.0.0.1:8090</p>
                                 </div>
                             </div>
                         </div>
+                         <p className="text-xs text-muted-foreground pt-2">
+                            Consulte a <Link href="/POCKETBASE_SETUP.md" className="underline hover:text-primary">documentação de setup do PocketBase</Link> para mais detalhes.
+                        </p>
                     </CardContent>
                 </Card>
             </div>
