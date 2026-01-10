@@ -27,7 +27,7 @@ import "jspdf-autotable";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { endOfDay } from "date-fns";
 import localData from '@/database/banco.json';
-import { Alert } from "../ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 
 interface RideRecord {
@@ -484,3 +484,4 @@ export default function UserManagementTable() {
       </>
     );
   }
+
