@@ -1,0 +1,38 @@
+
+{
+  "users": [
+    {
+      "id": "usr_1",
+      "name": "Daniel",
+      "email": "daniel.kokynhw@gmail.com",
+      "phone": "55996393353",
+      "password_placeholder": "******",
+      "role": "Admin",
+      "avatar": "https://placehold.co/128x128/E3F2FD/1E3A8A?text=D"
+    },
+    {
+      "id": "usr_2",
+      "name": "Ana Clara",
+      "email": "ana.clara@example.com",
+      "phone": "559988776655",
+      "password_placeholder": "******",
+      "role": "Passageiro",
+      "avatar": "https://placehold.co/128x128/FCE7F3/831843?text=A"
+    },
+    {
+      "id": "usr_3",
+      "name": "Carlos Eduardo",
+      "email": "carlos.eduardo@example.com",
+      "phone": "559911223344",
+      "password_placeholder": "******",
+      "role": "Motorista",
+      "avatar": "https://placehold.co/128x128/E0E7FF/1E3A8A?text=C"
+    }
+  ],
+  "institutional_info": {
+    "company_name": "CEOLIN LTDA",
+    "cnpj": "52.905.738/0001-00",
+    "support_contact": "suporte@ceolin.com.br",
+    "address": "Manoel Viana, RS, Brasil"
+  }
+}

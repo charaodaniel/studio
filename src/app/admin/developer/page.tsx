@@ -8,7 +8,7 @@ import { GitBranch, Loader2, Save } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function DeveloperPage() {
+export default function DeveloperPageOld() {
     const [jsonContent, setJsonContent] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -66,7 +66,7 @@ export default function DeveloperPage() {
         <div className="bg-slate-50 min-h-screen">
             <div className="container mx-auto p-4 sm:p-8">
                 <header className="mb-8">
-                    <h1 className="text-4xl font-bold font-headline text-slate-800">Painel de Edição de Conteúdo</h1>
+                    <h1 className="text-4xl font-bold font-headline text-slate-800">Painel de Edição de Conteúdo (Legado)</h1>
                     <p className="text-muted-foreground">Altere o conteúdo do site atualizando o arquivo `banco.json` diretamente no repositório.</p>
                 </header>
 
