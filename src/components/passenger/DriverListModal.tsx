@@ -67,7 +67,20 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setIsLoading(true);
         setError(null);
         try {
-            let filteredDrivers = localData.users.filter(u => u.role.includes("Motorista") && !u.disabled) as Driver[];
+            const driverList = localData.users
+                .filter(u => Array.isArray(u.role) ? u.role.includes('Motorista') : u.role === 'Motorista')
+                .map(u => ({
+                    ...u,
+                    id: u.id || `local_${Math.random()}`,
+                    collectionId: '_pb_users_auth_',
+                    collectionName: 'users',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    role: Array.isArray(u.role) ? u.role : [u.role],
+                    disabled: (u as any).disabled || false,
+                })) as unknown as Driver[];
+
+            let filteredDrivers = driverList.filter(d => !d.disabled);
             
             // For immediate rides, only show online drivers.
             if (!scheduledFor) {
