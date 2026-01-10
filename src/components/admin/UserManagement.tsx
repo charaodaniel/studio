@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import UserProfile from './UserProfile';
 import type { User as UserData } from './UserList';
-import localData from '@/database/banco.json';
 import { useToast } from '@/hooks/use-toast';
 import { useDatabaseManager } from '@/hooks/use-database-manager';
 
@@ -72,19 +71,20 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
 
     useEffect(() => {
         setIsClient(true);
-        if (database) {
+        if (database && currentUser) {
             const allUsers = database.users as unknown as UserData[];
-            const populatedChats = database.chats.map(chat => {
-                const participants = chat.participants.map(pId => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
-                return {
-                    ...chat,
-                    expand: {
-                        participants,
+            const userChats = database.chats
+                .filter(chat => chat.participants.includes(currentUser.id))
+                .map(chat => {
+                    const participants = chat.participants.map((pId: string) => allUsers.find(u => u.id === pId)).filter(Boolean) as UserData[];
+                    return {
+                        ...chat,
+                        expand: {
+                            participants,
+                        }
                     }
-                }
-            }) as ChatRecord[];
-
-            const userChats = populatedChats.filter(chat => chat.participants.find(p => p.id === currentUser?.id));
+                }) as ChatRecord[];
+            
             setChats(userChats);
         }
     }, [database, currentUser]);
@@ -102,7 +102,7 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
                 }
             })) as MessageRecord[];
         
-        setMessages(chatMessages);
+        setMessages(chatMessages.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
     }, [database]);
 
     useEffect(() => {
@@ -127,8 +127,8 @@ export default function UserManagement({ preselectedUser, onUserSelect }: UserMa
         if (preselectedUser && currentUser && chats.length > 0) {
             const findOrCreateChat = async () => {
                 let existingChat = chats.find(chat => 
-                    chat.participants.some(p => p.id === currentUser.id) && 
-                    chat.participants.some(p => p.id === preselectedUser.id)
+                    chat.participants.includes(currentUser.id) && 
+                    chat.participants.includes(preselectedUser.id)
                 );
 
                 if (existingChat) {
