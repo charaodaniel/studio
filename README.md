@@ -2,9 +2,7 @@
 
 ![CEOLIN](https://placehold.co/1200x300/1E3A8A/FFFFFF?text=CEOLIN%20Mobilidade%20Urbana)
 
-Bem-vindo ao repositório do protótipo funcional do aplicativo **CEOLIN Mobilidade Urbana**. Este projeto foi desenvolvido com tecnologias modernas para criar uma interface de usuário rica, responsiva e escalável.
-
-Este documento serve como guia central para desenvolvedores, detalhando a arquitetura, configuração e funcionalidades implementadas no protótipo.
+Bem-vindo ao repositório do protótipo funcional do aplicativo **CEOLIN Mobilidade Urbana**. Este projeto foi desenvolvido para demonstrar as principais funcionalidades da plataforma em um ambiente local, sem a necessidade de um banco de dados externo.
 
 ---
 
@@ -15,22 +13,33 @@ Este documento serve como guia central para desenvolvedores, detalhando a arquit
 - **UI Library:** [React](https://react.dev/)
 - **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
 - **Componentes:** [ShadCN/UI](https://ui.shadcn.com/)
-- **Backend:** [PocketBase](https://pocketbase.io/)
-- **Hospedagem de Backend (Sugerida):** [PocketHost.io](https://pockethost.io/) (Serviço gratuito para hospedar PocketBase) ou servidor próprio.
-- **Geração de Relatórios:** [jsPDF](https://github.com/parallax/jsPDF) & [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable)
+- **Fonte de Dados (Protótipo):** Arquivo JSON local (`/src/database/banco.json`)
 - **Notificações Sonoras:** [Howler.js](https://howlerjs.com/)
+
+---
+
+## ⚠️ Modo de Protótipo (Funcionamento Local)
+
+Atualmente, este projeto está configurado para rodar em **modo de protótipo**. Isso significa que:
+
+-   **Não é necessário um banco de dados externo.** Todos os dados de usuários, corridas e documentos são lidos do arquivo estático `/src/database/banco.json`.
+-   **Ações de escrita são simuladas.** Qualquer tentativa de criar, editar ou deletar dados (como enviar uma mensagem, aprovar um documento ou registrar uma corrida) será apenas simulada na interface e não alterará o arquivo `banco.json`.
+-   **Login de teste:** A autenticação é feita com base nos usuários definidos no `banco.json`. A verificação de senha é desativada, então qualquer senha funcionará para um usuário existente.
+
+**Exemplo de Login (Admin):**
+- **Email:** `daniel.kokynhw@gmail.com`
+- **Senha:** `123456789` (ou qualquer outra)
 
 ---
 
 ## 🛠️ Configuração e Instalação
 
-Siga os passos abaixo para executar o projeto localmente e em produção (Vercel).
+Siga os passos abaixo para executar o projeto localmente.
 
 ### 1. Pré-requisitos
 
-- [Node.js](https://nodejs.org/) (versão 18 ou superior)
-- Um gerenciador de pacotes Node, como `npm`.
-- Uma conta no [GitHub](https://github.com/) (para clonar e hospedar o código).
+-   [Node.js](https://nodejs.org/) (versão 18 ou superior)
+-   Um gerenciador de pacotes Node, como `npm`.
 
 ### 2. Clonar o Repositório e Instalar Dependências
 
@@ -40,69 +49,34 @@ cd <NOME_DA_PASTA_DO_PROJETO>
 npm install
 ```
 
-### 3. Configurar o Backend (PocketBase)
+### 3. Execute o Projeto Localmente
 
-Este aplicativo precisa de um backend PocketBase para funcionar. 
-
-#### Opção A: Usar um Servidor Próprio (Ex: `https://meu-servidor.com`)
-Se você já tem o PocketBase rodando em um servidor, você só precisa da URL dele.
-
-#### Opção B: Rodar o PocketBase Localmente (Para Desenvolvimento)
-1.  Baixe o executável do [PocketBase](https://pocketbase.io/docs/) para o seu sistema operacional.
-2.  Descompacte e execute o arquivo.
-3.  Abra seu terminal e rode o comando: `./pocketbase serve`
-4.  O servidor estará disponível em `http://127.0.0.1:8090`.
-
-### 4. Configurar as Variáveis de Ambiente
-
-**Este é o passo mais importante.** Na raiz do seu projeto, crie um arquivo chamado `.env.local` e adicione a URL do seu backend PocketBase.
-
-```bash
-# .env.local
-
-# Para produção, use seu domínio.
-NEXT_PUBLIC_POCKETBASE_URL="https://seu-servidor-pocketbase.com"
-
-# Para rodar localmente, comente a linha de cima e descomente a de baixo.
-# NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
-```
-
-**Importante:** Nunca envie o arquivo `.env.local` para o GitHub. Ele já está no `.gitignore`.
-
-### 5. Configurar as Coleções e Regras no PocketBase
-
-Seja no seu servidor ou localmente, você precisa configurar o banco de dados.
-
-1.  Acesse o painel de administrador do seu PocketBase.
-    *   **Produção:** `https://seu-servidor-pocketbase.com/_/`
-    *   **Local:** `http://127.0.0.1:8090/_/`
-2.  Siga as instruções detalhadas no arquivo `POCKETBASE_API.md` para importar as coleções e configurar as regras de acesso.
-
-### 6. Crie seu Primeiro Usuário Administrador
-
-Para gerenciar o sistema, você precisa criar um usuário Admin manualmente. Siga o passo a passo em `ADMIN_SETUP.md`.
-
-### 7. Execute o Projeto Localmente
+Com as dependências instaladas, basta executar o servidor de desenvolvimento:
 
 ```bash
 npm run dev
 ```
 
-O aplicativo estará disponível em `http://localhost:3000`.
-
-### 8. Configurar para Produção (Vercel)
-
-1.  Publique seu projeto na Vercel.
-2.  No painel do seu projeto na Vercel, vá para **Settings > Environment Variables**.
-3.  Adicione a variável de ambiente com a URL do seu servidor de produção:
-    *   `NEXT_PUBLIC_POCKETBASE_URL` = `https://seu-servidor-pocketbase.com`
-4.  Faça um **Redeploy** para aplicar as variáveis.
+O aplicativo estará disponível em **`http://localhost:3000`**. Não é necessário configurar nenhuma variável de ambiente para este modo de protótipo.
 
 ---
 
 ## ✨ Funcionalidades
 
-- **Passageiro**: Solicitação de corrida, agendamento, negociação de valor, histórico e chat.
-- **Motorista**: Painel de solicitações em tempo real, gerenciamento de status (online/offline), chat, registro de corridas manuais e geração de relatórios.
-- **Administrador**: Gerenciamento completo de usuários (motoristas, passageiros), verificação de documentos e monitoramento de conversas.
-- **Atendente**: Painel focado em suporte, com acesso às conversas e status dos motoristas.
+-   **Painel do Passageiro**: Solicitação de corrida, visualização de motoristas e histórico.
+-   **Painel do Motorista**: Visualização de solicitações, gerenciamento de status, perfil, histórico e registro de corridas manuais.
+-   **Painel do Administrador**: Gerenciamento de usuários, verificação de documentos e monitoramento de conversas de suporte.
+-   **Painel do Atendente**: Focado em suporte, com acesso a listas de usuários e painel de conversas.
+
+---
+
+## 🔮 Transição para Backend Real (PocketBase)
+
+Embora o projeto rode localmente com um arquivo JSON, ele foi estruturado para ser facilmente migrado para um backend real com **PocketBase**.
+
+A documentação para essa transição está incluída no projeto:
+-   **`POCKETBASE_SETUP.md`**: Guia para hospedar um backend PocketBase no serviço gratuito PocketHost.
+-   **`POCKETBASE_API.md`**: Detalhes sobre as coleções e regras de API necessárias.
+-   **`ADMIN_SETUP.md`**: Como criar o primeiro usuário administrador no PocketBase.
+
+Para ativar a conexão, você precisaria criar um arquivo `.env.local` e configurar a variável `NEXT_PUBLIC_POCKETBASE_URL` com a URL do seu servidor.
