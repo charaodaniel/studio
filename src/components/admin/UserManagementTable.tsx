@@ -16,7 +16,7 @@ import { MoreHorizontal, FileDown, Trash2, Edit, UserPlus, ListVideo, FileText, 
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "./UserList";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { cn } from "@/lib/utils";
 import AddUserForm from "./AddUserForm";
@@ -446,3 +446,5 @@ export default function UserManagementTable() {
       </>
     );
   }
+
+    
