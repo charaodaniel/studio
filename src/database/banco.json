@@ -10,90 +10,6 @@
       "avatar": "/database/imagens/usr_1.png"
     },
     {
-      "id": "usr_2",
-      "name": "Ana Clara",
-      "email": "ana.clara@example.com",
-      "phone": "559988776655",
-      "password_placeholder": "******",
-      "role": [
-        "Passageiro"
-      ],
-      "avatar": "/database/imagens/usr_2.png"
-    },
-    {
-      "id": "usr_3",
-      "name": "Carlos Eduardo",
-      "email": "carlos.eduardo@example.com",
-      "phone": "559911223344",
-      "password_placeholder": "******",
-      "role": [
-        "Motorista"
-      ],
-      "avatar": "/database/imagens/usr_3.png",
-      "driver_status": "online",
-      "driver_vehicle_model": "Chevrolet Onix",
-      "driver_vehicle_plate": "BRA2E19",
-      "driver_cnpj": "12.345.678/0001-99",
-      "driver_pix_key": "carlos.edu@email.com",
-      "driver_fare_type": "km",
-      "driver_km_rate": 2.75,
-      "driver_accepts_rural": true
-    },
-    {
-      "id": "usr_4",
-      "name": "Beatriz Souza",
-      "email": "beatriz.souza@example.com",
-      "phone": "559922334455",
-      "password_placeholder": "******",
-      "role": [
-        "Motorista"
-      ],
-      "avatar": "/database/imagens/usr_4.png",
-      "driver_status": "offline",
-      "driver_vehicle_model": "Fiat Mobi",
-      "driver_vehicle_plate": "XYZ1234",
-      "driver_cnpj": "98.765.432/0001-11",
-      "driver_pix_key": "559922334455",
-      "driver_fare_type": "fixed",
-      "driver_fixed_rate": 15,
-      "driver_accepts_rural": false
-    },
-    {
-      "id": "usr_5",
-      "name": "Operador 01",
-      "email": "atendente@ceolin.com",
-      "phone": "559900001111",
-      "password_placeholder": "atendente123",
-      "role": [
-        "Atendente"
-      ],
-      "avatar": "/database/imagens/usr_5.png"
-    },
-    {
-      "id": "usr_local_1768085750074",
-      "collectionId": "_pb_users_auth_",
-      "collectionName": "users",
-      "created": "2026-01-10T22:55:50.074Z",
-      "updated": "2026-01-10T22:55:50.074Z",
-      "name": "juliano",
-      "email": "juliano@gmail.com",
-      "phone": "55996393353",
-      "password_placeholder": "gwtuu9sx",
-      "role": [
-        "Motorista"
-      ],
-      "avatar": "",
-      "driver_status": "offline",
-      "driver_vehicle_model": "",
-      "driver_vehicle_plate": "",
-      "driver_cnpj": "",
-      "driver_pix_key": "",
-      "driver_fare_type": "km",
-      "driver_km_rate": 0,
-      "driver_accepts_rural": false,
-      "disabled": false
-    },
-    {
       "id": "usr_local_1768091420000",
       "collectionId": "_pb_users_auth_",
       "collectionName": "users",
@@ -108,119 +24,18 @@
       "avatar": "",
       "password_placeholder": "123456789",
       "driver_status": "online",
-      "driver_vehicle_model": "",
-      "driver_vehicle_plate": "",
+      "driver_vehicle_model": "Fiat Strada",
+      "driver_vehicle_plate": "JCK-0001",
       "driver_cnpj": "",
       "driver_pix_key": "",
-      "driver_fare_type": "fixed",
-      "driver_km_rate": 2.5,
-      "driver_accepts_rural": false,
+      "driver_fare_type": "km",
+      "driver_km_rate": 3.5,
+      "driver_accepts_rural": true,
       "disabled": false,
       "driver_fixed_rate": "10"
     }
   ],
   "rides": [
-    {
-      "id": "ride_1",
-      "passenger": "usr_2",
-      "driver": "usr_3",
-      "origin_address": "Rua das Flores, 123",
-      "destination_address": "Shopping Central",
-      "status": "completed",
-      "fare": 18.5,
-      "is_negotiated": false,
-      "started_by": "passenger",
-      "created": "2024-05-20T10:00:00Z"
-    },
-    {
-      "id": "ride_2",
-      "passenger_anonymous_name": "Cliente Anônimo",
-      "driver": "usr_3",
-      "origin_address": "Av. Principal, 500",
-      "destination_address": "Aeroporto",
-      "status": "completed",
-      "fare": 35,
-      "is_negotiated": false,
-      "started_by": "driver",
-      "created": "2024-05-21T14:30:00Z"
-    },
-    {
-      "id": "ride_3",
-      "passenger": "usr_2",
-      "driver": "usr_3",
-      "origin_address": "Centro",
-      "destination_address": "Fazenda Boa Vista",
-      "status": "requested",
-      "fare": 150,
-      "is_negotiated": true,
-      "started_by": "passenger",
-      "created": "2024-05-22T08:00:00Z",
-      "scheduled_for": "2024-05-25T09:00:00Z"
-    },
-    {
-      "id": "ride_local_1768094675622",
-      "driver": "usr_local_1768091420000",
-      "status": "completed",
-      "started_by": "driver",
-      "origin_address": "Corrida Rápida",
-      "destination_address": "A definir",
-      "fare": 0,
-      "is_negotiated": false,
-      "passenger_anonymous_name": "Passageiro (Rápida)",
-      "created": "2026-01-11T01:24:35.622Z",
-      "updated": "2026-01-11T01:24:35.622Z",
-      "passenger": null,
-      "collectionId": "b1wtu7ah1l75gen",
-      "collectionName": "rides"
-    },
-    {
-      "id": "ride_local_1768095643520",
-      "driver": "usr_local_1768091420000",
-      "status": "canceled",
-      "started_by": "driver",
-      "origin_address": "Corrida Rápida",
-      "destination_address": "A definir",
-      "fare": 0,
-      "is_negotiated": false,
-      "passenger_anonymous_name": "Passageiro (Rápida)",
-      "created": "2026-01-11T01:40:43.520Z",
-      "updated": "2026-01-11T01:40:43.520Z",
-      "passenger": null,
-      "collectionId": "b1wtu7ah1l75gen",
-      "collectionName": "rides"
-    },
-    {
-      "id": "ride_local_1768095721948",
-      "driver": "usr_local_1768091420000",
-      "status": "completed",
-      "started_by": "driver",
-      "origin_address": "Corrida Rápida",
-      "destination_address": "A definir",
-      "fare": 0,
-      "is_negotiated": false,
-      "passenger_anonymous_name": "Passageiro (Rápida)",
-      "created": "2026-01-11T01:42:01.948Z",
-      "updated": "2026-01-11T01:42:01.948Z",
-      "passenger": null,
-      "collectionId": "b1wtu7ah1l75gen",
-      "collectionName": "rides"
-    },
-    {
-      "id": "ride_local_1768095769105",
-      "driver": "usr_local_1768091420000",
-      "status": "canceled",
-      "started_by": "driver",
-      "origin_address": "Corrida Rápida",
-      "destination_address": "A definir",
-      "fare": 0,
-      "is_negotiated": false,
-      "passenger_anonymous_name": "Passageiro (Rápida)",
-      "created": "2026-01-11T01:42:49.105Z",
-      "updated": "2026-01-11T01:42:49.105Z",
-      "passenger": null,
-      "collectionId": "b1wtu7ah1l75gen",
-      "collectionName": "rides"
-    },
     {
       "id": "ride_local_1768173321503",
       "driver": "usr_local_1768091420000",
@@ -228,7 +43,7 @@
       "started_by": "driver",
       "origin_address": "Corrida Rápida",
       "destination_address": "A definir",
-      "fare": "10",
+      "fare": 10,
       "is_negotiated": false,
       "passenger_anonymous_name": "Passageiro (Rápida)",
       "created": "2026-01-11T23:15:21.503Z",
@@ -238,43 +53,9 @@
       "collectionName": "rides"
     }
   ],
-  "documents": [
-    {
-      "id": "doc_1",
-      "driver": "usr_3",
-      "document_type": "CNH",
-      "file": "/database/documentos/sample_doc.png",
-      "is_verified": true
-    },
-    {
-      "id": "doc_2",
-      "driver": "usr_3",
-      "document_type": "CRLV",
-      "file": "/database/documentos/sample_doc.png",
-      "is_verified": false
-    }
-  ],
-  "chats": [
-    {
-      "id": "chat_1",
-      "participants": [
-        "usr_2",
-        "usr_3"
-      ],
-      "ride": "ride_3",
-      "last_message": "Olá! Podemos fechar em R$140?",
-      "updated": "2024-05-22T08:05:00Z"
-    }
-  ],
-  "messages": [
-    {
-      "id": "msg_1",
-      "chat": "chat_1",
-      "sender": "usr_2",
-      "text": "Olá! Podemos fechar em R$140?",
-      "created": "2024-05-22T08:05:00Z"
-    }
-  ],
+  "documents": [],
+  "chats": [],
+  "messages": [],
   "institutional_info": {
     "company_name": "CEOLIN LTDA",
     "cnpj": "52.905.738/0001-00",
