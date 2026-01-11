@@ -78,12 +78,11 @@
       "name": "juliano",
       "email": "juliano@gmail.com",
       "phone": "55996393353",
-      "password_placeholder": "123456789",
+      "password_placeholder": "gwtuu9sx",
       "role": [
         "Motorista"
       ],
       "avatar": "",
-      "password_placeholder": "gwtuu9sx",
       "driver_status": "offline",
       "driver_vehicle_model": "",
       "driver_vehicle_plate": "",
@@ -91,6 +90,30 @@
       "driver_pix_key": "",
       "driver_fare_type": "km",
       "driver_km_rate": 0,
+      "driver_accepts_rural": false,
+      "disabled": false
+    },
+    {
+      "id": "usr_local_1768091420000",
+      "collectionId": "_pb_users_auth_",
+      "collectionName": "users",
+      "created": "2026-01-11T00:30:20.000Z",
+      "updated": "2026-01-11T00:30:20.000Z",
+      "name": "Juliano Ceolin",
+      "email": "julianoceolin478@gmail.com",
+      "phone": "55984456467",
+      "role": [
+        "Motorista"
+      ],
+      "avatar": "",
+      "password_placeholder": "123456789",
+      "driver_status": "offline",
+      "driver_vehicle_model": "",
+      "driver_vehicle_plate": "",
+      "driver_cnpj": "",
+      "driver_pix_key": "",
+      "driver_fare_type": "km",
+      "driver_km_rate": 2.5,
       "driver_accepts_rural": false,
       "disabled": false
     }
