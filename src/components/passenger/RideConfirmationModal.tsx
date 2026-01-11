@@ -78,9 +78,12 @@ export default function RideConfirmationModal({
             const now = new Date();
             const rideId = `ride_local_${now.getTime()}`;
 
-            const newRide: Omit<RideRecord, 'collectionId' | 'collectionName' | 'updated'> = {
+            const newRide: RideRecord = {
                 id: rideId,
                 created: now.toISOString(),
+                updated: now.toISOString(),
+                collectionId: 'b1wtu7ah1l75gen',
+                collectionName: 'rides',
                 passenger: passenger ? passenger.id : null,
                 passenger_anonymous_name: passengerAnonymousName,
                 driver: driver.id,
@@ -94,11 +97,12 @@ export default function RideConfirmationModal({
             };
 
             await saveData(currentData => {
-                 const db = currentData ?? { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+                 const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+                 const updatedRides = [...(db.rides || []), newRide];
                  return {
                      ...db,
-                     rides: [...(db.rides || []), newRide as RideRecord],
-                 }
+                     rides: updatedRides,
+                 };
             });
             
             toast({
@@ -181,4 +185,3 @@ export default function RideConfirmationModal({
         </Dialog>
     );
 }
-
