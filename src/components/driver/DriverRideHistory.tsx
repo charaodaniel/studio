@@ -3,7 +3,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle, Clock, Zap } from "lucide-react";
+import { History, User, MapPin, Download, FileText, BarChart2, FileType, PlusCircle, AlertCircle, CloudOff, RefreshCw, Loader2, WifiOff, Calendar as CalendarIcon, AlertTriangle, Clock, Zap, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -412,6 +412,17 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
             setIsSubmitting(false);
         }
     };
+
+    const getStatusBadge = (status: RideRecord['status']) => {
+        switch (status) {
+            case 'completed':
+                return <Badge variant="secondary" className="bg-green-100 text-green-800"><CheckCircle className="mr-1 h-3 w-3" /> Concluída</Badge>;
+            case 'canceled':
+                return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> Cancelada</Badge>;
+            default:
+                return <Badge variant="outline">{status}</Badge>;
+        }
+    }
     
     const renderContent = () => {
         if (isDbLoading) {
@@ -421,6 +432,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                         </TableRow>
                     ))}
@@ -431,7 +443,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
              return (
                 <TableBody>
                     <TableRow>
-                        <TableCell colSpan={3} className="text-center p-8 text-destructive">
+                        <TableCell colSpan={4} className="text-center p-8 text-destructive">
                             <WifiOff className="mx-auto h-10 w-10 mb-2" />
                             <p className="font-semibold">Erro de Conexão</p>
                             <p className="text-sm">{dbError}</p>
@@ -444,7 +456,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
               return (
                 <TableBody>
                     <TableRow>
-                        <TableCell colSpan={3} className="text-center p-8 text-muted-foreground">
+                        <TableCell colSpan={4} className="text-center p-8 text-muted-foreground">
                             <History className="h-10 w-10 mb-4 mx-auto" />
                             <p className="font-semibold">Nenhuma corrida encontrada</p>
                             <p className="text-sm">Seu histórico de corridas para o período selecionado aparecerá aqui.</p>
@@ -482,6 +494,9 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                             <TableCell>
                                 <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-primary" /> {ride.origin_address}</div>
                                 <div className="flex items-center gap-2 text-xs"><MapPin className="h-3 w-3 text-accent" /> {ride.destination_address}</div>
+                            </TableCell>
+                            <TableCell>
+                                {getStatusBadge(ride.status)}
                             </TableCell>
                             <TableCell className="text-right font-semibold">R$ {ride.fare.toFixed(2).replace('.', ',')}</TableCell>
                         </TableRow>
@@ -645,6 +660,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 <TableRow>
                     <TableHead>Passageiro/Data</TableHead>
                     <TableHead>Trajeto</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                 </TableRow>
                 </TableHeader>

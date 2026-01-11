@@ -14,15 +14,14 @@ import { useRideRequestSound } from '@/hooks/useRideRequestSound';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { type User } from '../admin/UserList';
-import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { useDatabaseManager } from '@/hooks/use-database-manager';
 import { useAuth } from '@/hooks/useAuth';
 
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
 export interface RideRecord extends RecordModel {
@@ -50,7 +49,7 @@ interface DatabaseContent {
 
 const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecord, onAccept: (ride: RideRecord) => void, onReject: (rideId: string) => void, chatId: string | null }) => {
     const isScheduled = !!ride.scheduled_for;
-    const passengerAvatar = ride.expand?.passenger?.avatar ? getAvatarUrl(ride.expand.passenger, ride.expand.passenger.avatar) : '';
+    const passengerAvatar = ride.expand?.passenger?.avatar ? getAvatarUrl(ride.expand.passenger.avatar) : '';
 
     return (
         <Card className={ride.is_negotiated ? 'border-primary' : ''}>
@@ -341,7 +340,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 
     if (acceptedRide) {
          const passengerName = acceptedRide.expand?.passenger?.name || acceptedRide.passenger_anonymous_name || "Passageiro";
-         const passengerAvatar = acceptedRide.expand?.passenger?.avatar ? getAvatarUrl(acceptedRide.expand.passenger, acceptedRide.expand.passenger.avatar) : '';
+         const passengerAvatar = acceptedRide.expand?.passenger?.avatar ? getAvatarUrl(acceptedRide.expand.passenger.avatar) : '';
          return (
              <Card className="shadow-lg border-primary">
                  <CardHeader>
@@ -385,10 +384,16 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                             </Button>
                         </div>
                     ) : (
-                         <Button className="w-full" onClick={handleEndRide}>
-                            <CheckCheck className="mr-2 h-4 w-4" />
-                            Finalizar Viagem
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2 w-full">
+                            <Button className="w-full" onClick={handleNavigate}>
+                                <Navigation className="mr-2 h-4 w-4" />
+                                Navegar para Destino
+                            </Button>
+                            <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handleEndRide}>
+                                <CheckCheck className="mr-2 h-4 w-4" />
+                                Finalizar Viagem
+                            </Button>
+                        </div>
                      )}
                      <div className="grid grid-cols-2 gap-2 w-full mt-2">
                         {acceptedRide.started_by === 'passenger' ? (
@@ -401,7 +406,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                         ) : (<div/>)}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" className="w-full">
+                                <Button variant="destructive" className={acceptedRide.started_by !== 'passenger' ? 'col-span-2' : ''}>
                                     <X className="mr-2 h-4 w-4" />
                                     Cancelar
                                 </Button>
@@ -473,4 +478,3 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 }
 
     
-
