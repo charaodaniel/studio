@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
-import { type User } from '../admin/UserList';
+import type { User } from '../admin/UserList';
 import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
@@ -101,20 +101,15 @@ export default function PassengerAuthForm() {
         role: ['Passageiro'],
         avatar: '',
         password_placeholder: regPassword,
-        driver_status: 'offline',
-        driver_vehicle_model: "",
-        driver_vehicle_plate: "",
-        driver_cnpj: "",
-        driver_pix_key: "",
-        driver_fare_type: "km",
-        driver_km_rate: 0,
-        driver_accepts_rural: false,
-        disabled: false,
     };
 
     try {
-        const updatedDb = { ...db, users: [...db.users, newUser] };
-        await saveData(updatedDb);
+        const getNewData = (currentData: DatabaseContent): DatabaseContent => {
+          return { ...currentData, users: [...currentData.users, newUser] };
+        };
+        
+        await saveData(getNewData);
+
         await fetchData();
         toast({
             title: "Registro bem-sucedido!",

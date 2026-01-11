@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatabaseManager } from '@/hooks/use-database-manager';
-import { type User } from '../admin/UserList';
+import type { User } from '../admin/UserList';
 
 interface DatabaseContent {
   users: User[];
@@ -107,8 +107,12 @@ export default function DriverAuthForm() {
     };
 
     try {
-        const updatedDb = { ...db, users: [...db.users, newUser] };
-        await saveData(updatedDb);
+        const getNewData = (currentData: DatabaseContent): DatabaseContent => {
+          return { ...currentData, users: [...currentData.users, newUser] };
+        };
+        
+        await saveData(getNewData);
+
         await fetchData();
         toast({
             title: "Registro bem-sucedido!",
