@@ -18,18 +18,18 @@ interface RideConfirmationModalProps {
     driver: Driver;
     origin: string;
     destination: string;
+    isNegotiated: boolean;
     onConfirm: (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => void;
     passengerAnonymousName: string | null;
     scheduledFor?: Date;
 }
 
 export default function RideConfirmationModal({
-    isOpen, onOpenChange, driver, origin, destination, onConfirm, passengerAnonymousName, scheduledFor
+    isOpen, onOpenChange, driver, origin, destination, isNegotiated, onConfirm, passengerAnonymousName, scheduledFor
 }: RideConfirmationModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [calculatedFare, setCalculatedFare] = useState<number>(0);
     const [distance, setDistance] = useState<number>(0);
-    const [isNegotiated, setIsNegotiated] = useState(false);
     const { toast } = useToast();
     const { user: passenger } = useAuth();
     

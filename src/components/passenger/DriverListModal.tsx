@@ -16,12 +16,13 @@ import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import RideConfirmationModal from './RideConfirmationModal';
 import localData from '@/database/banco.json';
+import type { RideRecord } from '../driver/RideRequests';
 
 interface DriverListModalProps {
     origin: string;
     destination: string;
     isNegotiated: boolean;
-    onRideRequest: (rideId: string) => void;
+    onRideRequest: (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => void;
     passengerAnonymousName: string | null;
     scheduledFor?: Date;
 }
@@ -233,9 +234,9 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                     origin={origin}
                     destination={destination}
                     isNegotiated={isNegotiated}
-                    onConfirm={(rideId) => {
+                    onConfirm={(rideData) => {
                         setIsConfirmationOpen(false);
-                        onRideRequest(rideId);
+                        onRideRequest(rideData);
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
                     }}
                     passengerAnonymousName={passengerAnonymousName}
