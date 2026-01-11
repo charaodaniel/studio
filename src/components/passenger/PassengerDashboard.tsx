@@ -24,6 +24,7 @@ const getAvatarUrl = (avatarPath: string) => {
 
 interface RideRecord {
     id: string;
+    passenger?: string | null;
     status: RideStatus;
     is_negotiated: boolean;
     passenger_anonymous_name?: string;
@@ -155,18 +156,24 @@ export default function PassengerDashboard() {
 
   useEffect(() => {
     // This effect simulates checking for an active ride.
-    // In a real app, this would be a check against a backend.
-    const activeRideFromLocal = localData.rides.find(r => 
-        (r.passenger === user?.id || !user) && 
-        (r.status === "accepted" || r.status === "in_progress")
-    ) as RideRecord | undefined;
+    if (user) {
+        const activeRideFromLocal = localData.rides.find(r => 
+            r.passenger === user.id && 
+            (r.status === "accepted" || r.status === "in_progress")
+        ) as RideRecord | undefined;
 
-    if (activeRideFromLocal) {
-        handleRideUpdate(activeRideFromLocal);
-    } else {
-        if (rideStatus !== 'searching' && rideStatus !== 'idle') {
-            setRideStatus('idle');
+        if (activeRideFromLocal) {
+            handleRideUpdate(activeRideFromLocal);
+        } else {
+            if (rideStatus !== 'searching' && rideStatus !== 'idle') {
+                setRideStatus('idle');
+            }
         }
+    } else {
+        // If no user is logged in, ensure we are in an idle state.
+        setRideStatus('idle');
+        setRideDetails(null);
+        setActiveRide(null);
     }
   }, [user, rideStatus, handleRideUpdate]);
   
