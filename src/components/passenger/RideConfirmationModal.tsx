@@ -97,12 +97,13 @@ export default function RideConfirmationModal({
             };
 
             await saveData(currentData => {
-                 const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
-                 const updatedRides = [...(db.rides || []), newRide];
-                 return {
-                     ...db,
-                     rides: updatedRides,
-                 };
+                const db = currentData || {};
+                const currentRides = (db as any).rides || [];
+                
+                return {
+                    ...db,
+                    rides: [...currentRides, newRide],
+                };
             });
             
             toast({
