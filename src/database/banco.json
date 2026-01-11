@@ -107,15 +107,16 @@
       ],
       "avatar": "",
       "password_placeholder": "123456789",
-      "driver_status": "offline",
+      "driver_status": "online",
       "driver_vehicle_model": "",
       "driver_vehicle_plate": "",
       "driver_cnpj": "",
       "driver_pix_key": "",
-      "driver_fare_type": "km",
+      "driver_fare_type": "fixed",
       "driver_km_rate": 2.5,
       "driver_accepts_rural": false,
-      "disabled": false
+      "disabled": false,
+      "driver_fixed_rate": "10"
     }
   ],
   "rides": [
