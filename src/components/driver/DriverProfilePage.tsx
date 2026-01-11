@@ -33,11 +33,13 @@ export function DriverProfilePage() {
   const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
-    if (user) {
+    if (user && localDatabase && localDatabase.rides) {
         const userRides = localDatabase.rides.filter(
             ride => ride.driver === user.id && ride.status === "completed"
         );
         setCompletedRidesCount(userRides.length);
+    } else {
+        setCompletedRidesCount(0);
     }
   }, [user]);
 
