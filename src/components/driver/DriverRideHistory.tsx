@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../ui/switch";
 import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
+import { useAuth } from "@/hooks/useAuth";
 
 
 interface RideRecord extends RecordModel {
@@ -69,7 +70,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+    const { user: currentUser } = useAuth();
     
     const [dateRange, setDateRange] = useState<ReactDateRange | undefined>({
         from: startOfMonth(new Date()),
@@ -79,11 +80,6 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     const [isScheduling, setIsScheduling] = useState(false);
     const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
     const [scheduledTime, setScheduledTime] = useState<string>('');
-
-    useEffect(() => {
-        const user = pb.authStore.model as UserData | null;
-        setCurrentUser(user);
-    }, []);
 
     const fetchRides = useCallback(async (filterOverride?: string) => {
         if (!currentUser) return;
@@ -653,3 +649,4 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     </>
   );
 }
+
