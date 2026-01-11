@@ -166,7 +166,7 @@ export default function PassengerAuthForm() {
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
             <Button variant="outline" size="sm" onClick={handleRedirectToProfile}>
-              <PenSquare className="mr-2 h-4 w-4" /> redirecionar para a pagina de perfil
+              <PenSquare className="mr-2 h-4 w-4" /> Gerenciar Perfil e Corridas
             </Button>
           </div>
            <div className="p-4 border-t">
