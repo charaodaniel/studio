@@ -28,12 +28,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // On initial load, try to restore the session from localStorage.
   useEffect(() => {
     try {
       const storedUserJson = localStorage.getItem(USER_STORAGE_KEY);
       if (storedUserJson) {
         const storedUser = JSON.parse(storedUserJson) as User;
-        setUser(storedUser);
+        // Verify this user still exists in our 'database'
+        const userExists = localDatabase.users.some(u => u.id === storedUser.id);
+        if (userExists) {
+            setUser(storedUser);
+        } else {
+            // User from storage doesn't exist anymore, clear it.
+            localStorage.removeItem(USER_STORAGE_KEY);
+        }
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
@@ -48,18 +56,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await new Promise(resolve => setTimeout(resolve, 500)); // Simula delay da rede
 
     const foundUser = localDatabase.users.find(u => 
-      u.email.toLowerCase() === identity.toLowerCase() || u.phone === identity
+      u.email?.toLowerCase() === identity.toLowerCase() || u.phone === identity
     );
 
-    if (foundUser) {
-        // No modo protótipo, não verificamos a senha, basta o usuário existir.
+    // In prototype mode, we check for a placeholder password if it exists
+    if (foundUser && (!foundUser.password_placeholder || foundUser.password_placeholder === password)) {
         const fullUser = {
             ...foundUser,
             id: foundUser.id,
             collectionId: '_pb_users_auth_',
             collectionName: 'users',
-            created: new Date().toISOString(),
-            updated: new Date().toISOString(),
+            created: foundUser.created || new Date().toISOString(),
+            updated: foundUser.updated || new Date().toISOString(),
             role: Array.isArray(foundUser.role) ? foundUser.role : [foundUser.role]
         } as User;
         
@@ -67,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(fullUser);
         return fullUser;
     } else {
-        throw new Error("Usuário não encontrado.");
+        throw new Error("Usuário ou senha inválidos.");
     }
   }, []);
 
@@ -75,9 +83,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     localStorage.removeItem(USER_STORAGE_KEY);
     router.push('/');
+    router.refresh(); // Forces a refresh to clear state in other components
   }, [router]);
   
-  // Efeito para atualizar o localStorage se o usuário for modificado externamente (ex: edição de perfil)
+  // Effect to update localStorage if the user object is modified externally (e.g., profile update)
   useEffect(() => {
     if (user) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
@@ -87,7 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     isLoggedIn: !!user,
-    isLoading: isLoading,
+    isLoading,
     login,
     logout,
     setUser
