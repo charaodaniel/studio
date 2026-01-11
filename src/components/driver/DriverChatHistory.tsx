@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from "react";
 import localDatabase from '@/database/banco.json';
 import type { User } from "../admin/UserList";
 import { useAuth } from "@/hooks/useAuth";
+import type { DatabaseState } from "@/hooks/use-database-manager";
 
 interface ChatRecord {
   id: string;
@@ -17,6 +18,16 @@ interface ChatRecord {
   ride: string;
   updated: string;
 }
+
+interface DatabaseContent {
+    users: User[];
+    rides: any[];
+    documents: any[];
+    chats: ChatRecord[];
+    messages: any[];
+    institutional_info: any;
+}
+
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -36,7 +47,8 @@ export function DriverChatHistory() {
 
     try {
         await new Promise(resolve => setTimeout(resolve, 250)); // Simulate delay
-        const driverChats = localDatabase.chats.filter(chat => chat.participants.includes(currentUser.id));
+        const db = localDatabase as DatabaseContent;
+        const driverChats = db.chats.filter(chat => chat.participants.includes(currentUser.id));
         setChats(driverChats.sort((a,b) => new Date(b.updated).getTime() - new Date(a.updated).getTime()));
     } catch (err: any) {
         console.error("Failed to fetch chats:", err);
