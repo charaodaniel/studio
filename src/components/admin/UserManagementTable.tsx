@@ -47,7 +47,6 @@ export default function UserManagementTable() {
     const { toast } = useToast();
     const { data: db, isLoading, error, saveData, fetchData } = useDatabaseManager<DatabaseContent>();
     const [users, setUsers] = useState<User[]>([]);
-    const [isSaving, setIsSaving] = useState(false);
     
     const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
     const [selectedUserForLog, setSelectedUserForLog] = useState<User | null>(null);
@@ -63,13 +62,10 @@ export default function UserManagementTable() {
         }
     }, [db]);
     
-    const onActionComplete = async (updatedDb: DatabaseContent | null, toastMessage?: {title: string, description: string}) => {
-        if (updatedDb) {
-            await saveData(updatedDb);
-            await fetchData();
-            if (toastMessage) {
-                 toast(toastMessage);
-            }
+    const handleActionComplete = async (getNewData: (currentData: DatabaseContent) => DatabaseContent, toastMessage?: {title: string, description: string}) => {
+        await saveData(getNewData);
+        if (toastMessage) {
+            toast(toastMessage);
         }
         setSelectedUserForEdit(null);
         setIsAddUserOpen(false);
@@ -259,16 +255,17 @@ export default function UserManagementTable() {
     };
 
     const handleToggleUserStatus = async (user: User) => {
-        if (!db) return;
-        setIsSaving(true);
-        const updatedUsers = db.users.map(u => 
-            u.id === user.id ? { ...u, disabled: !user.disabled } : u
-        );
-        await onActionComplete(
-            {...db, users: updatedUsers},
+        const getNewData = (currentData: DatabaseContent): DatabaseContent => {
+             const updatedUsers = currentData.users.map(u => 
+                u.id === user.id ? { ...u, disabled: !user.disabled } : u
+            );
+            return {...currentData, users: updatedUsers};
+        };
+        
+        await handleActionComplete(
+            getNewData,
             { title: "Status Alterado", description: `O status de ${user.name} foi alterado.`}
         );
-        setIsSaving(false);
     }
     
     const getRoleForDisplay = (role: string | string[]): string => {
@@ -303,9 +300,10 @@ export default function UserManagementTable() {
                             <DialogDescription>Preencha os dados para criar um novo usuário.</DialogDescription>
                         </DialogHeader>
                         <AddUserForm onUserAdded={(newUser) => {
-                             if (!db) return;
-                             const updatedDb = { ...db, users: [...db.users, newUser] };
-                             onActionComplete(updatedDb, { title: "Usuário Adicionado", description: `O usuário ${newUser.name} foi adicionado.` });
+                             const getNewData = (currentData: DatabaseContent): DatabaseContent => {
+                                 return { ...currentData, users: [...currentData.users, newUser] };
+                             };
+                             handleActionComplete(getNewData, { title: "Usuário Adicionado", description: `O usuário ${newUser.name} foi adicionado.` });
                         }} />
                     </DialogContent>
                 </Dialog>
@@ -324,14 +322,14 @@ export default function UserManagementTable() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                     {(isLoading || isSaving) && (
+                     {isLoading && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center p-8">
                             <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       )}
-                    {!isLoading && !isSaving && error && (
+                    {!isLoading && error && (
                          <TableRow>
                             <TableCell colSpan={5} className="text-center p-8 text-destructive">
                                 <WifiOff className="mx-auto h-8 w-8 mb-2" />
@@ -339,7 +337,7 @@ export default function UserManagementTable() {
                             </TableCell>
                          </TableRow>
                     )}
-                    {!isLoading && !isSaving && !error && users.map((user) => (
+                    {!isLoading && !error && users.map((user) => (
                         <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell className="hidden md:table-cell">{user.email}</TableCell>
@@ -430,10 +428,11 @@ export default function UserManagementTable() {
                             user={selectedUserForEdit}
                             onBack={() => setSelectedUserForEdit(null)} 
                             onUserUpdate={(updatedUser) => {
-                                if (!db) return;
-                                const updatedUsers = db.users.map(u => u.id === updatedUser.id ? updatedUser : u);
-                                const updatedDb = { ...db, users: updatedUsers };
-                                onActionComplete(updatedDb, { title: "Usuário Atualizado", description: "Os dados do usuário foram salvos." });
+                                const getNewData = (currentData: DatabaseContent): DatabaseContent => {
+                                    const updatedUsers = currentData.users.map(u => u.id === updatedUser.id ? updatedUser : u);
+                                    return { ...currentData, users: updatedUsers };
+                                };
+                                handleActionComplete(getNewData, { title: "Usuário Atualizado", description: "Os dados do usuário foram salvos." });
                             }}
                         />
                      </DialogContent>

@@ -4,22 +4,21 @@ import { NextResponse } from 'next/server';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER;
 const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME;
-const GITHUB_REPO = GITHUB_REPO_OWNER && GITHUB_REPO_NAME ? `${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}` : null;
 const FILE_PATH = 'src/database/banco.json';
 
-// Cache para o SHA do arquivo
-let fileShaCache: string | undefined = undefined;
+function getRepoPath() {
+    if (!GITHUB_REPO_OWNER || !GITHUB_REPO_NAME) {
+        throw new Error('As variáveis de ambiente GITHUB_REPO_OWNER e GITHUB_REPO_NAME não foram configuradas.');
+    }
+    return `${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`;
+}
 
-async function getFileSha(): Promise<string | undefined> {
-    if (fileShaCache) {
-        return fileShaCache;
+async function getFileSha(repo: string): Promise<string | undefined> {
+    if (!GITHUB_TOKEN) {
+        throw new Error('A variável de ambiente GITHUB_TOKEN não foi configurada no servidor.');
     }
 
-    if (!GITHUB_TOKEN || !GITHUB_REPO) {
-        throw new Error('As variáveis de ambiente do GitHub (TOKEN, REPO_OWNER, REPO_NAME) não foram configuradas no servidor.');
-    }
-
-    const githubApiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${FILE_PATH}`;
+    const githubApiUrl = `https://api.github.com/repos/${repo}/contents/${FILE_PATH}`;
 
     try {
         const fileResponse = await fetch(githubApiUrl, {
@@ -27,16 +26,14 @@ async function getFileSha(): Promise<string | undefined> {
                 Authorization: `token ${GITHUB_TOKEN}`,
                 Accept: 'application/vnd.github.v3+json',
             },
-            next: { revalidate: 5 } // Revalida o cache a cada 5 segundos
+            cache: 'no-store' // Always get the latest SHA
         });
 
         if (fileResponse.ok) {
             const fileData = await fileResponse.json();
-            fileShaCache = fileData.sha;
             return fileData.sha;
         } else if (fileResponse.status === 404) {
-            // File doesn't exist, no SHA to return
-            return undefined;
+            return undefined; // File doesn't exist, no SHA
         } else {
             const errorData = await fileResponse.json();
             console.error('Falha ao buscar SHA do arquivo no GitHub:', errorData);
@@ -49,27 +46,26 @@ async function getFileSha(): Promise<string | undefined> {
 }
 
 export async function GET(request: Request) {
-    if (!GITHUB_TOKEN || !GITHUB_REPO) {
-        return NextResponse.json(
-            { message: 'As variáveis de ambiente do GitHub (TOKEN, REPO_OWNER, REPO_NAME) não foram configuradas no servidor.' },
-            { status: 500 }
-        );
-    }
-    
-    const githubApiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${FILE_PATH}`;
-
     try {
-         const fileResponse = await fetch(githubApiUrl, {
+        const repo = getRepoPath();
+        const githubApiUrl = `https://api.github.com/repos/${repo}/contents/${FILE_PATH}`;
+
+        const fileResponse = await fetch(githubApiUrl, {
             headers: {
                 Authorization: `token ${GITHUB_TOKEN}`,
                 Accept: 'application/vnd.github.v3+json',
             },
-            cache: 'no-store' // Sempre buscar o mais recente
+            cache: 'no-store'
         });
 
         if (!fileResponse.ok) {
             const errorText = await fileResponse.text();
             console.error("GitHub GET error:", errorText);
+             // If the file doesn't exist, return a default empty structure
+            if (fileResponse.status === 404) {
+                const defaultContent = { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+                return NextResponse.json({ content: JSON.stringify(defaultContent, null, 2) });
+            }
             return NextResponse.json({ message: 'Falha ao buscar o arquivo do GitHub.', details: errorText }, { status: fileResponse.status });
         }
 
@@ -79,12 +75,8 @@ export async function GET(request: Request) {
              throw new Error('Codificação de arquivo inesperada recebida do GitHub.');
         }
 
-        // Decodificar o conteúdo de base64 para texto
         const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
         
-        // Atualizar o cache do SHA
-        fileShaCache = fileData.sha;
-
         return NextResponse.json({ content });
 
     } catch (error: any) {
@@ -94,32 +86,24 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!GITHUB_TOKEN || !GITHUB_REPO) {
-    return NextResponse.json(
-      { message: 'As variáveis de ambiente do GitHub (TOKEN, REPO_OWNER, REPO_NAME) não foram configuradas no servidor.' },
-      { status: 500 }
-    );
-  }
-
   try {
+    const repo = getRepoPath();
     const { content } = await request.json();
     
     if (typeof content !== 'string') {
         return NextResponse.json({ message: 'Parâmetro "content" inválido ou ausente.' }, { status: 400 });
     }
 
-    const githubApiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${FILE_PATH}`;
+    const githubApiUrl = `https://api.github.com/repos/${repo}/contents/${FILE_PATH}`;
 
-    // 1. Obter o SHA do arquivo atual para garantir que estamos atualizando a versão mais recente
-    const currentSha = await getFileSha();
+    const currentSha = await getFileSha(repo);
     
-    // 2. Enviar o novo conteúdo para o GitHub
     const contentBase64 = Buffer.from(content).toString('base64');
 
     const payload = {
       message: `CMS: Atualização em ${FILE_PATH}`,
       content: contentBase64,
-      sha: currentSha, // Se currentSha for undefined, a API criará um novo arquivo
+      sha: currentSha,
     };
 
     const updateResponse = await fetch(githubApiUrl, {
@@ -134,18 +118,15 @@ export async function POST(request: Request) {
 
     if (!updateResponse.ok) {
         const errorData = await updateResponse.json();
-        // Se houver um conflito de SHA, invalide o cache e peça para o cliente tentar novamente
         if (updateResponse.status === 409) {
-            fileShaCache = undefined; // Invalidate cache
-            return NextResponse.json({ message: 'Conflito de versão. Tente salvar novamente.', error_code: 'CONFLICT' }, { status: 409 });
+            // 409 Conflict: SHA mismatch, indicating the file was updated since we last fetched it.
+            return NextResponse.json({ message: 'Conflito de versão. O arquivo foi alterado no servidor. Tente novamente.', error_code: 'CONFLICT' }, { status: 409 });
         }
+        // Other errors
         throw new Error(`Falha ao atualizar o arquivo no GitHub: ${errorData.message || updateResponse.statusText}`);
     }
 
     const result = await updateResponse.json();
-
-    // Invalida o cache do SHA após uma escrita bem-sucedida para forçar a busca na próxima vez
-    fileShaCache = result.content.sha;
 
     return NextResponse.json({ message: 'Arquivo atualizado com sucesso!', data: result });
 

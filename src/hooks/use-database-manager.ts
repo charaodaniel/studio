@@ -8,9 +8,11 @@ export interface DatabaseState<T> {
     data: T | null;
     isLoading: boolean;
     error: string | null;
-    saveData: (newData: T) => Promise<void>;
+    saveData: (getNewData: (currentData: T) => T) => Promise<void>;
     fetchData: () => Promise<void>;
 }
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function useDatabaseManager<T>(initialData: T | null = null): DatabaseState<T> {
     const { toast } = useToast();
@@ -21,7 +23,7 @@ export function useDatabaseManager<T>(initialData: T | null = null): DatabaseSta
 
     const API_URL = '/api/save-content';
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (): Promise<T | null> => {
         setIsLoading(true);
         setError(null);
         try {
@@ -33,6 +35,7 @@ export function useDatabaseManager<T>(initialData: T | null = null): DatabaseSta
             const { content } = await response.json();
             const parsedData = JSON.parse(content) as T;
             setData(parsedData);
+            return parsedData;
         } catch (err: any) {
             console.error("useDatabaseManager fetch error:", err);
             setError(err.message || "Erro desconhecido ao carregar dados.");
@@ -41,51 +44,79 @@ export function useDatabaseManager<T>(initialData: T | null = null): DatabaseSta
                 title: 'Erro ao Carregar Dados',
                 description: err.message,
             });
+            return null;
         } finally {
             setIsLoading(false);
         }
     }, [toast]);
 
-
-    const saveData = async (newData: T) => {
+    const saveData = async (getNewData: (currentData: T) => T) => {
         setIsSaving(true);
         setError(null);
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ content: JSON.stringify(newData, null, 2) }),
-            });
+        let attempts = 0;
+        const maxAttempts = 3;
 
-            if (!response.ok) {
-                 const errorData = await response.json();
-                if (errorData.error_code === 'CONFLICT') {
-                     toast({
-                        variant: 'destructive',
-                        title: 'Conflito de Versão',
-                        description: 'Alguém salvou dados enquanto você editava. Seus dados não foram salvos. Por favor, recarregue a página e tente novamente.',
-                        duration: 10000
-                    });
-                } else {
+        while (attempts < maxAttempts) {
+            try {
+                // 1. Get the most recent data from the server before attempting to save.
+                const currentDataResponse = await fetch(API_URL);
+                if (!currentDataResponse.ok) throw new Error("Não foi possível obter a versão mais recente dos dados para salvar.");
+                
+                const { content } = await currentDataResponse.json();
+                const currentData = JSON.parse(content) as T;
+                
+                // 2. Apply the intended change to the most recent data.
+                const newData = getNewData(currentData);
+                
+                // 3. Attempt to save.
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: JSON.stringify(newData, null, 2) }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    if (errorData.error_code === 'CONFLICT' && attempts < maxAttempts - 1) {
+                        // Conflict detected, will retry.
+                        attempts++;
+                        console.warn(`Tentativa ${attempts}: Conflito detectado. Tentando salvar novamente...`);
+                        toast({
+                            title: 'Conflito de Versão Detectado',
+                            description: `Tentando salvar novamente (tentativa ${attempts}/${maxAttempts-1}).`,
+                        });
+                        await sleep(1000 * attempts); // Exponential backoff
+                        continue; // Go to next loop iteration to retry
+                    }
                     throw new Error(errorData.message || 'Falha ao salvar os dados no servidor.');
                 }
-            } else {
+
+                // Success!
                 setData(newData); // Optimistic update
+                setIsSaving(false);
+                return; // Exit the loop and function
+
+            } catch (err: any) {
+                console.error(`useDatabaseManager save error (attempt ${attempts + 1}):`, err);
+                setError(err.message || "Erro desconhecido ao salvar dados.");
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro ao Salvar',
+                    description: err.message,
+                });
+                setIsSaving(false);
+                throw err; // Re-throw the error so calling components know it failed
             }
-        } catch (err: any) {
-            console.error("useDatabaseManager save error:", err);
-            setError(err.message || "Erro desconhecido ao salvar dados.");
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao Salvar',
-                description: err.message,
-            });
-             throw err; // Re-throw the error so calling components know it failed
-        } finally {
-            setIsSaving(false);
         }
+
+        // If loop finishes, all attempts failed
+        toast({
+            variant: 'destructive',
+            title: 'Falha Crítica ao Salvar',
+            description: 'Não foi possível salvar suas alterações após várias tentativas. Por favor, recarregue a página.',
+            duration: 10000,
+        });
+        setIsSaving(false);
     };
 
     useEffect(() => {
