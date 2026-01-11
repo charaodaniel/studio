@@ -298,7 +298,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
 
     const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentUser || !db) return;
+        if (!currentUser) return;
     
         if (!newRide.origin || !newRide.destination || !newRide.value) {
             toast({ variant: 'destructive', title: 'Campos obrigatórios' });
@@ -336,12 +336,14 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 newRideRecord.ride_description = `Viagem agendada para ${format(fullScheduledDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Passageiro: ${newRide.passengerName}. Valor: R$ ${newRide.value}`;
             }
 
-            const updatedDb = { ...db, rides: [...db.rides, newRideRecord] };
-            await saveData(updatedDb);
+            await saveData((currentDb) => ({
+                ...currentDb,
+                rides: [...currentDb.rides, newRideRecord],
+            }));
     
             if (isScheduling) {
                 toast({ title: 'Corrida Agendada!', description: 'A corrida agendada foi adicionada às suas solicitações.' });
-                fetchData(); // Refresh data to show new ride
+                await fetchData(); // Refresh data to show new ride
             } else {
                 toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
                 onManualRideStart(newRideRecord);
@@ -361,8 +363,8 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     };
 
     const handleStartQuickRide = async () => {
-        if (!currentUser || !db) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Usuário ou banco de dados não encontrado.' });
+        if (!currentUser) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não encontrado.' });
             return;
         }
         
@@ -395,8 +397,10 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 collectionName: 'rides',
             };
 
-            const updatedDb = { ...db, rides: [...db.rides, newRideRecord] };
-            await saveData(updatedDb);
+            await saveData((currentDb) => ({
+                ...currentDb,
+                rides: [...currentDb.rides, newRideRecord],
+            }));
 
             toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está pronta para começar." });
             onManualRideStart(newRideRecord);
