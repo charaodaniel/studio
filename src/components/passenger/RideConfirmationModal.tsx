@@ -10,7 +10,6 @@ import { type User as Driver } from '../admin/UserList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
-import { useDatabaseManager } from '@/hooks/use-database-manager';
 import type { RideRecord } from '../driver/RideRequests';
 
 interface RideConfirmationModalProps {
@@ -19,22 +18,21 @@ interface RideConfirmationModalProps {
     driver: Driver;
     origin: string;
     destination: string;
-    isNegotiated: boolean;
-    onConfirm: (rideId: string) => void;
+    onConfirm: (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => void;
     passengerAnonymousName: string | null;
     scheduledFor?: Date;
 }
 
 export default function RideConfirmationModal({
-    isOpen, onOpenChange, driver, origin, destination, isNegotiated, onConfirm, passengerAnonymousName, scheduledFor
+    isOpen, onOpenChange, driver, origin, destination, onConfirm, passengerAnonymousName, scheduledFor
 }: RideConfirmationModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [calculatedFare, setCalculatedFare] = useState<number>(0);
     const [distance, setDistance] = useState<number>(0);
+    const [isNegotiated, setIsNegotiated] = useState(false);
     const { toast } = useToast();
     const { user: passenger } = useAuth();
-    const { saveData } = useDatabaseManager();
-
+    
     useEffect(() => {
         if (isOpen && !isNegotiated) {
             // Simula cálculo de distância para a tarifa
@@ -74,53 +72,22 @@ export default function RideConfirmationModal({
             return;
         }
         
-        try {
-            const now = new Date();
-            const rideId = `ride_local_${now.getTime()}`;
+        const newRideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'> = {
+            passenger: passenger ? passenger.id : null,
+            passenger_anonymous_name: passengerAnonymousName,
+            driver: driver.id,
+            origin_address: origin,
+            destination_address: destination,
+            status: 'requested',
+            fare: isNegotiated ? 0 : calculatedFare,
+            is_negotiated: isNegotiated,
+            started_by: 'passenger',
+            scheduled_for: scheduledFor?.toISOString(),
+        };
 
-            const newRide: RideRecord = {
-                id: rideId,
-                created: now.toISOString(),
-                updated: now.toISOString(),
-                collectionId: 'b1wtu7ah1l75gen',
-                collectionName: 'rides',
-                passenger: passenger ? passenger.id : null,
-                passenger_anonymous_name: passengerAnonymousName,
-                driver: driver.id,
-                origin_address: origin,
-                destination_address: destination,
-                status: 'requested',
-                fare: isNegotiated ? 0 : calculatedFare,
-                is_negotiated: isNegotiated,
-                started_by: 'passenger',
-                scheduled_for: scheduledFor?.toISOString(),
-            };
-
-            await saveData(currentData => {
-                const db = currentData || {};
-                const currentRides = (db as any).rides || [];
-                
-                return {
-                    ...db,
-                    rides: [...currentRides, newRide],
-                };
-            });
-            
-            toast({
-                title: "Corrida Solicitada!",
-                description: `Sua solicitação foi enviada para ${driver.name}.`,
-            });
-            onConfirm(rideId);
-
-        } catch (error) {
-             toast({
-                variant: 'destructive',
-                title: 'Erro ao Solicitar',
-                description: 'Não foi possível salvar a solicitação de corrida. Tente novamente.',
-            });
-        } finally {
-            setIsLoading(false);
-        }
+        onConfirm(newRideData);
+        onOpenChange(false);
+        setIsLoading(false);
     };
 
     return (

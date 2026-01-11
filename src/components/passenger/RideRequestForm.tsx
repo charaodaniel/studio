@@ -10,9 +10,10 @@ import DriverListModal from './DriverListModal';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import type { RideRecord } from '../driver/RideRequests';
 
 interface RideRequestFormProps {
-  onRideRequest: (rideId: string) => void;
+  onRideRequest: (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => void;
   isSearching: boolean;
   anonymousUserName: string | null;
   origin: string;
@@ -131,7 +132,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
                             origin={origin} 
                             destination={destination}
                             isNegotiated={isNegotiated}
-                            onRideRequest={onRideRequest}
+                            onRideRequest={(rideId) => {}} // This is now handled by the parent
                             passengerAnonymousName={anonymousUserName}
                         />
                     </DialogContent>

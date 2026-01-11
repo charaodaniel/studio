@@ -17,6 +17,7 @@ import RideConfirmationModal from './RideConfirmationModal';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import type { RideRecord } from '../driver/RideRequests';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -62,6 +63,7 @@ export default function PassengerDashboard() {
   const { toast } = useToast();
   const { playNotification } = useNotificationSound();
   const { user } = useAuth();
+  const { saveData } = useDatabaseManager();
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
@@ -163,27 +165,62 @@ export default function PassengerDashboard() {
   }, [user, rideStatus, handleRideUpdate]);
   
 
-  const onRideRequest = (rideId: string) => {
-    setRideStatus('searching');
-    toast({ title: 'Procurando Motorista...', description: 'Sua solicitação foi enviada.' });
-    
-    // Simulates a driver accepting. In a real scenario, this would be a real-time update.
-    const interval = setInterval(() => {
-        const ride = localData.rides.find(r => r.id === rideId) as RideRecord;
-        if (ride && ride.status !== 'requested') {
-            handleRideUpdate(ride);
-            clearInterval(interval);
-        }
-    }, 3000);
+  const onRideRequest = async (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => {
+    const now = new Date();
+    const rideId = `ride_local_${now.getTime()}`;
+
+    const newRide: RideRecord = {
+        id: rideId,
+        collectionId: 'b1wtu7ah1l75gen',
+        collectionName: 'rides',
+        created: now.toISOString(),
+        updated: now.toISOString(),
+        ...rideData
+    };
+
+    try {
+        await saveData(currentData => {
+            const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+            return {
+                ...db,
+                rides: [...db.rides, newRide],
+            };
+        });
+
+        toast({ title: 'Procurando Motorista...', description: 'Sua solicitação foi enviada.' });
+        setRideStatus('searching');
+        setActiveRide(newRide);
+
+        // Simulates a driver accepting. In a real scenario, this would be a real-time update.
+        const interval = setInterval(() => {
+            const ride = localData.rides.find(r => r.id === rideId) as RideRecord;
+            if (ride && ride.status !== 'requested') {
+                handleRideUpdate(ride);
+                clearInterval(interval);
+            }
+        }, 3000);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro ao Solicitar', description: 'Não foi possível enviar a solicitação.' });
+        setRideStatus('idle');
+    }
   };
 
   const handleCancelRide = async (updateDb = true) => {
     if (updateDb && activeRide) {
-        toast({
-            title: 'Corrida Cancelada (Simulação)',
-            description: 'Sua solicitação foi cancelada.',
-            variant: 'destructive'
-        });
+        try {
+            await saveData((currentData) => {
+                const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+                const updatedRides = db.rides.map(r => r.id === activeRide.id ? { ...r, status: 'canceled' as const } : r);
+                return { ...db, rides: updatedRides };
+            });
+            toast({
+                title: 'Corrida Cancelada',
+                description: 'Sua solicitação foi cancelada.',
+                variant: 'destructive'
+            });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível cancelar a corrida.' });
+        }
     }
     setRideStatus('idle');
     setRideDetails(null);
@@ -219,7 +256,10 @@ export default function PassengerDashboard() {
       <div className="w-full lg:max-w-md mx-auto">
         {rideStatus === 'idle' || rideStatus === 'searching' || rideStatus === 'requested' ? (
           <RideRequestForm
-            onRideRequest={onRideRequest}
+            onRideRequest={(rideId) => { // This onRideRequest is from the DriverListModal (legacy)
+              setRideStatus('searching');
+              toast({ title: 'Procurando Motorista...', description: 'Sua solicitação foi enviada.' });
+            }}
             isSearching={rideStatus === 'searching' || rideStatus === 'requested'}
             anonymousUserName={user ? null : 'Anônimo'}
             origin={origin}
@@ -291,7 +331,6 @@ export default function PassengerDashboard() {
                 driver={selectedDriver}
                 origin={origin}
                 destination={destination}
-                isNegotiated={false} // This view logic defaults to non-negotiated. The form handles negotiation.
                 onConfirm={onRideRequest}
                 passengerAnonymousName={user ? null : "Passageiro Anônimo"}
             />
