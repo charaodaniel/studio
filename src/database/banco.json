@@ -18,7 +18,8 @@
       "role": [
         "Passageiro"
       ],
-      "avatar": "/database/imagens/usr_2.png"
+      "avatar": "/database/imagens/usr_2.png",
+      "disabled": true
     },
     {
       "id": "usr_3",
