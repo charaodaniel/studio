@@ -16,6 +16,9 @@ import { ptBR } from 'date-fns/locale';
 import { type User } from '../admin/UserList';
 import pb from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
+import { useAuth } from '@/hooks/useAuth';
+
 
 const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
     if (!record || !avatarFileName) return '';
@@ -38,6 +41,12 @@ export interface RideRecord extends RecordModel {
         passenger?: User;
     }
 }
+
+interface DatabaseContent {
+  users: User[];
+  rides: RideRecord[];
+}
+
 
 const RideRequestCard = ({ ride, onAccept, onReject, chatId }: { ride: RideRecord, onAccept: (ride: RideRecord) => void, onReject: (rideId: string) => void, chatId: string | null }) => {
     const isScheduled = !!ride.scheduled_for;
@@ -125,12 +134,15 @@ interface FullRideRequest {
 export function RideRequests({ setDriverStatus, manualRideOverride, onManualRideEnd }: { setDriverStatus: (status: string) => void, manualRideOverride: RideRecord | null, onManualRideEnd: () => void }) {
     const { toast } = useToast();
     const { playRideRequestSound, stopRideRequestSound } = useRideRequestSound();
+    const { data: db, isLoading: isDbLoading, error: dbError, saveData, fetchData } = useDatabaseManager<DatabaseContent>();
+    const { user: currentUser } = useAuth();
+    
     const [requests, setRequests] = useState<FullRideRequest[]>([]);
     const [acceptedRide, setAcceptedRide] = useState<RideRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [passengerOnBoard, setPassengerOnBoard] = useState(false);
-    const currentUser = pb.authStore.model;
+    
 
     useEffect(() => {
         if (manualRideOverride) {
@@ -143,7 +155,10 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     }, [manualRideOverride]);
 
     const fetchRequests = useCallback(async () => {
-        if (!currentUser) return;
+        if (!currentUser || !db) {
+            setIsLoading(false);
+            return;
+        };
         
         setIsLoading(true);
         setError(null);
@@ -151,99 +166,71 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         try {
             const driverId = currentUser.id;
             
-            // Check for an already accepted ride first
-            const alreadyAccepted = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}" && (status = "accepted" || status = "in_progress")`,
-                expand: 'passenger'
-            });
+            const driverRides = db.rides.filter(r => r.driver === driverId);
 
-            if (alreadyAccepted.length > 0) {
-                setAcceptedRide(alreadyAccepted[0]);
-                 if (alreadyAccepted[0].status === 'in_progress') {
+            const alreadyAccepted = driverRides.find(r => r.status === "accepted" || r.status === "in_progress");
+
+            if (alreadyAccepted) {
+                const passenger = alreadyAccepted.passenger ? db.users.find(u => u.id === alreadyAccepted.passenger) : undefined;
+                setAcceptedRide({ ...alreadyAccepted, expand: { passenger } });
+                if (alreadyAccepted.status === 'in_progress') {
                     setPassengerOnBoard(true);
                 }
                 setRequests([]);
-                setIsLoading(false);
                 stopRideRequestSound();
-                return; // Exit if an accepted ride is found
-            }
-
-            // If no accepted ride, listen for new requests
-            const requestedRecords = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver = "${driverId}" && status = "requested"`,
-                expand: 'passenger'
-            });
-            
-            if (requestedRecords.length > 0) {
-                playRideRequestSound();
             } else {
-                stopRideRequestSound();
-            }
-
-            const fullRequests: FullRideRequest[] = await Promise.all(requestedRecords.map(async (ride) => {
-                let chatId: string | null = null;
-                if (ride.is_negotiated) {
-                    try {
-                        const chatRecord = await pb.collection('chats').getFirstListItem(`ride = "${ride.id}"`);
-                        chatId = chatRecord.id;
-                    } catch (e) {
-                       console.warn(`Could not find chat for negotiated ride ${ride.id}`);
-                    }
+                const requestedRecords = driverRides.filter(r => r.status === "requested");
+                 if (requestedRecords.length > 0) {
+                    playRideRequestSound();
+                } else {
+                    stopRideRequestSound();
                 }
-                return { ride, chatId };
-            }));
 
-            setRequests(fullRequests);
-            setIsLoading(false);
-
+                 const fullRequests: FullRideRequest[] = requestedRecords.map(ride => {
+                    const passenger = ride.passenger ? db.users.find(u => u.id === ride.passenger) : undefined;
+                    return {
+                        ride: { ...ride, expand: { passenger } },
+                        chatId: null // Chat logic can be added here if needed
+                    }
+                 });
+                setRequests(fullRequests);
+            }
         } catch (err) {
             console.error(err);
             setError("Não foi possível buscar as solicitações de corrida.");
             stopRideRequestSound();
+        } finally {
             setIsLoading(false);
         }
-    }, [currentUser, playRideRequestSound, stopRideRequestSound]);
+    }, [currentUser, db, playRideRequestSound, stopRideRequestSound]);
 
     useEffect(() => {
-        if (manualRideOverride || !currentUser) return;
-    
+        if (manualRideOverride) return;
+
         fetchRequests();
-    
-        const subscribeToRides = async () => {
-            try {
-                return await pb.collection('rides').subscribe('*', e => {
-                    if (e.record.driver === currentUser.id && (e.record.status === 'requested' || e.record.status === 'canceled')) {
-                        fetchRequests();
-                    }
-                });
-            } catch (err) {
-                console.error("Realtime subscription failed for rides:", err);
-                setError("A conexão em tempo real falhou. Tentando recarregar.");
-                setTimeout(() => fetchRequests(), 5000); // Retry after 5s
-                return () => {}; // Return an empty unsubscribe function on error
-            }
-        };
-    
-        let unsubscribe: (() => void) | undefined;
-        subscribeToRides().then(unsub => {
-            unsubscribe = unsub;
-        });
-    
+
+        const interval = setInterval(fetchRequests, 5000); // Poll for new data every 5 seconds
+        
         return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
+            clearInterval(interval);
             stopRideRequestSound();
-        };
-    }, [fetchRequests, manualRideOverride, stopRideRequestSound, currentUser]);
+        }
+
+    }, [fetchRequests, manualRideOverride, stopRideRequestSound]);
 
 
     const handleAccept = async (ride: RideRecord) => {
-        if (!currentUser) return;
         stopRideRequestSound();
-
         try {
-            const updatedRide = await pb.collection('rides').update<RideRecord>(ride.id, { status: 'accepted' }, { expand: 'passenger' });
+            await saveData((currentData) => {
+                const updatedRides = currentData.rides.map(r => 
+                    r.id === ride.id ? { ...r, status: 'accepted' as const } : r
+                );
+                return { ...currentData, rides: updatedRides };
+            });
+
+            const passenger = db?.users.find(u => u.id === ride.passenger);
+            const updatedRide = { ...ride, status: 'accepted' as const, expand: { passenger } };
 
             toast({ title: "Corrida Aceita!", description: `Você aceitou a corrida de ${updatedRide.expand?.passenger?.name}.` });
             setAcceptedRide(updatedRide);
@@ -255,20 +242,25 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         } catch (error) {
             console.error("Failed to accept ride:", error);
             toast({ variant: "destructive", title: "Erro", description: "Esta corrida pode já ter sido aceita ou cancelada."});
-            fetchRequests();
+            fetchData();
         }
     };
     
     const handleReject = async (rideId: string) => {
         try {
-            await pb.collection('rides').update(rideId, { status: 'canceled' });
+             await saveData((currentData) => {
+                const updatedRides = currentData.rides.map(r => 
+                    r.id === rideId ? { ...r, status: 'canceled' as const } : r
+                );
+                return { ...currentData, rides: updatedRides };
+            });
             toast({ variant: "destructive", title: "Corrida Rejeitada" });
             setRequests(prev => prev.filter(r => r.ride.id !== rideId));
             if (requests.length <= 1) {
                 stopRideRequestSound();
             }
         } catch (error) {
-            console.error("Failed to update ride to canceled:", error);
+            console.error("Failed to reject ride:", error);
             toast({ variant: "destructive", title: "Erro", description: "Não foi possível rejeitar a corrida."});
         }
     };
@@ -276,7 +268,11 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     const handlePassengerOnBoard = async () => {
         if (!acceptedRide) return;
         try {
-            await pb.collection('rides').update(acceptedRide.id, { status: 'in_progress' });
+            await saveData(currentData => {
+                const updatedRides = currentData.rides.map(r => r.id === acceptedRide.id ? { ...r, status: 'in_progress' as const } : r);
+                return { ...currentData, rides: updatedRides };
+            });
+            setAcceptedRide(prev => prev ? { ...prev, status: 'in_progress' } : null);
             setPassengerOnBoard(true);
             toast({ title: "Passageiro a Bordo!", description: "A viagem foi iniciada." });
         } catch (error) {
@@ -288,7 +284,10 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (!acceptedRide) return;
         const isManual = acceptedRide.started_by === 'driver';
         try {
-            await pb.collection('rides').update(acceptedRide.id, { status: 'completed' });
+             await saveData(currentData => {
+                const updatedRides = currentData.rides.map(r => r.id === acceptedRide.id ? { ...r, status: 'completed' as const } : r);
+                return { ...currentData, rides: updatedRides };
+            });
             toast({ title: "Viagem Finalizada!", description: `A corrida foi concluída com sucesso.` });
             setAcceptedRide(null);
             setPassengerOnBoard(false);
@@ -297,7 +296,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                 onManualRideEnd();
             } else {
                 setDriverStatus('online');
-                fetchRequests();
+                fetchData();
             }
         } catch (error) {
             toast({ variant: "destructive", title: "Erro", description: "Não foi possível finalizar a viagem."});
@@ -308,7 +307,10 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (!acceptedRide) return;
         const isManual = acceptedRide.started_by === 'driver';
         try {
-            await pb.collection('rides').update(acceptedRide.id, { status: 'canceled' });
+             await saveData(currentData => {
+                const updatedRides = currentData.rides.map(r => r.id === acceptedRide.id ? { ...r, status: 'canceled' as const } : r);
+                return { ...currentData, rides: updatedRides };
+            });
             toast({ variant: "destructive", title: "Corrida Cancelada", description: "A corrida foi cancelada." });
             setAcceptedRide(null);
             setPassengerOnBoard(false);
@@ -317,7 +319,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
                 onManualRideEnd();
             } else {
                 setDriverStatus('online');
-                fetchRequests();
+                fetchData();
             }
         } catch (error) {
              toast({ variant: "destructive", title: "Erro", description: "Não foi possível cancelar a corrida."});
@@ -423,7 +425,7 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
          )
     }
 
-    if (isLoading) {
+    if (isLoading || isDbLoading) {
         return (
             <div className="flex items-center justify-center p-8 border rounded-lg bg-card text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mr-2" /> Procurando solicitações...
@@ -431,12 +433,12 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         )
     }
 
-    if (error) {
+    if (error || dbError) {
         return (
             <div className="text-center text-destructive p-8 border rounded-lg bg-card">
                 <WifiOff className="mx-auto h-8 w-8 mb-2"/>
                 <CardTitle>Erro de Rede</CardTitle>
-                <CardDescription>{error}</CardDescription>
+                <CardDescription>{error || dbError}</CardDescription>
             </div>
         )
     }
@@ -471,3 +473,4 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 }
 
     
+
