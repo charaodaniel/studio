@@ -35,7 +35,7 @@ export default function PassengerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
   const { user, login, logout, isLoading: isAuthLoading } = useAuth();
-  const { data: db, saveData, fetchData } = useDatabaseManager<DatabaseContent>();
+  const { saveData } = useDatabaseManager<DatabaseContent>();
 
 
   const [isLoading, setIsLoading] = useState(false);
@@ -82,11 +82,7 @@ export default function PassengerAuthForm() {
       toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome, Telefone e Senha são obrigatórios.' });
       return;
     }
-    if (!db) {
-        toast({ variant: 'destructive', title: 'Erro de Banco de Dados', description: 'Não foi possível carregar os dados para o registro.' });
-        return;
-    }
-
+    
     setIsLoading(true);
 
     const newUser: User = {
@@ -104,13 +100,11 @@ export default function PassengerAuthForm() {
     };
 
     try {
-        const getNewData = (currentData: DatabaseContent): DatabaseContent => {
-          return { ...currentData, users: [...currentData.users, newUser] };
-        };
-        
-        await saveData(getNewData);
+        await saveData((currentData) => ({
+            ...currentData,
+            users: [...currentData.users, newUser],
+        }));
 
-        await fetchData();
         toast({
             title: "Registro bem-sucedido!",
             description: `Bem-vindo, ${regName}! Você já pode fazer login.`,
@@ -172,7 +166,7 @@ export default function PassengerAuthForm() {
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
             <Button variant="outline" size="sm" onClick={handleRedirectToProfile}>
-              <PenSquare className="mr-2 h-4 w-4" /> Ver Perfil Completo
+              <PenSquare className="mr-2 h-4 w-4" /> redirecionar para a pagina de perfil
             </Button>
           </div>
            <div className="p-4 border-t">
