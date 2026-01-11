@@ -34,6 +34,11 @@ interface DocumentRecord {
 
 interface DatabaseContent {
   users: User[];
+  documents: DocumentRecord[];
+  rides: any[];
+  chats: any[];
+  messages: any[];
+  institutional_info: any;
 }
 
 const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: string, docType: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO', driverId: string, onUpdate: () => void }) => {
@@ -148,13 +153,14 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
     setIsSaving(true);
     try {
         const updatedUser = { ...user, ...formData };
+
         await saveData((currentData) => {
-            const users = currentData?.users || [];
-            const userIndex = users.findIndex(u => u.id === user.id);
+            const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+            const userIndex = db.users.findIndex(u => u.id === user.id);
             if (userIndex !== -1) {
-                users[userIndex] = updatedUser as User;
+                db.users[userIndex] = updatedUser as User;
             }
-            return { ...(currentData || { users: [] }), users };
+            return db;
         });
 
         onUpdate(updatedUser as User);
@@ -374,7 +380,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Tipo de Tarifa (Urbano)</Label>
-                        <RadioGroup value={formData.driver_fare_type} onValueChange={handleRadioChange} className="flex items-center gap-4 pt-2" disabled={!isEditingSettings || isSaving}>
+                        <RadioGroup onValueChange={handleRadioChange} value={formData.driver_fare_type} className="flex items-center gap-4 pt-2" disabled={!isEditingSettings || isSaving}>
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="fixed" id="r-fixed" />
                                 <Label htmlFor="r-fixed">Valor Fixo</Label>
