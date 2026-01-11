@@ -145,9 +145,8 @@ export default function PassengerDashboard() {
         ) as RideRecord | undefined;
 
         if (activeRideFromLocal) {
-            if (activeRideFromLocal.status === 'requested') {
-                setRideStatus('searching');
-            } else {
+            setRideStatus(activeRideFromLocal.status);
+            if (activeRideFromLocal.status !== 'requested') {
                 handleRideUpdate(activeRideFromLocal);
             }
         } else {
@@ -218,10 +217,10 @@ export default function PassengerDashboard() {
   return (
     <div className="container mx-auto p-4 flex flex-col gap-8 h-full">
       <div className="w-full lg:max-w-md mx-auto">
-        {rideStatus === 'idle' || rideStatus === 'searching' ? (
+        {rideStatus === 'idle' || rideStatus === 'searching' || rideStatus === 'requested' ? (
           <RideRequestForm
             onRideRequest={onRideRequest}
-            isSearching={rideStatus === 'searching'}
+            isSearching={rideStatus === 'searching' || rideStatus === 'requested'}
             anonymousUserName={user ? null : 'Anônimo'}
             origin={origin}
             setOrigin={setOrigin}
@@ -232,7 +231,7 @@ export default function PassengerDashboard() {
           rideDetails && activeRide && (
             <RideStatusCard
               rideDetails={rideDetails}
-              rideStatus={rideStatus}
+              rideStatus={activeRide.status}
               rideId={activeRide.id}
               isNegotiated={activeRide.is_negotiated}
               onCancel={() => handleCancelRide(true)}
@@ -242,7 +241,7 @@ export default function PassengerDashboard() {
         )}
       </div>
 
-      {(rideStatus === 'idle' || rideStatus === 'searching') && (
+      {(rideStatus === 'idle' || rideStatus === 'searching' || rideStatus === 'requested') && (
         <div className="space-y-4">
             <h2 className="font-headline text-xl text-center">Motoristas Disponíveis</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

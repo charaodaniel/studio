@@ -11,8 +11,9 @@ import { useState, useEffect } from 'react';
 import { RideChat } from '../driver/NegotiationChat';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
+import type { RideRecord } from '../driver/RideRequests';
 
-type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
+type RideStatus = RideRecord['status'];
 
 
 interface RideStatusCardProps {
