@@ -38,7 +38,8 @@
       "driver_pix_key": "carlos.edu@email.com",
       "driver_fare_type": "km",
       "driver_km_rate": 2.75,
-      "driver_accepts_rural": true
+      "driver_accepts_rural": true,
+      "disabled": true
     },
     {
       "id": "usr_4",
