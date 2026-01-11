@@ -10,6 +10,8 @@ import { type User as Driver } from '../admin/UserList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
+import type { RideRecord } from '../driver/RideRequests';
 
 interface RideConfirmationModalProps {
     isOpen: boolean;
@@ -31,6 +33,7 @@ export default function RideConfirmationModal({
     const [distance, setDistance] = useState<number>(0);
     const { toast } = useToast();
     const { user: passenger } = useAuth();
+    const { saveData } = useDatabaseManager();
 
     useEffect(() => {
         if (isOpen && !isNegotiated) {
@@ -71,16 +74,48 @@ export default function RideConfirmationModal({
             return;
         }
         
-        // Simulação de criação de corrida
-        const rideId = `ride_local_${new Date().getTime()}`;
-        console.log("Simulating ride creation with ID:", rideId);
+        try {
+            const now = new Date();
+            const rideId = `ride_local_${now.getTime()}`;
 
-        toast({
-            title: "Corrida Solicitada! (Simulação)",
-            description: `Sua solicitação foi enviada para ${driver.name}.`,
-        });
-        onConfirm(rideId);
-        setIsLoading(false);
+            const newRide: RideRecord = {
+                id: rideId,
+                collectionId: 'b1wtu7ah1l75gen',
+                collectionName: 'rides',
+                created: now.toISOString(),
+                updated: now.toISOString(),
+                passenger: passenger ? passenger.id : null,
+                passenger_anonymous_name: passengerAnonymousName,
+                driver: driver.id,
+                origin_address: origin,
+                destination_address: destination,
+                status: 'requested',
+                fare: isNegotiated ? 0 : calculatedFare,
+                is_negotiated: isNegotiated,
+                started_by: 'passenger',
+                scheduled_for: scheduledFor?.toISOString(),
+            };
+
+            await saveData(currentData => ({
+                ...currentData,
+                rides: [...(currentData?.rides || []), newRide],
+            }));
+            
+            toast({
+                title: "Corrida Solicitada!",
+                description: `Sua solicitação foi enviada para ${driver.name}.`,
+            });
+            onConfirm(rideId);
+
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Erro ao Solicitar',
+                description: 'Não foi possível salvar a solicitação de corrida. Tente novamente.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

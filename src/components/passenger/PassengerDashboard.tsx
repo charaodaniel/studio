@@ -16,32 +16,14 @@ import type { User as Driver } from '../admin/UserList';
 import RideConfirmationModal from './RideConfirmationModal';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import type { RideRecord } from '../driver/RideRequests';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
     return avatarPath;
 };
 
-interface RideRecord {
-    id: string;
-    passenger?: string | null;
-    status: RideStatus;
-    is_negotiated: boolean;
-    passenger_anonymous_name?: string;
-    expand?: {
-        driver: DriverRecord;
-    }
-}
-
-interface DriverRecord extends Driver {
-    name: string;
-    avatar: string;
-    phone: string;
-    driver_vehicle_model: string;
-    driver_vehicle_plate: string;
-}
-
-type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted';
+type RideStatus = 'idle' | 'searching' | 'in_progress' | 'completed' | 'canceled' | 'accepted' | 'requested';
 
 export interface RideDetails {
   driverName: string;
@@ -128,7 +110,7 @@ export default function PassengerDashboard() {
   const handleRideUpdate = useCallback((updatedRide: RideRecord) => {
     setActiveRide(updatedRide);
     
-    const driverData = localData.users.find(u => u.id === (updatedRide as any).driver) as DriverRecord | undefined;
+    const driverData = localData.users.find(u => u.id === updatedRide.driver) as Driver | undefined;
 
     if (updatedRide.status === 'accepted' && rideStatus !== 'accepted') {
         if (driverData) {
@@ -159,13 +141,17 @@ export default function PassengerDashboard() {
     if (user) {
         const activeRideFromLocal = localData.rides.find(r => 
             r.passenger === user.id && 
-            (r.status === "accepted" || r.status === "in_progress")
+            (r.status === "accepted" || r.status === "in_progress" || r.status === "requested")
         ) as RideRecord | undefined;
 
         if (activeRideFromLocal) {
-            handleRideUpdate(activeRideFromLocal);
+            if (activeRideFromLocal.status === 'requested') {
+                setRideStatus('searching');
+            } else {
+                handleRideUpdate(activeRideFromLocal);
+            }
         } else {
-            if (rideStatus !== 'searching' && rideStatus !== 'idle') {
+            if (rideStatus !== 'idle') {
                 setRideStatus('idle');
             }
         }
@@ -181,13 +167,15 @@ export default function PassengerDashboard() {
   const onRideRequest = (rideId: string) => {
     setRideStatus('searching');
     toast({ title: 'Procurando Motorista...', description: 'Sua solicitação foi enviada.' });
-    // In local mode, we can't subscribe, so we'll just simulate a driver accepting.
-    setTimeout(() => {
+    
+    // Simulates a driver accepting. In a real scenario, this would be a real-time update.
+    const interval = setInterval(() => {
         const ride = localData.rides.find(r => r.id === rideId) as RideRecord;
-        if (ride) {
-            handleRideUpdate({ ...ride, status: 'accepted' });
+        if (ride && ride.status !== 'requested') {
+            handleRideUpdate(ride);
+            clearInterval(interval);
         }
-    }, 5000); // Simulate a 5-second search
+    }, 3000);
   };
 
   const handleCancelRide = async (updateDb = true) => {
