@@ -32,7 +32,7 @@
       "driver_km_rate": 3.5,
       "driver_accepts_rural": true,
       "disabled": false,
-      "driver_fixed_rate": "10"
+      "driver_fixed_rate": 10
     }
   ],
   "rides": [
