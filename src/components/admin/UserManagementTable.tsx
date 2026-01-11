@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -118,7 +119,7 @@ export default function UserManagementTable() {
                 ride.created ? new Date(ride.created).toLocaleString('pt-BR') : 'Data Inválida', 
                 getPassengerName(ride),
                 `"${ride.origin_address}"`, `"${ride.destination_address}"`, 
-                ride.fare.toFixed(2).replace('.', ','), 
+                parseFloat(ride.fare).toFixed(2).replace('.', ','), 
                 ride.status, 
             ].join(',')
         );
@@ -201,7 +202,7 @@ export default function UserManagementTable() {
                     new Date(ride.created).toLocaleString('pt-BR'),
                     getPassengerName(ride),
                     `${ride.origin_address} -> ${ride.destination_address}`,
-                    `R$ ${ride.fare.toFixed(2).replace('.', ',')}`,
+                    `R$ ${parseFloat(ride.fare).toFixed(2).replace('.', ',')}`,
                     ride.status,
                 ]);
             
@@ -226,7 +227,7 @@ export default function UserManagementTable() {
         }
         
         const completedRides = validDateRides.filter(r => r.status === 'completed');
-        const totalValue = completedRides.reduce((acc, ride) => acc + ride.fare, 0);
+        const totalValue = completedRides.reduce((acc, ride) => acc + Number(ride.fare), 0);
 
         doc.setFontSize(12);
         doc.setTextColor(40);
@@ -460,3 +461,5 @@ export default function UserManagementTable() {
       </>
     );
   }
+
+    
