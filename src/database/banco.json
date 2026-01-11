@@ -159,7 +159,7 @@
     {
       "id": "ride_local_1768094675622",
       "driver": "usr_local_1768091420000",
-      "status": "accepted",
+      "status": "in_progress",
       "started_by": "driver",
       "origin_address": "Corrida Rápida",
       "destination_address": "A definir",
