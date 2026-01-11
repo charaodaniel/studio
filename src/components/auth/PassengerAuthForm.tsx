@@ -16,16 +16,28 @@ import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { type User } from '../admin/UserList';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
     return avatarPath;
 };
 
+interface DatabaseContent {
+  users: User[];
+  rides: any[];
+  documents: any[];
+  chats: any[];
+  messages: any[];
+  institutional_info: any;
+}
+
 export default function PassengerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
   const { user, login, logout, isLoading: isAuthLoading } = useAuth();
+  const { data: db, saveData, fetchData } = useDatabaseManager<DatabaseContent>();
+
 
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
@@ -34,6 +46,13 @@ export default function PassengerAuthForm() {
   const [loginIdentity, setLoginIdentity] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+
+  // States for registration form
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,11 +79,59 @@ export default function PassengerAuthForm() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-        title: 'Funcionalidade Indisponível',
-        description: 'O registro de novas contas está desativado no modo de protótipo local.',
-        variant: 'destructive'
-    });
+    if (!regName || !regPhone || !regPassword) {
+      toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome, Telefone e Senha são obrigatórios.' });
+      return;
+    }
+    if (!db) {
+        toast({ variant: 'destructive', title: 'Erro de Banco de Dados', description: 'Não foi possível carregar os dados para o registro.' });
+        return;
+    }
+
+    setIsLoading(true);
+
+    const newUser: Omit<User, 'collectionId' | 'collectionName' | 'created' | 'updated'> & { password_placeholder: string } = {
+        id: `usr_local_${Date.now()}`,
+        name: regName,
+        email: regEmail,
+        phone: regPhone,
+        role: ['Passageiro'],
+        avatar: '',
+        password_placeholder: regPassword,
+        driver_status: 'offline',
+        driver_vehicle_model: "",
+        driver_vehicle_plate: "",
+        driver_cnpj: "",
+        driver_pix_key: "",
+        driver_fare_type: "km",
+        driver_km_rate: 0,
+        driver_accepts_rural: false,
+        disabled: false,
+    };
+
+    try {
+        const updatedDb = { ...db, users: [...db.users, newUser as User] };
+        await saveData(updatedDb);
+        await fetchData();
+        toast({
+            title: "Registro bem-sucedido!",
+            description: `Bem-vindo, ${regName}! Você já pode fazer login.`,
+        });
+        // Clear form and switch to login tab
+        setRegName('');
+        setRegEmail('');
+        setRegPhone('');
+        setRegPassword('');
+        setActiveTab('login');
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro no Registro',
+            description: 'Não foi possível completar seu registro. Tente novamente.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -184,25 +251,44 @@ export default function PassengerAuthForm() {
           </TabsContent>
           <TabsContent value="register">
              <form onSubmit={handleRegister} className="space-y-4 pt-6">
-                <Alert variant="destructive">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                        O registro está desativado no modo de protótipo. Use um usuário de teste para fazer login.
-                    </AlertDescription>
-                </Alert>
                 <div className="space-y-2">
                   <Label htmlFor="name-register-pass">Nome</Label>
-                  <Input id="name-register-pass" placeholder="Seu nome completo" required disabled={true} />
+                  <Input id="name-register-pass" placeholder="Seu nome completo" required value={regName} onChange={e => setRegName(e.target.value)} disabled={isLoading} />
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="phone-register-pass">Telefone</Label>
-                  <Input id="phone-register-pass" type="tel" placeholder="(00) 99999-9999" required disabled={true} />
+                  <Input id="phone-register-pass" type="tel" placeholder="(00) 99999-9999" required value={regPhone} onChange={e => setRegPhone(e.target.value)} disabled={isLoading} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email-register-pass">Email</Label>
-                  <Input id="email-register-pass" type="email" placeholder="seu@email.com" disabled={true} />
+                  <Label htmlFor="email-register-pass">Email (Opcional)</Label>
+                  <Input id="email-register-pass" type="email" placeholder="seu@email.com" value={regEmail} onChange={e => setRegEmail(e.target.value)} disabled={isLoading} />
                 </div>
-                <Button type="submit" className="w-full" disabled={true}>
+                <div className="space-y-2">
+                  <Label htmlFor="password-register-pass">Senha</Label>
+                   <div className="relative">
+                        <Input
+                            id="password-register-pass"
+                            type={showRegPassword ? 'text' : 'password'}
+                            required
+                            disabled={isLoading}
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            className="pr-10"
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1/2 -translate-y-1/2 right-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                            onClick={() => setShowRegPassword(!showRegPassword)}
+                            tabIndex={-1}
+                        >
+                            {showRegPassword ? <EyeOff /> : <Eye />}
+                        </Button>
+                    </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Criar Conta
                 </Button>
             </form>
