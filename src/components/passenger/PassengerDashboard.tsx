@@ -59,6 +59,16 @@ const getStatusLabel = (status?: string) => {
 };
 
 
+interface DatabaseContent {
+    users: Driver[];
+    rides: RideRecord[];
+    documents: any[];
+    chats: any[];
+    messages: any[];
+    institutional_info: any;
+}
+
+
 export default function PassengerDashboard() {
   const { toast } = useToast();
   const { playNotification } = useNotificationSound();
@@ -77,11 +87,6 @@ export default function PassengerDashboard() {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   
-  interface DatabaseContent {
-    users: Driver[];
-    rides: RideRecord[];
-  }
-
   useEffect(() => {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(() => {}, () => {});
@@ -180,15 +185,25 @@ export default function PassengerDashboard() {
         collectionName: 'rides',
         created: now.toISOString(),
         updated: now.toISOString(),
-        ...rideData
+        passenger: rideData.passenger,
+        driver: rideData.driver,
+        origin_address: rideData.origin_address,
+        destination_address: rideData.destination_address,
+        status: rideData.status,
+        fare: rideData.fare,
+        is_negotiated: rideData.is_negotiated,
+        started_by: rideData.started_by,
+        passenger_anonymous_name: rideData.passenger_anonymous_name,
+        scheduled_for: rideData.scheduled_for,
     };
 
     try {
         await saveData((currentData) => {
             const dbContent = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+            const updatedRides = [...(dbContent.rides || []), newRide];
             return {
                 ...dbContent,
-                rides: [...(dbContent.rides || []), newRide],
+                rides: updatedRides,
             };
         });
 
