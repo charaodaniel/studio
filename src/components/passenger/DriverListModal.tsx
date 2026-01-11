@@ -18,10 +18,27 @@ import RideConfirmationModal from './RideConfirmationModal';
 import localData from '@/database/banco.json';
 import type { RideRecord } from '../driver/RideRequests';
 
+interface DocumentRecord {
+    id: string;
+    driver: string;
+    document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
+    file: string; 
+    is_verified: boolean;
+}
+
+interface DatabaseContent {
+    users: Driver[];
+    rides: RideRecord[];
+    documents: DocumentRecord[];
+    chats: any[];
+    messages: any[];
+    institutional_info: any;
+}
+
+
 interface DriverListModalProps {
     origin: string;
     destination: string;
-    isNegotiated: boolean;
     onRideRequest: (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => void;
     passengerAnonymousName: string | null;
     scheduledFor?: Date;
@@ -56,7 +73,7 @@ const getStatusLabel = (status?: string) => {
 };
 
 
-export default function DriverListModal({ origin, destination, isNegotiated, onRideRequest, passengerAnonymousName, scheduledFor }: DriverListModalProps) {
+export default function DriverListModal({ origin, destination, onRideRequest, passengerAnonymousName, scheduledFor }: DriverListModalProps) {
     const [openDriverId, setOpenDriverId] = useState<string | null>(null);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +85,8 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
         setIsLoading(true);
         setError(null);
         try {
-            const driverList = localData.users
+            const db = localData as DatabaseContent;
+            const driverList = db.users
                 .filter(u => Array.isArray(u.role) ? u.role.includes('Motorista') : u.role === 'Motorista')
                 .map(u => ({
                     ...u,
@@ -146,7 +164,8 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                     const isAvailable = driver.driver_status === 'online' || scheduledFor;
                     const avatarUrl = getAvatarUrl(driver.avatar);
                     
-                    const vehicleDoc = localData.documents.find(d => d.driver === driver.id && d.document_type === "VEHICLE_PHOTO");
+                    const db = localData as DatabaseContent;
+                    const vehicleDoc = db.documents.find(d => d.driver === driver.id && d.document_type === "VEHICLE_PHOTO");
                     const vehiclePhotoUrl = vehicleDoc ? vehicleDoc.file : '';
 
                     return (
@@ -233,7 +252,7 @@ export default function DriverListModal({ origin, destination, isNegotiated, onR
                     driver={selectedDriver}
                     origin={origin}
                     destination={destination}
-                    isNegotiated={isNegotiated}
+                    isNegotiated={false}
                     onConfirm={(rideData) => {
                         setIsConfirmationOpen(false);
                         onRideRequest(rideData);
