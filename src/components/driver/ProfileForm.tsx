@@ -1,7 +1,7 @@
 
 'use client';
 import { Button } from '@/components/ui/button';
-import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon, EyeOff } from 'lucide-react';
+import { KeyRound, Car, Settings, UserCircle, ChevronRight, Upload, Camera, Eye, Edit, X, LogOut, FileText as FileTextIcon, EyeOff, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import type { User } from '../admin/UserList';
 import { useAuth } from '@/hooks/useAuth';
 import localDatabase from '@/database/banco.json';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getFileUrl = (filePath: string) => {
     if (!filePath) return '';
@@ -29,6 +30,10 @@ interface DocumentRecord {
     document_type: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO';
     file: string; 
     is_verified: boolean;
+}
+
+interface DatabaseContent {
+  users: User[];
 }
 
 const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: string, docType: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO', driverId: string, onUpdate: () => void }) => {
@@ -109,6 +114,9 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   const { toast } = useToast();
   const router = useRouter();
   const { logout } = useAuth();
+  const { saveData } = useDatabaseManager<DatabaseContent>();
+  const [isSaving, setIsSaving] = useState(false);
+
   const [isPersonalInfoOpen, setIsPersonalInfoOpen] = useState(false);
   const [isVehicleOpen, setIsVehicleOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -137,15 +145,37 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
   }
 
   const handleSave = async (section: string) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    onUpdate({ ...user, ...formData } as User);
-    toast({
-      title: 'Salvo com Sucesso (Simulação)',
-      description: `Suas alterações na seção de ${section} foram salvas na interface.`,
-    });
-    setIsEditingPersonalInfo(false);
-    setIsEditingVehicleInfo(false);
-    setIsEditingSettings(false);
+    setIsSaving(true);
+    try {
+        const updatedUser = { ...user, ...formData };
+        await saveData((currentData) => {
+            const users = currentData?.users || [];
+            const userIndex = users.findIndex(u => u.id === user.id);
+            if (userIndex !== -1) {
+                users[userIndex] = updatedUser as User;
+            }
+            return { ...(currentData || { users: [] }), users };
+        });
+
+        onUpdate(updatedUser as User);
+
+        toast({
+            title: 'Salvo com Sucesso!',
+            description: `Suas alterações na seção de ${section} foram salvas.`,
+        });
+
+        setIsEditingPersonalInfo(false);
+        setIsEditingVehicleInfo(false);
+        setIsEditingSettings(false);
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao Salvar',
+            description: 'Não foi possível salvar suas alterações. Tente novamente.',
+        });
+    } finally {
+        setIsSaving(false);
+    }
   };
   
   const handleLogout = () => {
@@ -173,7 +203,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
     <div className="bg-card rounded-lg">
       <ul>
         {/* Personal Info */}
-        <Dialog open={isPersonalInfoOpen} onOpenChange={(open) => { setIsPersonalInfoOpen(open); if(!open) setIsEditingPersonalInfo(false); }}>
+        <Dialog open={isPersonalInfoOpen} onOpenChange={(open) => { setIsPersonalInfoOpen(open); if(!open) handleCancelEdit('personal'); }}>
             <DialogTrigger asChild>
                  <li className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
                     <div className="flex items-center gap-4">
@@ -194,7 +224,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="name">Nome Completo</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="name" value={formData.name} onChange={handleInputChange} />
+                            <Input id="name" value={formData.name} onChange={handleInputChange} disabled={isSaving} />
                         ) : (
                             <p className="text-sm font-medium p-2">{formData.name}</p>
                         )}
@@ -202,7 +232,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_cnpj">CNPJ</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="driver_cnpj" value={formData.driver_cnpj || ''} onChange={handleInputChange} placeholder="00.000.000/0000-00"/>
+                            <Input id="driver_cnpj" value={formData.driver_cnpj || ''} onChange={handleInputChange} placeholder="00.000.000/0000-00" disabled={isSaving}/>
                         ) : (
                             <p className="text-sm font-medium p-2">{formData.driver_cnpj || 'Não informado'}</p>
                         )}
@@ -214,7 +244,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_pix_key">Chave PIX</Label>
                         {isEditingPersonalInfo ? (
-                            <Input id="driver_pix_key" value={formData.driver_pix_key || ''} onChange={handleInputChange} placeholder="Insira sua chave PIX" />
+                            <Input id="driver_pix_key" value={formData.driver_pix_key || ''} onChange={handleInputChange} placeholder="Insira sua chave PIX" disabled={isSaving} />
                         ) : (
                             <p className="text-sm font-medium p-2">{formData.driver_pix_key || 'Não informada'}</p>
                         )}
@@ -223,11 +253,14 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                 <DialogFooter>
                     {isEditingPersonalInfo ? (
                         <>
-                           <Button variant="outline" onClick={() => handleCancelEdit('personal')}>
+                           <Button variant="outline" onClick={() => handleCancelEdit('personal')} disabled={isSaving}>
                                 <X className="mr-2" />
                                 Cancelar
                             </Button>
-                           <Button onClick={() => handleSave('Informações Pessoais')}>Salvar Alterações</Button>
+                           <Button onClick={() => handleSave('Informações Pessoais')} disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Salvar Alterações
+                           </Button>
                         </>
                     ) : (
                         <Button onClick={() => setIsEditingPersonalInfo(true)}>
@@ -242,7 +275,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
         <Separator />
         
         {/* Vehicle and Documents */}
-        <Dialog open={isVehicleOpen} onOpenChange={(open) => { setIsVehicleOpen(open); if(!open) setIsEditingVehicleInfo(false); }}>
+        <Dialog open={isVehicleOpen} onOpenChange={(open) => { setIsVehicleOpen(open); if(!open) handleCancelEdit('vehicle'); }}>
             <DialogTrigger asChild>
                  <li className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
                     <div className="flex items-center gap-4">
@@ -263,7 +296,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_vehicle_model">Modelo do Veículo</Label>
                         {isEditingVehicleInfo ? (
-                           <Input id="driver_vehicle_model" value={formData.driver_vehicle_model || ''} onChange={handleInputChange} />
+                           <Input id="driver_vehicle_model" value={formData.driver_vehicle_model || ''} onChange={handleInputChange} disabled={isSaving} />
                         ) : (
                            <p className="text-sm font-medium p-2">{formData.driver_vehicle_model}</p>
                         )}
@@ -271,7 +304,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                     <div className="space-y-1">
                         <Label htmlFor="driver_vehicle_plate">Placa</Label>
                         {isEditingVehicleInfo ? (
-                           <Input id="driver_vehicle_plate" value={formData.driver_vehicle_plate || ''} onChange={handleInputChange} />
+                           <Input id="driver_vehicle_plate" value={formData.driver_vehicle_plate || ''} onChange={handleInputChange} disabled={isSaving} />
                         ) : (
                            <p className="text-sm font-medium p-2">{formData.driver_vehicle_plate}</p>
                         )}
@@ -299,11 +332,14 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                 <DialogFooter>
                     {isEditingVehicleInfo ? (
                         <>
-                           <Button variant="outline" onClick={() => handleCancelEdit('vehicle')}>
+                           <Button variant="outline" onClick={() => handleCancelEdit('vehicle')} disabled={isSaving}>
                                <X className="mr-2" />
                                Cancelar
                            </Button>
-                           <Button onClick={() => handleSave('Veículo e Documentos')}>Salvar Alterações</Button>
+                           <Button onClick={() => handleSave('Veículo e Documentos')} disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Salvar Alterações
+                           </Button>
                         </>
                     ) : (
                         <Button onClick={() => setIsEditingVehicleInfo(true)}>
@@ -318,7 +354,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
         <Separator />
 
         {/* Ride Settings */}
-        <Dialog open={isSettingsOpen} onOpenChange={(open) => { setIsSettingsOpen(open); if(!open) setIsEditingSettings(false); }}>
+        <Dialog open={isSettingsOpen} onOpenChange={(open) => { setIsSettingsOpen(open); if(!open) handleCancelEdit('settings'); }}>
             <DialogTrigger asChild>
                 <li className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
                     <div className="flex items-center gap-4">
@@ -338,7 +374,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Tipo de Tarifa (Urbano)</Label>
-                        <RadioGroup value={formData.driver_fare_type} onValueChange={handleRadioChange} className="flex items-center gap-4 pt-2" disabled={!isEditingSettings}>
+                        <RadioGroup value={formData.driver_fare_type} onValueChange={handleRadioChange} className="flex items-center gap-4 pt-2" disabled={!isEditingSettings || isSaving}>
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="fixed" id="r-fixed" />
                                 <Label htmlFor="r-fixed">Valor Fixo</Label>
@@ -353,7 +389,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                         <div className="space-y-1">
                             <Label htmlFor="driver_fixed_rate">Tarifa Fixa (R$)</Label>
                             {isEditingSettings ? (
-                               <Input id="driver_fixed_rate" type="number" value={formData.driver_fixed_rate || ''} onChange={handleInputChange} placeholder="25.50" />
+                               <Input id="driver_fixed_rate" type="number" value={formData.driver_fixed_rate || ''} onChange={handleInputChange} placeholder="25.50" disabled={isSaving} />
                             ) : (
                                 <p className="text-sm font-medium p-2">R$ {formData.driver_fixed_rate}</p>
                             )}
@@ -362,7 +398,7 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                         <div className="space-y-1">
                             <Label htmlFor="driver_km_rate">Tarifa por KM (R$)</Label>
                             {isEditingSettings ? (
-                                <Input id="driver_km_rate" type="number" value={formData.driver_km_rate || ''} onChange={handleInputChange} placeholder="3.50" />
+                                <Input id="driver_km_rate" type="number" value={formData.driver_km_rate || ''} onChange={handleInputChange} placeholder="3.50" disabled={isSaving} />
                             ) : (
                                 <p className="text-sm font-medium p-2">R$ {formData.driver_km_rate} / km</p>
                             )}
@@ -376,17 +412,20 @@ export function ProfileForm({ user, onUpdate }: { user: User, onUpdate: (user: U
                                 Permite que passageiros negociem valores para fora da cidade.
                             </p>
                         </div>
-                        <Switch id="negotiate-rural" checked={formData.driver_accepts_rural} onCheckedChange={handleSwitchChange} disabled={!isEditingSettings} />
+                        <Switch id="negotiate-rural" checked={formData.driver_accepts_rural} onCheckedChange={handleSwitchChange} disabled={!isEditingSettings || isSaving} />
                     </div>
                 </div>
                  <DialogFooter>
                     {isEditingSettings ? (
                         <>
-                           <Button variant="outline" onClick={() => handleCancelEdit('settings')}>
+                           <Button variant="outline" onClick={() => handleCancelEdit('settings')} disabled={isSaving}>
                                 <X className="mr-2" />
                                Cancelar
                            </Button>
-                           <Button onClick={() => handleSave('Configurações')}>Salvar Alterações</Button>
+                           <Button onClick={() => handleSave('Configurações')} disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Salvar Alterações
+                           </Button>
                         </>
                     ) : (
                         <Button onClick={() => setIsEditingSettings(true)}>
