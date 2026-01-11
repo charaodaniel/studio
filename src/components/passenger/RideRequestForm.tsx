@@ -131,8 +131,7 @@ export default function RideRequestForm({ onRideRequest, isSearching, anonymousU
                         <DriverListModal 
                             origin={origin} 
                             destination={destination}
-                            isNegotiated={isNegotiated}
-                            onRideRequest={(rideId) => {}} // This is now handled by the parent
+                            onRideRequest={onRideRequest}
                             passengerAnonymousName={anonymousUserName}
                         />
                     </DialogContent>
