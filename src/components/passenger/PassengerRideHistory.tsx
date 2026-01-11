@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface RideRecord {
     id: string;
-    passenger: string;
+    passenger: string | null;
     driver: string;
     origin_address: string;
     destination_address: string;
