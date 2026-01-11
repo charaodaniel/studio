@@ -9,7 +9,7 @@ export interface DatabaseState<T> {
     isLoading: boolean;
     error: string | null;
     saveData: (getNewData: (currentData: T) => T) => Promise<void>;
-    fetchData: () => Promise<void>;
+    fetchData: () => Promise<T | null>;
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
