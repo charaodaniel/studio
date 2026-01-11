@@ -78,12 +78,9 @@ export default function RideConfirmationModal({
             const now = new Date();
             const rideId = `ride_local_${now.getTime()}`;
 
-            const newRide: RideRecord = {
+            const newRide: Omit<RideRecord, 'collectionId' | 'collectionName' | 'updated'> = {
                 id: rideId,
-                collectionId: 'b1wtu7ah1l75gen',
-                collectionName: 'rides',
                 created: now.toISOString(),
-                updated: now.toISOString(),
                 passenger: passenger ? passenger.id : null,
                 passenger_anonymous_name: passengerAnonymousName,
                 driver: driver.id,
@@ -96,10 +93,13 @@ export default function RideConfirmationModal({
                 scheduled_for: scheduledFor?.toISOString(),
             };
 
-            await saveData(currentData => ({
-                ...currentData,
-                rides: [...(currentData?.rides || []), newRide],
-            }));
+            await saveData(currentData => {
+                 const db = currentData ?? { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+                 return {
+                     ...db,
+                     rides: [...(db.rides || []), newRide as RideRecord],
+                 }
+            });
             
             toast({
                 title: "Corrida Solicitada!",
@@ -181,3 +181,4 @@ export default function RideConfirmationModal({
         </Dialog>
     );
 }
+

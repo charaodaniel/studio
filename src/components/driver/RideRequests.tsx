@@ -33,7 +33,7 @@ export interface RideRecord extends RecordModel {
     fare: number;
     is_negotiated: boolean;
     started_by: 'passenger' | 'driver';
-    passenger_anonymous_name?: string;
+    passenger_anonymous_name?: string | null;
     scheduled_for?: string;
     ride_description?: string;
     expand?: {
@@ -222,10 +222,10 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         stopRideRequestSound();
         try {
             await saveData((currentData) => {
-                const updatedRides = currentData.rides.map(r => 
+                const updatedRides = (currentData?.rides || []).map(r => 
                     r.id === ride.id ? { ...r, status: 'accepted' as const } : r
                 );
-                return { ...currentData, rides: updatedRides };
+                return { ...(currentData || {}), rides: updatedRides } as DatabaseContent;
             });
 
             const passenger = db?.users.find(u => u.id === ride.passenger);
@@ -248,10 +248,10 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
     const handleReject = async (rideId: string) => {
         try {
              await saveData((currentData) => {
-                const updatedRides = currentData.rides.map(r => 
+                const updatedRides = (currentData?.rides || []).map(r => 
                     r.id === rideId ? { ...r, status: 'canceled' as const } : r
                 );
-                return { ...currentData, rides: updatedRides };
+                return { ...(currentData || {}), rides: updatedRides } as DatabaseContent;
             });
             toast({ variant: "destructive", title: "Corrida Rejeitada" });
             setRequests(prev => prev.filter(r => r.ride.id !== rideId));
@@ -268,8 +268,8 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         if (!acceptedRide) return;
         try {
             await saveData(currentData => {
-                const updatedRides = currentData.rides.map(r => r.id === acceptedRide.id ? { ...r, status: 'in_progress' as const } : r);
-                return { ...currentData, rides: updatedRides };
+                const updatedRides = (currentData?.rides || []).map(r => r.id === acceptedRide.id ? { ...r, status: 'in_progress' as const } : r);
+                return { ...(currentData || {}), rides: updatedRides } as DatabaseContent;
             });
             setAcceptedRide(prev => prev ? { ...prev, status: 'in_progress' } : null);
             setPassengerOnBoard(true);
@@ -284,8 +284,8 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         const isManual = acceptedRide.started_by === 'driver';
         try {
              await saveData(currentData => {
-                const updatedRides = currentData.rides.map(r => r.id === acceptedRide.id ? { ...r, status: 'completed' as const } : r);
-                return { ...currentData, rides: updatedRides };
+                const updatedRides = (currentData?.rides || []).map(r => r.id === acceptedRide.id ? { ...r, status: 'completed' as const } : r);
+                return { ...(currentData || {}), rides: updatedRides } as DatabaseContent;
             });
             toast({ title: "Viagem Finalizada!", description: `A corrida foi concluída com sucesso.` });
             setAcceptedRide(null);
@@ -307,8 +307,8 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
         const isManual = acceptedRide.started_by === 'driver';
         try {
              await saveData(currentData => {
-                const updatedRides = currentData.rides.map(r => r.id === acceptedRide.id ? { ...r, status: 'canceled' as const } : r);
-                return { ...currentData, rides: updatedRides };
+                const updatedRides = (currentData?.rides || []).map(r => r.id === acceptedRide.id ? { ...r, status: 'canceled' as const } : r);
+                return { ...(currentData || {}), rides: updatedRides } as DatabaseContent;
             });
             toast({ variant: "destructive", title: "Corrida Cancelada", description: "A corrida foi cancelada." });
             setAcceptedRide(null);
@@ -478,3 +478,4 @@ export function RideRequests({ setDriverStatus, manualRideOverride, onManualRide
 }
 
     
+
