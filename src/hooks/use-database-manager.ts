@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -72,10 +73,6 @@ export function useDatabaseManager<T>(initialData: T | null = null): DatabaseSta
                 }
             } else {
                 setData(newData); // Optimistic update
-                toast({
-                    title: 'Salvo com Sucesso!',
-                    description: 'Suas alterações foram salvas no repositório do GitHub.',
-                });
             }
         } catch (err: any) {
             console.error("useDatabaseManager save error:", err);
@@ -85,6 +82,7 @@ export function useDatabaseManager<T>(initialData: T | null = null): DatabaseSta
                 title: 'Erro ao Salvar',
                 description: err.message,
             });
+             throw err; // Re-throw the error so calling components know it failed
         } finally {
             setIsSaving(false);
         }

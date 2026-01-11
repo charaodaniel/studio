@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import ReportFilterModal, { type DateRange } from "../shared/ReportFilterModal";
 import { addDays, format, startOfMonth, endOfDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -26,9 +26,9 @@ import { DateRange as ReactDateRange } from "react-day-picker";
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
-import pb from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { useAuth } from "@/hooks/useAuth";
+import { useDatabaseManager } from "@/hooks/use-database-manager";
 
 
 interface RideRecord extends RecordModel {
@@ -56,17 +56,27 @@ interface DriverRideHistoryProps {
     setDriverStatus: (status: string) => void;
 }
 
+interface DatabaseContent {
+  users: UserData[];
+  rides: RideRecord[];
+  documents: any[];
+  chats: any[];
+  messages: any[];
+  institutional_info: any;
+}
+
+
 const appData = {
     name: "CEOLIN Mobilidade Urbana",
     cnpj: "52.905.738/0001-00"
 }
 
 export function DriverRideHistory({ onManualRideStart, setDriverStatus }: DriverRideHistoryProps) {
-    const [rides, setRides] = useState<RideRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string|null>(null);
-    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '', passengerName: '' });
     const { toast } = useToast();
+    const { data: db, isLoading: isDbLoading, error: dbError, saveData, fetchData } = useDatabaseManager<DatabaseContent>();
+    const [rides, setRides] = useState<RideRecord[]>([]);
+    
+    const [newRide, setNewRide] = useState({ origin: '', destination: '', value: '', passengerName: '' });
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportType, setReportType] = useState<'pdf' | 'csv' | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,65 +91,59 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
     const [scheduledTime, setScheduledTime] = useState<string>('');
 
-    const fetchRides = useCallback(async (filterOverride?: string) => {
-        if (!currentUser) return;
+    const fetchRides = useCallback(() => {
+        if (!currentUser || !db?.rides) {
+            setIsSubmitting(false); // Changed from setIsLoading
+            return;
+        }
         
-        setIsLoading(true);
-        setError(null);
+        setIsSubmitting(true);
         
         try {
             const driverId = currentUser.id;
-            let filter;
-            
-            if (filterOverride) {
-                 filter = filterOverride;
-            } else if (dateRange?.from && dateRange?.to) {
-                const startDate = dateRange.from.toISOString().split('T')[0] + ' 00:00:00';
-                const endDate = endOfDay(dateRange.to).toISOString();
-                filter = `driver = "${driverId}" && created >= "${startDate}" && created <= "${endDate}"`;
+            let filteredRides = db.rides.filter(r => r.driver === driverId);
+
+            if (dateRange?.from && dateRange?.to) {
+                const startDate = dateRange.from.getTime();
+                const endDate = endOfDay(dateRange.to).getTime();
+                filteredRides = filteredRides.filter(ride => {
+                    const rideDate = new Date(ride.created).getTime();
+                    return rideDate >= startDate && rideDate <= endDate;
+                });
             } else {
-                 setIsLoading(false);
-                 return;
+                 filteredRides = [];
             }
             
-            const records = await pb.collection('rides').getFullList<RideRecord>({
-                filter,
-                sort: '-created',
-                expand: 'passenger',
-            });
-            
-            setRides(records);
+             const populatedRides = filteredRides.map(ride => {
+                const passenger = ride.passenger ? db.users.find(u => u.id === ride.passenger) : null;
+                return {
+                    ...ride,
+                    expand: {
+                        ...ride.expand,
+                        passenger: passenger || undefined,
+                    }
+                }
+            })
+
+            setRides(populatedRides.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()));
 
         } catch (err: any) {
-            console.error("Failed to fetch rides:", err);
-            setError("Não foi possível carregar seu histórico de corridas.");
+            console.error("Failed to filter rides:", err);
+            toast({ variant: "destructive", title: "Erro ao filtrar corridas"});
         } finally {
-            setIsLoading(false);
+            setIsSubmitting(false); // Changed from setIsLoading
         }
-    }, [currentUser, dateRange]);
+    }, [currentUser, db, dateRange, toast]);
 
     useEffect(() => {
-        if (currentUser) {
+        if (db) {
             fetchRides();
-        } else {
-            setRides([]);
-            setIsLoading(false);
         }
-    }, [fetchRides, currentUser]);
+    }, [db, fetchRides]);
 
     const fetchAllRides = async (): Promise<RideRecord[]> => {
-        if (!currentUser) return [];
-        try {
-            const records = await pb.collection('rides').getFullList<RideRecord>({
-                filter: `driver="${currentUser.id}"`,
-                sort: '-created',
-                expand: 'passenger'
-            });
-            return records;
-        } catch (error) {
-            toast({ variant: 'destructive', title: "Erro ao buscar histórico completo." });
-            return [];
-        }
+        if (!currentUser || !db) return [];
+        return db.rides.filter(r => r.driver === currentUser.id);
     };
     
     const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
@@ -294,7 +298,7 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
 
     const handleStartManualRide = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentUser) return;
+        if (!currentUser || !db) return;
     
         if (!newRide.origin || !newRide.destination || !newRide.value) {
             toast({ variant: 'destructive', title: 'Campos obrigatórios' });
@@ -309,8 +313,11 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     
         setIsSubmitting(true);
         try {
-            const rideData: { [key: string]: any } = {
+             const now = new Date();
+             const newRideRecord: RideRecord = {
+                id: `ride_local_${now.getTime()}`,
                 driver: currentUser.id,
+                passenger: null,
                 passenger_anonymous_name: newRide.passengerName || currentUser.name,
                 origin_address: newRide.origin,
                 destination_address: newRide.destination,
@@ -318,21 +325,26 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 status: isScheduling ? 'requested' : 'accepted',
                 started_by: 'driver',
                 is_negotiated: false,
+                created: now.toISOString(),
+                updated: now.toISOString(),
+                collectionId: 'b1wtu7ah1l75gen',
+                collectionName: 'rides',
             };
 
             if (isScheduling && fullScheduledDate) {
-                rideData.scheduled_for = fullScheduledDate.toISOString();
-                rideData.ride_description = `Viagem agendada para ${format(fullScheduledDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Passageiro: ${newRide.passengerName}. Valor: R$ ${newRide.value}`;
+                newRideRecord.scheduled_for = fullScheduledDate.toISOString();
+                newRideRecord.ride_description = `Viagem agendada para ${format(fullScheduledDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Passageiro: ${newRide.passengerName}. Valor: R$ ${newRide.value}`;
             }
 
-            const createdRide = await pb.collection('rides').create(rideData);
+            const updatedDb = { ...db, rides: [...db.rides, newRideRecord] };
+            await saveData(updatedDb);
     
             if (isScheduling) {
                 toast({ title: 'Corrida Agendada!', description: 'A corrida agendada foi adicionada às suas solicitações.' });
-                fetchRides();
+                fetchData(); // Refresh data to show new ride
             } else {
                 toast({ title: 'Corrida Iniciada!', description: 'A corrida manual foi iniciada e está em andamento.' });
-                onManualRideStart(createdRide as RideRecord);
+                onManualRideStart(newRideRecord);
             }
 
             setNewRide({ origin: '', destination: '', value: '', passengerName: '' });
@@ -349,8 +361,8 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     };
 
     const handleStartQuickRide = async () => {
-        if (!currentUser) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não encontrado.' });
+        if (!currentUser || !db) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Usuário ou banco de dados não encontrado.' });
             return;
         }
         
@@ -363,8 +375,11 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
             status = 'accepted';
         }
 
+        setIsSubmitting(true);
         try {
-            const rideData = {
+            const now = new Date();
+            const newRideRecord: RideRecord = {
+                id: `ride_local_${now.getTime()}`,
                 driver: currentUser.id,
                 status: status,
                 started_by: 'driver',
@@ -373,21 +388,29 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 fare: fare,
                 is_negotiated: false,
                 passenger_anonymous_name: 'Passageiro (Rápida)',
+                created: now.toISOString(),
+                updated: now.toISOString(),
+                passenger: null,
+                collectionId: 'b1wtu7ah1l75gen',
+                collectionName: 'rides',
             };
 
-            const newRide = await pb.collection('rides').create(rideData);
+            const updatedDb = { ...db, rides: [...db.rides, newRideRecord] };
+            await saveData(updatedDb);
 
             toast({ title: "Corrida Rápida Iniciada!", description: "A viagem está pronta para começar." });
-            onManualRideStart(newRide as RideRecord);
+            onManualRideStart(newRideRecord);
             setDriverStatus('urban-trip');
 
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar a corrida rápida.' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
     
     const renderContent = () => {
-        if (isLoading) {
+        if (isDbLoading) {
             return (
                 <TableBody>
                     {[...Array(5)].map((_, i) => (
@@ -400,14 +423,14 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 </TableBody>
             );
         }
-        if (error) {
+        if (dbError) {
              return (
                 <TableBody>
                     <TableRow>
                         <TableCell colSpan={3} className="text-center p-8 text-destructive">
                             <WifiOff className="mx-auto h-10 w-10 mb-2" />
                             <p className="font-semibold">Erro de Conexão</p>
-                            <p className="text-sm">{error}</p>
+                            <p className="text-sm">{dbError}</p>
                         </TableCell>
                     </TableRow>
                 </TableBody>
@@ -510,26 +533,15 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                     </PopoverContent>
                 </Popover>
                 <div className="flex gap-2">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => fetchRides('created = null')} disabled={isLoading}>
-                                    <AlertTriangle className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Ver corridas com data inválida</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    <Button variant="ghost" size="icon" onClick={() => fetchRides()} disabled={isLoading}>
-                        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                    <Button variant="ghost" size="icon" onClick={fetchRides} disabled={isDbLoading || isSubmitting}>
+                        <RefreshCw className={cn("h-4 w-4", (isDbLoading || isSubmitting) && "animate-spin")} />
                     </Button>
                 </div>
             </div>
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center justify-end gap-2 mb-4">
-             <Button variant="secondary" onClick={handleStartQuickRide}>
+             <Button variant="secondary" onClick={handleStartQuickRide} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Zap className="mr-2 h-4 w-4" />
                 Corrida Rápida
             </Button>
@@ -649,4 +661,3 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     </>
   );
 }
-
