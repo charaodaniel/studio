@@ -47,9 +47,10 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
     const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
 
     useEffect(() => {
-        const userDoc = localDatabase.documents.find(
+        const db = localDatabase as DatabaseContent;
+        const userDoc = db.documents.find(
             d => d.driver === driverId && d.document_type === docType
-        ) as DocumentRecord | undefined;
+        );
         setDocument(userDoc || null);
     }, [driverId, docType, onUpdate]);
 
