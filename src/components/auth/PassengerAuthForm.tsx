@@ -7,14 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CardContent, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, PenSquare, Loader2, Eye, EyeOff, Info } from 'lucide-react';
+import { LogOut, PenSquare, Loader2, Eye, EyeOff } from 'lucide-react';
 import { DialogHeader, DialogTitle, DialogDescription, Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { type User } from '../admin/UserList';
 import { useDatabaseManager } from '@/hooks/use-database-manager';
 
@@ -90,8 +89,12 @@ export default function PassengerAuthForm() {
 
     setIsLoading(true);
 
-    const newUser: Omit<User, 'collectionId' | 'collectionName' | 'created' | 'updated'> & { password_placeholder: string } = {
+    const newUser: User = {
         id: `usr_local_${Date.now()}`,
+        collectionId: '_pb_users_auth_',
+        collectionName: 'users',
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
         name: regName,
         email: regEmail,
         phone: regPhone,
@@ -110,7 +113,7 @@ export default function PassengerAuthForm() {
     };
 
     try {
-        const updatedDb = { ...db, users: [...db.users, newUser as User] };
+        const updatedDb = { ...db, users: [...db.users, newUser] };
         await saveData(updatedDb);
         await fetchData();
         toast({

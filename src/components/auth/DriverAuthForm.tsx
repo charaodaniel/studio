@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Logo from '../shared/Logo';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, Info } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { useAuth } from '@/hooks/useAuth';
@@ -83,8 +83,12 @@ export default function DriverAuthForm() {
 
     setIsLoading(true);
 
-    const newUser: Omit<User, 'collectionId' | 'collectionName' | 'created' | 'updated'> & { password_placeholder: string } = {
+    const newUser: User = {
         id: `usr_local_${Date.now()}`,
+        collectionId: '_pb_users_auth_',
+        collectionName: 'users',
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
         name: regName,
         email: regEmail,
         phone: regPhone,
@@ -103,7 +107,7 @@ export default function DriverAuthForm() {
     };
 
     try {
-        const updatedDb = { ...db, users: [...db.users, newUser as User] };
+        const updatedDb = { ...db, users: [...db.users, newUser] };
         await saveData(updatedDb);
         await fetchData();
         toast({
