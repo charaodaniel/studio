@@ -13,7 +13,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useToast } from '@/hooks/use-toast';
 import type { RideRecord } from '../driver/RideRequests';
 
-type RideStatus = RideRecord['status'];
+type RideStatus = RideRecord['status'] | 'searching';
 
 
 interface RideStatusCardProps {

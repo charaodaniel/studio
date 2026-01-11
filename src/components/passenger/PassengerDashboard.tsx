@@ -63,7 +63,7 @@ export default function PassengerDashboard() {
   const { toast } = useToast();
   const { playNotification } = useNotificationSound();
   const { user } = useAuth();
-  const { saveData } = useDatabaseManager();
+  const { data: db, saveData } = useDatabaseManager<DatabaseContent>();
   const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
   const [rideDetails, setRideDetails] = useState<RideDetails | null>(null);
   const [activeRide, setActiveRide] = useState<RideRecord | null>(null);
@@ -77,6 +77,11 @@ export default function PassengerDashboard() {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   
+  interface DatabaseContent {
+    users: Driver[];
+    rides: RideRecord[];
+  }
+
   useEffect(() => {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(() => {}, () => {});
@@ -140,11 +145,11 @@ export default function PassengerDashboard() {
 
   useEffect(() => {
     // This effect simulates checking for an active ride.
-    if (user) {
-        const activeRideFromLocal = localData.rides.find(r => 
+    if (user && db?.rides) {
+        const activeRideFromLocal = db.rides.find(r => 
             r.passenger === user.id && 
             (r.status === "accepted" || r.status === "in_progress" || r.status === "requested")
-        ) as RideRecord | undefined;
+        );
 
         if (activeRideFromLocal) {
             setRideStatus(activeRideFromLocal.status);
@@ -156,13 +161,13 @@ export default function PassengerDashboard() {
                 setRideStatus('idle');
             }
         }
-    } else {
+    } else if (!user) {
         // If no user is logged in, ensure we are in an idle state.
         setRideStatus('idle');
         setRideDetails(null);
         setActiveRide(null);
     }
-  }, [user, rideStatus, handleRideUpdate]);
+  }, [user, rideStatus, handleRideUpdate, db]);
   
 
   const onRideRequest = async (rideData: Omit<RideRecord, 'id' | 'collectionId' | 'collectionName' | 'created' | 'updated'>) => {
@@ -179,11 +184,11 @@ export default function PassengerDashboard() {
     };
 
     try {
-        await saveData(currentData => {
-            const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+        await saveData((currentData) => {
+            const dbContent = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
             return {
-                ...db,
-                rides: [...db.rides, newRide],
+                ...dbContent,
+                rides: [...(dbContent.rides || []), newRide],
             };
         });
 
@@ -193,9 +198,10 @@ export default function PassengerDashboard() {
 
         // Simulates a driver accepting. In a real scenario, this would be a real-time update.
         const interval = setInterval(() => {
-            const ride = localData.rides.find(r => r.id === rideId) as RideRecord;
-            if (ride && ride.status !== 'requested') {
-                handleRideUpdate(ride);
+            // In a real app, this would be a real-time subscription, but we poll localData for simulation
+            const updatedRide = localData.rides.find(r => r.id === rideId) as RideRecord | undefined;
+            if (updatedRide && updatedRide.status !== 'requested') {
+                handleRideUpdate(updatedRide);
                 clearInterval(interval);
             }
         }, 3000);
@@ -209,9 +215,9 @@ export default function PassengerDashboard() {
     if (updateDb && activeRide) {
         try {
             await saveData((currentData) => {
-                const db = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
-                const updatedRides = db.rides.map(r => r.id === activeRide.id ? { ...r, status: 'canceled' as const } : r);
-                return { ...db, rides: updatedRides };
+                const dbContent = currentData || { users: [], rides: [], documents: [], chats: [], messages: [], institutional_info: {} };
+                const updatedRides = (dbContent.rides || []).map((r: RideRecord) => r.id === activeRide.id ? { ...r, status: 'canceled' as const } : r);
+                return { ...dbContent, rides: updatedRides };
             });
             toast({
                 title: 'Corrida Cancelada',
@@ -238,7 +244,7 @@ export default function PassengerDashboard() {
     }, 5000);
   }
 
-  const handleSelectDriver = (driver: Driver) => {
+  const handleSelectDriver = (driver: Driver, isNegotiated: boolean) => {
     if (!origin || !destination) {
         toast({
             variant: 'destructive',
@@ -256,10 +262,7 @@ export default function PassengerDashboard() {
       <div className="w-full lg:max-w-md mx-auto">
         {rideStatus === 'idle' || rideStatus === 'searching' || rideStatus === 'requested' ? (
           <RideRequestForm
-            onRideRequest={(rideId) => { // This onRideRequest is from the DriverListModal (legacy)
-              setRideStatus('searching');
-              toast({ title: 'Procurando Motorista...', description: 'Sua solicitação foi enviada.' });
-            }}
+            onRideRequest={onRideRequest}
             isSearching={rideStatus === 'searching' || rideStatus === 'requested'}
             anonymousUserName={user ? null : 'Anônimo'}
             origin={origin}
@@ -312,7 +315,7 @@ export default function PassengerDashboard() {
                         <div className="p-4 pt-0">
                            <Button 
                               className="w-full" 
-                              onClick={() => handleSelectDriver(driver)} 
+                              onClick={() => handleSelectDriver(driver, false)} 
                               disabled={!isAvailable}>
                                 <Send className="mr-2 h-4 w-4" /> Chamar
                             </Button>
@@ -332,6 +335,7 @@ export default function PassengerDashboard() {
                 origin={origin}
                 destination={destination}
                 onConfirm={onRideRequest}
+                isNegotiated={false} // This needs to be dynamic based on the context later
                 passengerAnonymousName={user ? null : "Passageiro Anônimo"}
             />
         )}
