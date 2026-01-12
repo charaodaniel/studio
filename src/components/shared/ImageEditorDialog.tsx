@@ -86,9 +86,7 @@ export function ImageEditorDialog({ isOpen, onImageSave, onDialogClose }: ImageE
     
     const handleSave = () => {
         if (image) {
-            toast({ title: 'Modo Protótipo', description: 'Em um aplicativo real, a imagem seria salva agora.' });
-            onDialogClose();
-            // onImageSave(image); // This would send the data to be saved
+            onImageSave(image);
         } else {
             toast({ variant: 'destructive', title: 'Nenhuma Imagem', description: 'Por favor, capture ou selecione uma imagem para salvar.'});
         }

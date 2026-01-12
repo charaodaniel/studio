@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,24 +13,35 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import pb from '@/lib/pocketbase';
 import type { User } from '../admin/UserList';
 import { Skeleton } from '../ui/skeleton';
 import { PassengerRideHistory } from './PassengerRideHistory';
 import { PassengerChatHistory } from './PassengerChatHistory';
-import type { RecordModel } from 'pocketbase';
+import { useAuth } from '@/hooks/useAuth';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
 
-const getAvatarUrl = (record: RecordModel, avatarFileName: string) => {
-    if (!record || !avatarFileName) return '';
-    return pb.getFileUrl(record, avatarFileName);
+interface DatabaseContent {
+  users: User[];
+  rides: any[];
+  documents: any[];
+  chats: any[];
+  messages: any[];
+  institutional_info: any;
+}
+
+
+const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    return avatarPath;
 };
 
 
 export function PassengerProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: authUser, setUser: setAuthUser, isLoading: isAuthLoading } = useAuth();
+  const { saveData } = useDatabaseManager<DatabaseContent>();
+
   const [isSaving, setIsSaving] = useState(false);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -39,17 +51,14 @@ export function PassengerProfilePage() {
 
 
   useEffect(() => {
-    const currentUser = pb.authStore.model as User | null;
-    if (currentUser) {
-        setUser(currentUser);
-    } else {
+    if (!isAuthLoading && !authUser) {
         router.push('/');
     }
-    setIsLoading(false);
-  }, [router]);
+  }, [authUser, isAuthLoading, router]);
 
   const handleLogout = () => {
-    pb.authStore.clear();
+    setAuthUser(null); // Local logout
+    localStorage.removeItem('ceolin-auth-user');
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
@@ -59,7 +68,7 @@ export function PassengerProfilePage() {
   
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!authUser) return;
     if (newPassword.length < 6) {
       toast({ variant: 'destructive', title: 'Senha muito curta', description: 'A senha deve ter no mínimo 6 caracteres.' });
       return;
@@ -71,45 +80,47 @@ export function PassengerProfilePage() {
 
     setIsSaving(true);
     try {
-      await pb.collection('users').update(user.id, {
-          password: newPassword,
-          passwordConfirm: confirmPassword,
+      await saveData(currentDb => {
+        const userIndex = currentDb.users.findIndex(u => u.id === authUser.id);
+        if (userIndex !== -1) {
+            currentDb.users[userIndex].password_placeholder = newPassword;
+        }
+        return currentDb;
       });
       toast({ title: 'Senha Alterada!', description: 'Sua senha foi atualizada com sucesso.' });
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      let description = 'Não foi possível alterar sua senha.';
-       if (error.status === 400) {
-          description = 'A senha atual pode estar incorreta ou a nova senha não atende aos requisitos.'
-       }
-      toast({ variant: 'destructive', title: 'Erro ao alterar senha', description });
+      toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: 'Não foi possível alterar sua senha.' });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleAvatarSave = async (newImageAsDataUrl: string) => {
-    if (!user) return;
+    if (!authUser) return;
 
     try {
-        const response = await fetch(newImageAsDataUrl);
-        const blob = await response.blob();
-        const file = new File([blob], "avatar.png", { type: blob.type });
+        await saveData(currentDb => {
+            const userIndex = currentDb.users.findIndex(u => u.id === authUser.id);
+            if (userIndex !== -1) {
+                currentDb.users[userIndex].avatar = newImageAsDataUrl;
+            }
+            return currentDb;
+        });
 
-        const formData = new FormData();
-        formData.append('avatar', file);
-
-        const updatedRecord = await pb.collection('users').update(user.id, formData);
-        setUser(updatedRecord as User);
+        const updatedUser = { ...authUser, avatar: newImageAsDataUrl };
+        setAuthUser(updatedUser);
+        
         toast({ title: 'Avatar atualizado com sucesso!' });
+        setIsCameraDialogOpen(false);
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Erro ao atualizar avatar.' });
     }
   }
   
-  if (isLoading || !user) {
+  if (isAuthLoading || !authUser) {
       return (
         <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
             <div className="flex flex-col items-center gap-4 py-8 bg-card">
@@ -126,7 +137,7 @@ export function PassengerProfilePage() {
       )
   }
 
-  const avatarUrl = user.avatar ? getAvatarUrl(user, user.avatar) : '';
+  const avatarUrl = authUser.avatar ? getAvatarUrl(authUser.avatar) : '';
 
   return (
     <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
@@ -136,7 +147,7 @@ export function PassengerProfilePage() {
                  <div className="relative group">
                     <Avatar className="h-24 w-24 cursor-pointer ring-4 ring-background">
                         <AvatarImage src={avatarUrl} data-ai-hint="person portrait" />
-                        <AvatarFallback>{user.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback>{authUser.name.substring(0,2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                         <Camera className="h-8 w-8 text-white" />
@@ -150,8 +161,8 @@ export function PassengerProfilePage() {
             />
         </Dialog>
         <div className="text-center">
-          <h2 className="font-headline text-2xl font-semibold">{user.name}</h2>
-          <p className="text-muted-foreground">{user.email}</p>
+          <h2 className="font-headline text-2xl font-semibold">{authUser.name}</h2>
+          <p className="text-muted-foreground">{authUser.email}</p>
         </div>
       </div>
 

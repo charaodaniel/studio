@@ -16,7 +16,6 @@ import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import type { User } from '../admin/UserList';
 import { useAuth } from '@/hooks/useAuth';
-import localDatabase from '@/database/banco.json';
 import { useDatabaseManager } from '@/hooks/use-database-manager';
 
 const getFileUrl = (filePath: string) => {
@@ -43,28 +42,49 @@ interface DatabaseContent {
 
 const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: string, docType: 'CNH' | 'CRLV' | 'VEHICLE_PHOTO', driverId: string, onUpdate: () => void }) => {
     const { toast } = useToast();
+    const { data: db, saveData } = useDatabaseManager<DatabaseContent>();
     const [document, setDocument] = useState<DocumentRecord | null>(null);
     const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const db = localDatabase as DatabaseContent;
-        const userDoc = db.documents.find(
-            d => d.driver === driverId && d.document_type === docType
-        );
-        setDocument(userDoc || null);
-    }, [driverId, docType, onUpdate]);
+        if (db?.documents) {
+            const userDoc = db.documents.find(
+                d => d.driver === driverId && d.document_type === docType
+            );
+            setDocument(userDoc || null);
+        }
+    }, [driverId, docType, db, onUpdate]);
 
     const handleFileSave = async (newImageAsDataUrl: string) => {
-        toast({ title: "Documento Salvo (Simulação)", description: "Seu documento foi salvo na interface." });
-        setDocument(prev => ({
-            ...prev,
-            id: prev?.id || `doc_${Date.now()}`,
-            driver: driverId,
-            document_type: docType,
-            file: newImageAsDataUrl,
-            is_verified: false
-        } as DocumentRecord));
-        onUpdate();
+        if (!db) return;
+        setIsSaving(true);
+        try {
+            await saveData(currentDb => {
+                const existingDocIndex = currentDb.documents.findIndex(d => d.driver === driverId && d.document_type === docType);
+                const newDoc: DocumentRecord = {
+                    id: document?.id || `doc_${Date.now()}`,
+                    driver: driverId,
+                    document_type: docType,
+                    file: newImageAsDataUrl,
+                    is_verified: false,
+                };
+                
+                if (existingDocIndex > -1) {
+                    currentDb.documents[existingDocIndex] = newDoc;
+                } else {
+                    currentDb.documents.push(newDoc);
+                }
+                return currentDb;
+            });
+            toast({ title: "Documento Salvo!", description: "Seu documento foi enviado para verificação." });
+            onUpdate();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao Salvar', description: 'Não foi possível salvar o documento.' });
+        } finally {
+            setIsSaving(false);
+            setIsCameraDialogOpen(false);
+        }
     }
     
     const docUrl = document ? getFileUrl(document.file) : null;
@@ -101,7 +121,7 @@ const DocumentUploader = ({ label, docType, driverId, onUpdate }: { label: strin
                     <DialogTrigger asChild>
                     <Button variant="outline" className="w-full">
                         <Camera className="mr-2" />
-                        Câmera ou Upload
+                        {docUrl ? 'Alterar Foto' : 'Câmera ou Upload'}
                     </Button>
                     </DialogTrigger>
                     <ImageEditorDialog 
