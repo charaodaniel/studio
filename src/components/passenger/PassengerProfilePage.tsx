@@ -39,7 +39,7 @@ const getAvatarUrl = (avatarPath: string) => {
 export function PassengerProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { user: authUser, setUser: setAuthUser, isLoading: isAuthLoading } = useAuth();
+  const { user: authUser, setUser: setAuthUser, isLoading: isAuthLoading, logout } = useAuth();
   const { saveData } = useDatabaseManager<DatabaseContent>();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -57,13 +57,11 @@ export function PassengerProfilePage() {
   }, [authUser, isAuthLoading, router]);
 
   const handleLogout = () => {
-    setAuthUser(null); // Local logout
-    localStorage.removeItem('ceolin-auth-user');
+    logout();
     toast({
       title: 'Logout Realizado',
       description: 'Você foi desconectado com sucesso.',
     });
-    router.push('/');
   };
   
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -101,15 +99,15 @@ export function PassengerProfilePage() {
     if (!authUser) return;
 
     try {
+        const updatedUser = { ...authUser, avatar: newImageAsDataUrl };
         await saveData(currentDb => {
             const userIndex = currentDb.users.findIndex(u => u.id === authUser.id);
             if (userIndex !== -1) {
-                currentDb.users[userIndex].avatar = newImageAsDataUrl;
+                currentDb.users[userIndex] = updatedUser;
             }
             return currentDb;
         });
 
-        const updatedUser = { ...authUser, avatar: newImageAsDataUrl };
         setAuthUser(updatedUser);
         
         toast({ title: 'Avatar atualizado com sucesso!' });

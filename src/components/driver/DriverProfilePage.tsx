@@ -16,8 +16,18 @@ import { ImageEditorDialog } from '../shared/ImageEditorDialog';
 import { DriverChatHistory } from './DriverChatHistory';
 import { Skeleton } from '../ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import localDatabase from '@/database/banco.json';
-import { type User } from '../admin/UserList';
+import type { User } from '../admin/UserList';
+import { useDatabaseManager } from '@/hooks/use-database-manager';
+
+interface DatabaseContent {
+  users: User[];
+  rides: RideRecord[];
+  documents: any[];
+  chats: any[];
+  messages: any[];
+  institutional_info: any;
+}
+
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -27,37 +37,53 @@ const getAvatarUrl = (avatarPath: string) => {
 export function DriverProfilePage() {
   const { toast } = useToast();
   const { user, setUser, isLoading: isAuthLoading } = useAuth();
+  const { data: db, saveData, isLoading: isDbLoading } = useDatabaseManager<DatabaseContent>();
+
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [completedRidesCount, setCompletedRidesCount] = useState<number | null>(null);
   const [activeManualRide, setActiveManualRide] = useState<RideRecord | null>(null);
   const [activeTab, setActiveTab] = useState("requests");
   
   useEffect(() => {
-    if (user && localDatabase && localDatabase.rides) {
-        const userRides = localDatabase.rides.filter(
+    if (user && db?.rides) {
+        const userRides = db.rides.filter(
             ride => ride.driver === user.id && ride.status === "completed"
         );
         setCompletedRidesCount(userRides.length);
     } else {
         setCompletedRidesCount(0);
     }
-  }, [user]);
+  }, [user, db]);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!user) return;
     
     const updatedUser = { ...user, driver_status: newStatus };
-    setUser(updatedUser as User);
-
-    toast({
-      title: 'Status Atualizado (Simulação)',
-      description: `Seu status foi alterado para ${
-        newStatus === 'online' ? 'Online' 
-        : newStatus === 'offline' ? 'Offline' 
-        : newStatus === 'urban-trip' ? 'Em Viagem (Urbano)' 
-        : 'Em Viagem (Interior/Intermunicipal)'
-      }.`,
-    });
+    
+    try {
+      await saveData((currentData) => {
+        const userIndex = currentData.users.findIndex(u => u.id === user.id);
+        if (userIndex !== -1) {
+            currentData.users[userIndex] = updatedUser;
+        }
+        return currentData;
+      });
+      setUser(updatedUser as User);
+      toast({
+        title: 'Status Atualizado!',
+        description: `Seu status foi alterado para ${
+          newStatus === 'online' ? 'Online' 
+          : newStatus === 'offline' ? 'Offline' 
+          : newStatus === 'urban-trip' ? 'Em Viagem (Urbano)' 
+          : 'Em Viagem (Interior/Intermunicipal)'
+        }.`,
+      });
+    } catch(e) {
+       toast({
+        title: 'Erro ao atualizar status',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleManualRideStarted = (ride: RideRecord) => {
@@ -71,17 +97,32 @@ export function DriverProfilePage() {
     handleStatusChange('online');
   }
 
-  const handleAvatarSave = (newImageAsDataUrl: string) => {
+  const handleAvatarSave = async (newImageAsDataUrl: string) => {
     if (!user) return;
+    
     const updatedUser = { ...user, avatar: newImageAsDataUrl };
-    setUser(updatedUser as User);
-    toast({ title: 'Avatar atualizado (Simulação)', description: 'Sua foto de perfil foi atualizada na interface.' });
+    
+    try {
+      await saveData((currentData) => {
+        const userIndex = currentData.users.findIndex(u => u.id === user.id);
+        if (userIndex !== -1) {
+            currentData.users[userIndex] = updatedUser;
+        }
+        return currentData;
+      });
+
+      setUser(updatedUser as User);
+      toast({ title: 'Avatar atualizado!', description: 'Sua foto de perfil foi salva.' });
+      setIsCameraDialogOpen(false);
+    } catch (e) {
+       toast({ variant: 'destructive', title: 'Erro ao salvar avatar.'});
+    }
   }
 
   const avatarUrl = user?.avatar ? getAvatarUrl(user.avatar) : `https://placehold.co/128x128.png?text=${user?.name?.substring(0, 2).toUpperCase() || 'CM'}`;
 
 
-  if (isAuthLoading || !user) {
+  if (isAuthLoading || isDbLoading || !user) {
     return (
         <div className="flex flex-col bg-muted/40 min-h-[calc(100vh-4rem)]">
             <div className="flex flex-col items-center gap-4 py-8 bg-card">
