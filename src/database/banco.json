@@ -28,7 +28,7 @@
       "driver_vehicle_plate": "JCK-0001",
       "driver_cnpj": "",
       "driver_pix_key": "",
-      "driver_fare_type": "km",
+      "driver_fare_type": "fixed",
       "driver_km_rate": 3.5,
       "driver_accepts_rural": true,
       "disabled": false,
