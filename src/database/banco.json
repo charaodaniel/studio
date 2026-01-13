@@ -33,6 +33,21 @@
       "driver_accepts_rural": true,
       "disabled": false,
       "driver_fixed_rate": 10
+    },
+    {
+      "id": "usr_local_1768328276955",
+      "collectionId": "_pb_users_auth_",
+      "collectionName": "users",
+      "created": "2026-01-13T18:17:56.955Z",
+      "updated": "2026-01-13T18:17:56.955Z",
+      "name": "Daniel Machado",
+      "email": "danielcharaomachado@hotmail.com",
+      "phone": "55996393353",
+      "role": [
+        "Passageiro"
+      ],
+      "avatar": "",
+      "password_placeholder": "123456789"
     }
   ],
   "rides": [
