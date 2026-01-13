@@ -55,7 +55,7 @@
     {
       "id": "ride_local_1768262500940",
       "driver": "usr_local_1768091420000",
-      "status": "accepted",
+      "status": "canceled",
       "started_by": "driver",
       "origin_address": "Corrida Rápida",
       "destination_address": "A definir",
