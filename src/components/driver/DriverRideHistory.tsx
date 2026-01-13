@@ -368,12 +368,12 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
             return;
         }
         
-        let fare = 0;
+        let fare = currentUser.driver_fixed_rate || 0;
         let status: 'in_progress' | 'accepted' = 'in_progress';
-        
-        if (currentUser.driver_fare_type === 'fixed' && currentUser.driver_fixed_rate) {
-            fare = currentUser.driver_fixed_rate;
-        } else if (currentUser.driver_fare_type === 'km' && currentUser.driver_km_rate) {
+
+        // If the driver uses per-km rate, we can't pre-calculate fare.
+        // We set it to 'accepted' so the driver can manage it, but the fare is TBD.
+        if (currentUser.driver_fare_type === 'km' && !fare) {
             status = 'accepted';
         }
 
