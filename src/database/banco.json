@@ -130,6 +130,22 @@
       "passenger": null,
       "collectionId": "b1wtu7ah1l75gen",
       "collectionName": "rides"
+    },
+    {
+      "id": "ride_local_1768329244160",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides",
+      "created": "2026-01-13T18:34:04.160Z",
+      "updated": "2026-01-13T18:34:04.160Z",
+      "passenger": "usr_local_1768328276955",
+      "driver": "usr_local_1768091420000",
+      "origin_address": "casa",
+      "destination_address": "corsan",
+      "status": "requested",
+      "fare": 14,
+      "is_negotiated": false,
+      "started_by": "passenger",
+      "passenger_anonymous_name": null
     }
   ],
   "documents": [],
