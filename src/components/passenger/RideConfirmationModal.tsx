@@ -35,8 +35,7 @@ export default function RideConfirmationModal({
     
     useEffect(() => {
         if (isOpen && !isNegotiated) {
-            // Simula cálculo de distância para a tarifa
-            const randomDistance = Math.floor(Math.random() * 10) + 2; // Distância aleatória entre 2 e 12 km
+            const randomDistance = Math.floor(Math.random() * 10) + 2;
             setDistance(randomDistance);
 
             let fare = 0;
