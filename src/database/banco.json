@@ -141,7 +141,7 @@
       "driver": "usr_local_1768091420000",
       "origin_address": "casa",
       "destination_address": "corsan",
-      "status": "requested",
+      "status": "canceled",
       "fare": 14,
       "is_negotiated": false,
       "started_by": "passenger",
