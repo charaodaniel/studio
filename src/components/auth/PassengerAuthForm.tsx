@@ -134,7 +134,17 @@ export default function PassengerAuthForm() {
   
   const handleRedirectToProfile = () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    router.push('/passenger');
+    if (!user) return;
+
+    if (user.role.includes('Admin')) {
+        router.push('/admin');
+    } else if (user.role.includes('Motorista')) {
+        router.push('/driver');
+    } else if (user.role.includes('Atendente')) {
+        router.push('/operator');
+    } else {
+        router.push('/passenger');
+    }
   }
 
   if (isAuthLoading) {
