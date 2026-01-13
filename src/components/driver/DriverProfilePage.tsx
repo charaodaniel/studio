@@ -28,6 +28,7 @@ interface DatabaseContent {
   institutional_info: any;
 }
 
+type DriverStatus = 'online' | 'offline' | 'urban-trip' | 'rural-trip';
 
 const getAvatarUrl = (avatarPath: string) => {
     if (!avatarPath) return '';
@@ -55,7 +56,7 @@ export function DriverProfilePage() {
     }
   }, [user, db]);
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: DriverStatus) => {
     if (!user) return;
     
     const updatedUser = { ...user, driver_status: newStatus };
@@ -64,7 +65,7 @@ export function DriverProfilePage() {
       await saveData((currentData) => {
         const userIndex = currentData.users.findIndex(u => u.id === user.id);
         if (userIndex !== -1) {
-            currentData.users[userIndex] = updatedUser;
+            currentData.users[userIndex] = updatedUser as User;
         }
         return currentData;
       });
@@ -106,7 +107,7 @@ export function DriverProfilePage() {
       await saveData((currentData) => {
         const userIndex = currentData.users.findIndex(u => u.id === user.id);
         if (userIndex !== -1) {
-            currentData.users[userIndex] = updatedUser;
+            currentData.users[userIndex] = updatedUser as User;
         }
         return currentData;
       });
@@ -172,7 +173,7 @@ export function DriverProfilePage() {
         </div>
         <div className="w-48">
           <Label htmlFor="driver-status" className="sr-only">Status</Label>
-          <Select value={user.driver_status} onValueChange={handleStatusChange}>
+          <Select value={user.driver_status} onValueChange={(value) => handleStatusChange(value as DriverStatus)}>
             <SelectTrigger id="driver-status">
               <SelectValue placeholder="Selecione o status" />
             </SelectTrigger>
@@ -196,7 +197,7 @@ export function DriverProfilePage() {
         <div className="p-4 md:p-6 lg:p-8">
             <TabsContent value="requests">
                 <RideRequests 
-                    setDriverStatus={handleStatusChange} 
+                    setDriverStatus={(status) => handleStatusChange(status as DriverStatus)} 
                     manualRideOverride={activeManualRide}
                     onManualRideEnd={handleManualRideEnded}
                 />
@@ -205,7 +206,7 @@ export function DriverProfilePage() {
                 <DriverChatHistory />
             </TabsContent>
             <TabsContent value="history">
-                <DriverRideHistory onManualRideStart={handleManualRideStarted} setDriverStatus={handleStatusChange} />
+                <DriverRideHistory onManualRideStart={handleManualRideStarted} setDriverStatus={(status) => handleStatusChange(status as DriverStatus)} />
             </TabsContent>
             <TabsContent value="profile">
                 {user && <ProfileForm user={user} onUpdate={setUser} />}
