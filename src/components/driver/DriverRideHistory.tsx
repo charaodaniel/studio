@@ -140,15 +140,23 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
             fetchRides();
         }
     }, [db, fetchRides]);
-
-    const fetchAllRides = async (): Promise<RideRecord[]> => {
-        if (!currentUser || !db) return [];
-        return db.rides.filter(r => r.driver === currentUser.id);
-    };
     
     const handleGenerateReport = async (type: 'pdf' | 'csv', dateRange: DateRange, isCompleteReport: boolean) => {
-        if (!currentUser) return;
-        const ridesToExport = isCompleteReport ? await fetchAllRides() : rides;
+        if (!currentUser || !db) return;
+
+        let ridesToExport: RideRecord[] = [];
+
+        if (isCompleteReport) {
+            ridesToExport = db.rides.filter(r => r.driver === currentUser.id);
+        } else if (dateRange?.from && dateRange?.to) {
+            const startDate = dateRange.from.getTime();
+            const endDate = endOfDay(dateRange.to).getTime();
+            ridesToExport = db.rides.filter(ride => {
+                const rideDate = new Date(ride.created).getTime();
+                return ride.driver === currentUser.id && rideDate >= startDate && rideDate <= endDate;
+            });
+        }
+
 
         if (ridesToExport.length === 0) {
             toast({ title: "Nenhuma corrida encontrada", description: "Não há corridas neste período para gerar um relatório." });
@@ -698,3 +706,4 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
     </>
   );
 }
+
