@@ -278,6 +278,16 @@ export function DriverRideHistory({ onManualRideStart, setDriverStatus }: Driver
                 2: { halign: 'right' } 
             },
         });
+        
+        finalY = (doc as any).lastAutoTable.finalY;
+
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(
+            "Nota: Valores para um mesmo destino podem variar devido a serviços extras (tempo de espera, múltiplas paradas) ou tempo de viagem.",
+            14,
+            finalY + 10
+        );
 
         doc.save("relatorio_corridas_ceolin.pdf");
     };
