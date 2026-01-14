@@ -28,7 +28,7 @@
       "driver_vehicle_plate": "JCK-0001",
       "driver_cnpj": "",
       "driver_pix_key": "",
-      "driver_fare_type": "fixed",
+      "driver_fare_type": "km",
       "driver_km_rate": 3.5,
       "driver_accepts_rural": true,
       "driver_fixed_rate": 10
@@ -62,7 +62,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-04T19:27:00.000Z",
-      "updated": "2025-12-04T19:27:00.000Z"
+      "updated": "2025-12-04T19:27:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733527260000",
@@ -76,7 +78,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-06T18:41:00.000Z",
-      "updated": "2025-12-06T18:41:00.000Z"
+      "updated": "2025-12-06T18:41:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733804820000",
@@ -90,7 +94,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-09T21:47:00.000Z",
-      "updated": "2025-12-09T21:47:00.000Z"
+      "updated": "2025-12-09T21:47:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734007800000",
@@ -104,7 +110,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-12T05:30:00.000Z",
-      "updated": "2025-12-12T05:30:00.000Z"
+      "updated": "2025-12-12T05:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734279000000",
@@ -118,7 +126,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-15T08:10:00.000Z",
-      "updated": "2025-12-15T08:10:00.000Z"
+      "updated": "2025-12-15T08:10:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734533400000",
@@ -132,7 +142,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-18T06:50:00.000Z",
-      "updated": "2025-12-18T06:50:00.000Z"
+      "updated": "2025-12-18T06:50:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734812160000",
@@ -146,7 +158,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-21T14:56:00.000Z",
-      "updated": "2025-12-21T14:56:00.000Z"
+      "updated": "2025-12-21T14:56:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735105200000",
@@ -160,7 +174,9 @@
       "started_by": "driver",
       "is_negotiated": true,
       "created": "2025-12-24T19:00:00.000Z",
-      "updated": "2025-12-24T19:00:00.000Z"
+      "updated": "2025-12-24T19:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735231200000",
@@ -174,7 +190,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-05T14:00:00.000Z",
-      "updated": "2025-12-05T14:00:00.000Z"
+      "updated": "2025-12-05T14:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733471400000",
@@ -188,7 +206,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-05T15:50:00.000Z",
-      "updated": "2025-12-05T15:50:00.000Z"
+      "updated": "2025-12-05T15:50:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733560200000",
@@ -202,7 +222,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-07T03:10:00.000Z",
-      "updated": "2025-12-07T03:10:00.000Z"
+      "updated": "2025-12-07T03:10:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733610000000",
@@ -216,7 +238,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-07T17:00:00.000Z",
-      "updated": "2025-12-07T17:00:00.000Z"
+      "updated": "2025-12-07T17:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733732400000",
@@ -230,7 +254,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-09T03:00:00.000Z",
-      "updated": "2025-12-09T03:00:00.000Z"
+      "updated": "2025-12-09T03:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733814600000",
@@ -244,7 +270,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-10T00:30:00.000Z",
-      "updated": "2025-12-10T00:30:00.000Z"
+      "updated": "2025-12-10T00:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733910600000",
@@ -258,7 +286,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-11T04:30:00.000Z",
-      "updated": "2025-12-11T04:30:00.000Z"
+      "updated": "2025-12-11T04:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1733989200000",
@@ -272,7 +302,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-12T00:00:00.000Z",
-      "updated": "2025-12-12T00:00:00.000Z"
+      "updated": "2025-12-12T00:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734088800000",
@@ -286,7 +318,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-13T03:20:00.000Z",
-      "updated": "2025-12-13T03:20:00.000Z"
+      "updated": "2025-12-13T03:20:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734139800000",
@@ -300,7 +334,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-13T17:30:00.000Z",
-      "updated": "2025-12-13T17:30:00.000Z"
+      "updated": "2025-12-13T17:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734237600000",
@@ -314,7 +350,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-14T20:40:00.000Z",
-      "updated": "2025-12-14T20:40:00.000Z"
+      "updated": "2025-12-14T20:40:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734298200000",
@@ -328,7 +366,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-15T13:30:00.000Z",
-      "updated": "2025-12-15T13:30:00.000Z"
+      "updated": "2025-12-15T13:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734415800000",
@@ -342,7 +382,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-17T01:30:00.000Z",
-      "updated": "2025-12-17T01:30:00.000Z"
+      "updated": "2025-12-17T01:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734483600000",
@@ -356,7 +398,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-17T20:20:00.000Z",
-      "updated": "2025-12-17T20:20:00.000Z"
+      "updated": "2025-12-17T20:20:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734612600000",
@@ -370,7 +414,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-19T02:10:00.000Z",
-      "updated": "2025-12-19T02:10:00.000Z"
+      "updated": "2025-12-19T02:10:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734685800000",
@@ -384,7 +430,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-19T22:30:00.000Z",
-      "updated": "2025-12-19T22:30:00.000Z"
+      "updated": "2025-12-19T22:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734771600000",
@@ -398,7 +446,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-20T22:20:00.000Z",
-      "updated": "2025-12-20T22:20:00.000Z"
+      "updated": "2025-12-20T22:20:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734914400000",
@@ -412,7 +462,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-22T14:00:00.000Z",
-      "updated": "2025-12-22T14:00:00.000Z"
+      "updated": "2025-12-22T14:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1734969000000",
@@ -426,7 +478,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-23T05:10:00.000Z",
-      "updated": "2025-12-23T05:10:00.000Z"
+      "updated": "2025-12-23T05:10:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735057200000",
@@ -440,7 +494,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-24T05:40:00.000Z",
-      "updated": "2025-12-24T05:40:00.000Z"
+      "updated": "2025-12-24T05:40:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735165800000",
@@ -454,7 +510,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-25T09:10:00.000Z",
-      "updated": "2025-12-25T09:10:00.000Z"
+      "updated": "2025-12-25T09:10:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735251000000",
@@ -468,7 +526,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-26T00:50:00.000Z",
-      "updated": "2025-12-26T00:50:00.000Z"
+      "updated": "2025-12-26T00:50:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735345200000",
@@ -482,7 +542,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-27T03:00:00.000Z",
-      "updated": "2025-12-27T03:00:00.000Z"
+      "updated": "2025-12-27T03:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735411800000",
@@ -496,7 +558,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-27T21:30:00.000Z",
-      "updated": "2025-12-27T21:30:00.000Z"
+      "updated": "2025-12-27T21:30:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735473600000",
@@ -510,7 +574,9 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-28T14:40:00.000Z",
-      "updated": "2025-12-28T14:40:00.000Z"
+      "updated": "2025-12-28T14:40:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     },
     {
       "id": "ride_manual_1735626000000",
@@ -524,7 +590,24 @@
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2025-12-30T09:00:00.000Z",
-      "updated": "2025-12-30T09:00:00.000Z"
+      "updated": "2025-12-30T09:00:00.000Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
+    },
+    {
+      "id": "ride_local_1769614532663",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides",
+      "created": "2026-02-01T20:55:32.663Z",
+      "updated": "2026-02-01T20:55:32.663Z",
+      "passenger": "usr_local_1768328276955",
+      "driver": "usr_local_1768091420000",
+      "origin_address": "Centro, Manoel Viana",
+      "destination_address": "Santiago",
+      "status": "completed",
+      "fare": 250,
+      "is_negotiated": false,
+      "started_by": "passenger"
     }
   ],
   "documents": [],

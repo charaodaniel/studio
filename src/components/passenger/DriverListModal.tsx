@@ -16,7 +16,13 @@ import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import RideConfirmationModal from './RideConfirmationModal';
 import localData from '@/database/banco.json';
-import type { RideRecord } from '../driver/RideRequests';
+import type { RideRecord as BaseRideRecord } from '../driver/RideRequests';
+
+// Make properties from RecordModel optional for local data
+interface RideRecord extends Omit<BaseRideRecord, 'collectionId' | 'collectionName'> {
+    collectionId?: string;
+    collectionName?: string;
+}
 
 interface DocumentRecord {
     id: string;
