@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -54,7 +55,8 @@ export default function ReportFilterModal({ isOpen, onOpenChange, onGenerateRepo
         if (activeTab === 'month') {
             const [year, month] = selectedMonth.split('-').map(Number);
             const startDate = startOfMonth(new Date(year, month - 1));
-            const endDate = endOfMonth(new Date(year, month - 1));
+            // Correctly set the end date to the end of the day to include all rides.
+            const endDate = endOfDay(endOfMonth(new Date(year, month - 1)));
             finalDateRange = { from: startDate, to: endDate };
         } else if (date?.from && date?.to) {
              // Ensure the 'to' date includes the entire day
