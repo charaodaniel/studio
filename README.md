@@ -54,12 +54,12 @@ Para que o sistema de edição de conteúdo via GitHub funcione, você precisa c
     *   Selecione o escopo (permissão) `repo`.
     *   Clique em **"Generate token"** e copie o token gerado (ex: `ghp_...`).
 
-2.  **Crie o Arquivo `.env.local`:**
-    *   Na raiz do seu projeto, crie um arquivo chamado `.env.local`.
+2.  **Preencha o Arquivo `.env`:**
+    *   Na raiz do seu projeto, edite o arquivo chamado `.env`.
     *   Adicione as seguintes variáveis, substituindo pelos seus próprios valores:
 
     ```bash
-    # .env.local
+    # .env
 
     # Token de acesso pessoal do GitHub que você acabou de criar
     GITHUB_TOKEN="ghp_seu_token_aqui"
@@ -71,7 +71,7 @@ Para que o sistema de edição de conteúdo via GitHub funcione, você precisa c
     GITHUB_REPO_NAME="nome-do-repositorio"
     ```
 
-> **Nota de Segurança:** O arquivo `.env.local` é ignorado pelo Git, mantendo seu token seguro. Ao fazer o deploy para produção (ex: Vercel), você precisará configurar essas mesmas variáveis de ambiente nas configurações do seu projeto na plataforma de hospedagem.
+> **Nota de Segurança:** O arquivo `.env` geralmente é ignorado pelo Git, mantendo seu token seguro. Ao fazer o deploy para produção (ex: Vercel), você precisará configurar essas mesmas variáveis de ambiente nas configurações do seu projeto na plataforma de hospedagem.
 
 ### 5. Execute o Projeto
 
