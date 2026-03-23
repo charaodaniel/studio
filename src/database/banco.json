@@ -697,7 +697,7 @@
       "origin_address": "Mv",
       "destination_address": "Alegrete",
       "fare": 150,
-      "status": "accepted",
+      "status": "in_progress",
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2026-03-23T17:35:44.587Z",
