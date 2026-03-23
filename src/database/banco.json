@@ -688,6 +688,22 @@
       "passenger": null,
       "collectionId": "b1wtu7ah1l75gen",
       "collectionName": "rides"
+    },
+    {
+      "id": "ride_local_1774287344587",
+      "driver": "usr_local_1768091420000",
+      "passenger": null,
+      "passenger_anonymous_name": "Joao",
+      "origin_address": "Mv",
+      "destination_address": "Alegrete",
+      "fare": 150,
+      "status": "accepted",
+      "started_by": "driver",
+      "is_negotiated": false,
+      "created": "2026-03-23T17:35:44.587Z",
+      "updated": "2026-03-23T17:35:44.587Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     }
   ],
   "documents": [],
