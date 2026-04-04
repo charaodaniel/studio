@@ -761,7 +761,7 @@
       "origin_address": "José Maria Machado 1335 mv",
       "destination_address": "Alegrete",
       "fare": 150,
-      "status": "accepted",
+      "status": "in_progress",
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2026-04-04T18:51:27.402Z",
