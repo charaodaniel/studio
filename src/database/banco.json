@@ -768,6 +768,22 @@
       "updated": "2026-04-04T18:51:27.402Z",
       "collectionId": "b1wtu7ah1l75gen",
       "collectionName": "rides"
+    },
+    {
+      "id": "ride_local_1778279455974",
+      "driver": "usr_local_1768091420000",
+      "status": "in_progress",
+      "started_by": "driver",
+      "origin_address": "Corrida Rápida",
+      "destination_address": "A definir",
+      "fare": 10,
+      "is_negotiated": false,
+      "passenger_anonymous_name": "Passageiro (Rápida)",
+      "created": "2026-05-08T22:30:55.974Z",
+      "updated": "2026-05-08T22:30:55.974Z",
+      "passenger": null,
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     }
   ],
   "documents": [],
