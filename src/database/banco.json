@@ -836,7 +836,7 @@
     {
       "id": "ride_local_1788053794219",
       "driver": "usr_local_1768091420000",
-      "status": "in_progress",
+      "status": "completed",
       "started_by": "driver",
       "origin_address": "Corrida Rápida",
       "destination_address": "A definir",
