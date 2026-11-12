@@ -937,7 +937,7 @@
       "origin_address": "Benício gareski 1230",
       "destination_address": "Alegret",
       "fare": 100,
-      "status": "accepted",
+      "status": "in_progress",
       "started_by": "driver",
       "is_negotiated": false,
       "created": "2026-11-12T18:18:52.569Z",
