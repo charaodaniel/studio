@@ -928,6 +928,22 @@
       "passenger": null,
       "collectionId": "b1wtu7ah1l75gen",
       "collectionName": "rides"
+    },
+    {
+      "id": "ride_local_1794507532569",
+      "driver": "usr_local_1768091420000",
+      "passenger": null,
+      "passenger_anonymous_name": "Joao",
+      "origin_address": "Benício gareski 1230",
+      "destination_address": "Alegret",
+      "fare": 100,
+      "status": "accepted",
+      "started_by": "driver",
+      "is_negotiated": false,
+      "created": "2026-11-12T18:18:52.569Z",
+      "updated": "2026-11-12T18:18:52.569Z",
+      "collectionId": "b1wtu7ah1l75gen",
+      "collectionName": "rides"
     }
   ],
   "documents": [],
